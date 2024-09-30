@@ -1,0 +1,16 @@
+{
+  "name": "cisene/bookmecal",
+  "minimum-stability": "dev",
+  "authors": [
+    {
+      "email": "christopher.isene@gmail.com",
+      "name": "Christopher Isene"
+    }
+  ],
+  "repositories": [],
+  "extra": {},
+  "require": {},
+  "require-dev": {
+    "phpmd/phpmd" : "@stable"
+  }
+}
