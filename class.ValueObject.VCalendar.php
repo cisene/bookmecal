@@ -31,13 +31,17 @@ class vcalObject {
   public string $xwrcalname                 = 'calname';
   public string $xwrcaldesc                 = 'caldesc';
 
-  public function __destruct () {}
+  public function __destruct () {
 
-  public function __construct () {}
+  }
 
-  public function asVCal () {}
+  public function __construct () {
 
+  }
 
+  public function asVCal () {
+
+  }
 
 }
 
@@ -79,10 +83,16 @@ class veventObject {
   public string $categories   = '';
   public string $attach       = '';
 
-  public function __destruct () {}
+  public function __destruct () {
+    
+  }
 
-  public function __construct () {}
+  public function __construct () {
 
-  public function asVEvent () {}
+  }
+
+  public function asVEvent () {
+
+  }
 
 }
