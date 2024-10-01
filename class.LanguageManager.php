@@ -4,9 +4,11 @@
 
 class LanguageManager {
 
-  public function __destruct () {}
+  public function __destruct () {
+    
+  }
 
-  public function __construct ($config) {
+  public function __construct ( $config ) {
     if (session_status() !== PHP_SESSION_ACTIVE) {
       session_start();
     }
