@@ -31,15 +31,24 @@ class vcalObject {
   public string $xwrcalname                 = 'calname';
   public string $xwrcaldesc                 = 'caldesc';
 
-  public function __destruct () {
+    /**
+     *
+     */
+    public function __destruct () {
 
   }
 
-  public function __construct () {
+    /**
+     *
+     */
+    public function __construct () {
 
   }
 
-  public function asVCal () {
+    /**
+     * @return void
+     */
+    public function asVCal () {
 
   }
 
@@ -83,15 +92,24 @@ class veventObject {
   public string $categories   = '';
   public string $attach       = '';
 
-  public function __destruct () {
+    /**
+     *
+     */
+    public function __destruct () {
     
   }
 
-  public function __construct () {
+    /**
+     *
+     */
+    public function __construct () {
 
   }
 
-  public function asVEvent () {
+    /**
+     * @return void
+     */
+    public function asVEvent () {
 
   }
 
