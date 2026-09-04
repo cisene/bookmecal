@@ -1,37 +1,32 @@
 <?php
-// booking.php - Interactive JS-Driven Booking System
+// booking.php - Clean UI Component with isolated DB calls & error feedback
+
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/i18n.php';
+require_once __DIR__ . '/gcal_helper.php';
 
-// 1. Fetch active treatment services for the selector
-$servicesStmt = $pdo->query("SELECT id, name, price, duration_minutes FROM services ORDER BY name ASC");
-$services = $servicesStmt->fetchAll(PDO::FETCH_ASSOC);
-
-// 2. Fetch existing bookings for the next 28 days to mark slots as taken
+// Date range calculation (4 weeks ahead)
 $startDate = new DateTime('today');
 $endDate   = (clone $startDate)->modify('+28 days');
 
-$bookingsStmt = $pdo->prepare("
-    SELECT start_datetime 
-    FROM booking_requests 
-    WHERE appointment_status IN ('approved', 'scheduled') 
-      AND start_datetime BETWEEN ? AND ?
-");
-$bookingsStmt->execute([$startDate->format('Y-m-d 00:00:00'), $endDate->format('Y-m-d 23:59:59')]);
-$existingBookings = $bookingsStmt->fetchAll(PDO::FETCH_COLUMN);
+// 1. Fetch data through DB abstraction layer in db.php
+$services   = getActiveServices($pdo);
+$dbBookings = getBookedSlotsInRange($pdo, $startDate, $endDate);
 
-// Quick lookup array: ['YYYY-MM-DD HH:MM' => true]
-$bookedLookup = [];
-foreach ($existingBookings as $dt) {
-    $bookedLookup[(new DateTime($dt))->format('Y-m-d H:i')] = true;
-}
+// Convert DB dates to timestamps
+$dbBusyTimestamps = array_map(function($dt) {
+    return (new DateTime($dt))->getTimestamp();
+}, $dbBookings);
 
-// Slot Schedule Configuration
-$openingHour   = 8;   // 08:00
-$closingHour   = 17;  // 17:00
-$slotDuration  = 30;  // 30 min increments
+// 2. Fetch external Google Calendar busy intervals
+$gcalBusySlots = getGoogleCalendarBusySlots($startDate, $endDate);
+
+// Schedule Configuration
+$openingHour   = 8;
+$closingHour   = 17;
+$slotDuration  = 30;
 $lunchStart    = '12:00';
-$lunchDuration = 30;  // 30 mins lunch
+$lunchDuration = 30;
 
 function isLunchSlot(DateTime $slotStart, string $lunchStartStr, int $lunchDurationMin): bool {
     $lunchStart = DateTime::createFromFormat('H:i', $lunchStartStr);
@@ -42,9 +37,42 @@ function isLunchSlot(DateTime $slotStart, string $lunchStartStr, int $lunchDurat
 
     return ($slotStart < $lunchEnd && $slotEnd > $lunchStart);
 }
+
+function isSlotUnavailable(DateTime $slotStart, int $durationMinutes, array $dbTimestamps, array $gcalBusySlots): bool {
+    $slotStartTS = $slotStart->getTimestamp();
+    $slotEndTS   = $slotStartTS + ($durationMinutes * 60);
+
+    if (in_array($slotStartTS, $dbTimestamps, true)) {
+        return true;
+    }
+
+    foreach ($gcalBusySlots as $busy) {
+        if ($slotStartTS < $busy['end'] && $slotEndTS > $busy['start']) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Retrieve any flash error messages or previous input from session
+$bookingErrors = $_SESSION['booking_errors'] ?? [];
+$formData      = $_SESSION['form_data'] ?? [];
+unset($_SESSION['booking_errors'], $_SESSION['form_data']);
 ?>
 
 <link rel="stylesheet" href="booking_modal.css">
+
+<!-- Validation Error Banner -->
+<?php if (!empty($bookingErrors)): ?>
+    <div class="error-banner">
+        <ul>
+            <?php foreach ($bookingErrors as $error): ?>
+                <li><?= htmlspecialchars($error) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
 
 <div class="calendar-container">
     <?php for ($w = 0; $w < 4; $w++): 
@@ -74,18 +102,18 @@ function isLunchSlot(DateTime $slotStart, string $lunchStartStr, int $lunchDurat
                             $dayEnd = (clone $currentDay)->setTime($closingHour, 0);
 
                             while ($slot < $dayEnd):
-                                $timeKey     = $slot->format('Y-m-d H:i');
-                                $timeDisplay = $slot->format('H:i');
-                                $isBooked    = isset($bookedLookup[$timeKey]);
-                                $isLunch     = isLunchSlot($slot, $lunchStart, $lunchDuration);
+                                $timeKey       = $slot->format('Y-m-d H:i');
+                                $timeDisplay   = $slot->format('H:i');
+                                $isLunch       = isLunchSlot($slot, $lunchStart, $lunchDuration);
+                                $isUnavailable = isSlotUnavailable($slot, $slotDuration, $dbBusyTimestamps, $gcalBusySlots);
 
                                 if ($isLunch): ?>
                                     <div class="slot slot-blocked slot-lunch" title="Lunchpaus">
                                         <span><?= $timeDisplay ?></span>
                                         <small>Lunch</small>
                                     </div>
-                                <?php elseif ($isBooked): ?>
-                                    <div class="slot slot-blocked slot-booked" title="Bokad">
+                                <?php elseif ($isUnavailable): ?>
+                                    <div class="slot slot-blocked" title="Ej valbar">
                                         <span><?= $timeDisplay ?></span>
                                         <small>Bokad</small>
                                     </div>
@@ -111,20 +139,20 @@ function isLunchSlot(DateTime $slotStart, string $lunchStartStr, int $lunchDurat
     <?php endfor; ?>
 </div>
 
-<!-- Modal Dialog for Booking Form -->
+<!-- Modal Form -->
 <div id="bookingModal" class="modal-backdrop" style="display: none;">
     <div class="modal-card">
         <button type="button" class="modal-close" id="closeModalBtn">&times;</button>
-        
         <h2><?= htmlspecialchars(__t('heading')) ?></h2>
         
-        <!-- Slot Confirmation Banner -->
         <div class="selected-time-banner">
             <span id="displaySelectedDate"></span> kl. <strong id="displaySelectedTime"></strong>
         </div>
 
         <form id="bookingForm" action="submit_booking.php" method="POST">
-            <!-- Hidden timestamp sent to server -->
+            <!-- CSRF Protection Field -->
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+            
             <input type="hidden" name="start_datetime" id="inputStartDatetime">
 
             <div class="form-group">
@@ -132,7 +160,7 @@ function isLunchSlot(DateTime $slotStart, string $lunchStartStr, int $lunchDurat
                 <select name="service_id" id="service_id" required>
                     <option value=""><?= htmlspecialchars(__t('service')) ?>...</option>
                     <?php foreach ($services as $srv): ?>
-                        <option value="<?= $srv['id'] ?>">
+                        <option value="<?= $srv['id'] ?>" <?= (isset($formData['service_id']) && $formData['service_id'] == $srv['id']) ? 'selected' : '' ?>>
                             <?= htmlspecialchars($srv['name']) ?> (<?= $srv['duration_minutes'] ?> min - <?= $srv['price'] ?> SEK)
                         </option>
                     <?php endforeach; ?>
@@ -141,24 +169,17 @@ function isLunchSlot(DateTime $slotStart, string $lunchStartStr, int $lunchDurat
 
             <div class="form-group">
                 <label for="client_name"><?= htmlspecialchars(__t('full_name')) ?></label>
-                <input type="text" id="client_name" name="client_name" required placeholder="Anna Andersson">
+                <input type="text" id="client_name" name="client_name" required placeholder="Anna Andersson" value="<?= htmlspecialchars($formData['client_name'] ?? '') ?>">
             </div>
 
             <div class="form-group">
                 <label for="client_email"><?= htmlspecialchars(__t('email')) ?></label>
-                <input type="email" id="client_email" name="client_email" required placeholder="anna@example.com">
+                <input type="email" id="client_email" name="client_email" required placeholder="anna@example.com" value="<?= htmlspecialchars($formData['client_email'] ?? '') ?>">
             </div>
 
             <div class="form-group">
                 <label for="client_phone"><?= htmlspecialchars(__t('phone')) ?></label>
-                <input type="tel" id="client_phone" name="client_phone" required placeholder="070-123 45 67">
-            </div>
-
-            <div class="form-policy">
-                <label class="checkbox-container">
-                    <input type="checkbox" name="policy_accepted" value="1" required>
-                    <span><?= htmlspecialchars(__t('policy_agree')) ?></span>
-                </label>
+                <input type="tel" id="client_phone" name="client_phone" required placeholder="070-123 45 67" value="<?= htmlspecialchars($formData['client_phone'] ?? '') ?>">
             </div>
 
             <button type="submit" class="btn-submit"><?= htmlspecialchars(__t('submit_btn')) ?></button>
@@ -174,27 +195,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const displayTime    = document.getElementById('displaySelectedTime');
     const hiddenDatetime = document.getElementById('inputStartDatetime');
 
-    // Attach click listeners to all available slots
     document.querySelectorAll('.js-slot-btn').forEach(button => {
         button.addEventListener('click', () => {
-            const dateStr = button.getAttribute('data-date');
-            const timeStr = button.getAttribute('data-time');
-            const fullDt  = button.getAttribute('data-full-datetime');
-
-            displayDate.textContent = dateStr;
-            displayTime.textContent = timeStr;
-            hiddenDatetime.value    = fullDt;
-
-            modal.style.display = 'flex';
+            displayDate.textContent = button.getAttribute('data-date');
+            displayTime.textContent = button.getAttribute('data-time');
+            hiddenDatetime.value    = button.getAttribute('data-full-datetime');
+            modal.style.display     = 'flex';
         });
     });
 
-    // Close modal handlers
     const closeModal = () => { modal.style.display = 'none'; };
     closeModalBtn.addEventListener('click', closeModal);
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 });
 </script>

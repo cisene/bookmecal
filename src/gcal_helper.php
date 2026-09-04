@@ -1,120 +1,156 @@
 <?php
-// gcal_helper.php - Google Calendar API Integration with Cancellation Support
-require_once __DIR__ . '/vendor/autoload.php'; // Composer autoloader for google/apiclient
+// gcal_helper.php - Complete Google Calendar Integration Helper
+
+require_once __DIR__ . '/vendor/autoload.php';
 
 /**
- * Returns an authenticated Google Calendar API Service client.
+ * Initializes and returns an authenticated Google API Client.
+ *
+ * @return Google\Client
+ * @throws Exception If credentials file is missing or invalid.
  */
-function getGoogleCalendarService(): Google\Service\Calendar {
+function getGoogleCalendarClient(): Google\Client {
+    $config = require __DIR__ . '/config.php';
+    $gconfig = $config['google_calendar'];
+
     $client = new Google\Client();
-    $client->setApplicationName('Clinic Booking System');
-    $client->setScopes([Google\Service\Calendar::CALENDAR]);
-    $client->setAuthConfig(__DIR__ . '/credentials.json'); // Service Account credentials
+    $client->setApplicationName($gconfig['application_name']);
+    $client->setScopes($gconfig['scopes']);
+
+    // Load OAuth Client Credentials from configured path
+    if (file_exists($gconfig['credentials_file'])) {
+        $client->setAuthConfig($gconfig['credentials_file']);
+    } else {
+        throw new Exception("Google Credentials file not found at: " . $gconfig['credentials_file']);
+    }
+
     $client->setAccessType('offline');
+    $client->setPrompt('select_account consent');
 
-    return new Google\Service\Calendar($client);
+    // Set redirect URI for authorization flow
+    if (!empty($gconfig['redirect_uri'])) {
+        $client->setRedirectUri($gconfig['redirect_uri']);
+    }
+
+    // Load saved access token if present
+    if (file_exists($gconfig['token_file'])) {
+        $accessToken = json_decode(file_get_contents($gconfig['token_file']), true);
+        if ($accessToken) {
+            $client->setAccessToken($accessToken);
+        }
+    }
+
+    // Automatically refresh token if expired and refresh token exists
+    if ($client->isAccessTokenExpired()) {
+        if ($client->getRefreshToken()) {
+            $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
+            
+            // Save refreshed token back to disk
+            $newToken = $client->getAccessToken();
+            file_put_contents($gconfig['token_file'], json_encode($newToken));
+        }
+    }
+
+    return $client;
 }
 
 /**
- * Creates or updates a Google Calendar event for an approved booking.
- * If the booking status is cancelled or late_no_show, it redirects to delete the event.
+ * Creates a new appointment event in Google Calendar.
+ *
+ * @param array $booking Array containing client_name, client_email, client_phone, service_name, start_datetime, duration_minutes.
+ * @return string The created Google Calendar Event ID.
  */
-function syncBookingToGCal(int $bookingId, PDO $pdo): bool {
-    // 1. Fetch booking with service details
-    $stmt = $pdo->prepare("
-        SELECT b.*, s.name AS service_name, s.duration_minutes 
-        FROM booking_requests b 
-        JOIN services s ON b.service_id = s.id 
-        WHERE b.id = ?
-    ");
-    $stmt->execute([$bookingId]);
-    $booking = $stmt->fetch(PDO::FETCH_ASSOC);
+function createGoogleCalendarEvent(array $booking): string {
+    $config = require __DIR__ . '/config.php';
+    $calendarId = $config['google_calendar']['calendar_id'];
 
-    if (!$booking) {
-        return false;
-    }
+    $client = getGoogleCalendarClient();
+    $service = new Google\Service\Calendar($client);
 
-    // 2. If status is cancelled or late_no_show, remove it from Google Calendar
-    if (in_array($booking['appointment_status'], ['cancelled', 'late_no_show'], true)) {
-        return removeBookingFromGCal($bookingId, $pdo);
-    }
+    // Calculate end time based on service duration
+    $startDT = new DateTime($booking['start_datetime'], new DateTimeZone('Europe/Stockholm'));
+    $endDT   = (clone $startDT)->modify("+{$booking['duration_minutes']} minutes");
 
-    // 3. Only sync approved/scheduled bookings
-    if ($booking['status'] !== 'approved') {
-        return false;
-    }
+    $event = new Google\Service\Calendar\Event([
+        'summary'     => $booking['service_name'] . ' - ' . $booking['client_name'],
+        'description' => "Booking details:\n" .
+                         "Client: " . $booking['client_name'] . "\n" .
+                         "Email: "  . $booking['client_email'] . "\n" .
+                         "Phone: "  . $booking['client_phone'],
+        'start' => [
+            'dateTime' => $startDT->format(DateTime::RFC3339),
+            'timeZone' => 'Europe/Stockholm',
+        ],
+        'end' => [
+            'dateTime' => $endDT->format(DateTime::RFC3339),
+            'timeZone' => 'Europe/Stockholm',
+        ],
+        'attendees' => [
+            ['email' => $booking['client_email']]
+        ],
+        'reminders' => [
+            'useDefault' => false,
+            'overrides'  => [
+                ['method' => 'email', 'minutes' => 24 * 60],
+                ['method' => 'popup', 'minutes' => 60],
+            ],
+        ],
+    ]);
 
-    try {
-        $service    = getGoogleCalendarService();
-        $calendarId = 'primary'; // Primary calendar or specific Calendar ID string
-
-        $startUtc = new DateTime($booking['start_datetime'], new DateTimeZone('UTC'));
-        $endUtc   = (clone $startUtc)->modify("+{$booking['duration_minutes']} minutes");
-
-        $eventData = new Google\Service\Calendar\Event([
-            'summary'     => $booking['service_name'] . ' - ' . $booking['client_name'],
-            'description' => "Client Email: {$booking['client_email']}\n" .
-                             "Client Phone: {$booking['client_phone']}\n" .
-                             "Notes: " . ($booking['notes'] ?? 'None'),
-            'start'       => ['dateTime' => $startUtc->format(DateTime::RFC3339)],
-            'end'         => ['dateTime' => $endUtc->format(DateTime::RFC3339)],
-        ]);
-
-        // Check if event already exists on GCal
-        if (!empty($booking['gcal_event_id'])) {
-            $updatedEvent = $service->events->update($calendarId, $booking['gcal_event_id'], $eventData);
-            return (bool)$updatedEvent->getId();
-        }
-
-        // Insert new event
-        $newEvent = $service->events->insert($calendarId, $eventData);
-        if ($newEvent->getId()) {
-            $updateStmt = $pdo->prepare("UPDATE booking_requests SET gcal_event_id = ? WHERE id = ?");
-            $updateStmt->execute([$newEvent->getId(), $bookingId]);
-            return true;
-        }
-    } catch (Exception $e) {
-        error_log("Google Calendar Sync Error (Booking #{$bookingId}): " . $e->getMessage());
-    }
-
-    return false;
+    $createdEvent = $service->events->insert($calendarId, $event);
+    return $createdEvent->getId();
 }
 
 /**
- * Deletes an event from Google Calendar when an appointment is cancelled.
+ * Updates an existing Google Calendar event.
+ *
+ * @param string $eventId The Google Calendar Event ID to update.
+ * @param array  $booking Updated booking data.
+ * @return bool True on success.
  */
-function removeBookingFromGCal(int $bookingId, PDO $pdo): bool {
-    $stmt = $pdo->prepare("SELECT gcal_event_id FROM booking_requests WHERE id = ?");
-    $stmt->execute([$bookingId]);
-    $booking = $stmt->fetch(PDO::FETCH_ASSOC);
+function updateGoogleCalendarEvent(string $eventId, array $booking): bool {
+    $config = require __DIR__ . '/config.php';
+    $calendarId = $config['google_calendar']['calendar_id'];
 
-    if (empty($booking['gcal_event_id'])) {
-        return true; // Nothing to delete on Google Calendar
-    }
+    $client = getGoogleCalendarClient();
+    $service = new Google\Service\Calendar($client);
+
+    $event = $service->events->get($calendarId, $eventId);
+
+    $startDT = new DateTime($booking['start_datetime'], new DateTimeZone('Europe/Stockholm'));
+    $endDT   = (clone $startDT)->modify("+{$booking['duration_minutes']} minutes");
+
+    $event->setSummary($booking['service_name'] . ' - ' . $booking['client_name']);
+    $event->setDescription("Booking details:\n" .
+                           "Client: " . $booking['client_name'] . "\n" .
+                           "Email: "  . $booking['client_email'] . "\n" .
+                           "Phone: "  . $booking['client_phone']);
+    
+    $event->getStart()->setDateTime($startDT->format(DateTime::RFC3339));
+    $event->getEnd()->setDateTime($endDT->format(DateTime::RFC3339));
+
+    $service->events->update($calendarId, $eventId, $event);
+    return true;
+}
+
+/**
+ * Deletes an event from Google Calendar (used when a booking is cancelled).
+ *
+ * @param string $eventId The Google Calendar Event ID.
+ * @return bool True on success.
+ */
+function deleteGoogleCalendarEvent(string $eventId): bool {
+    $config = require __DIR__ . '/config.php';
+    $calendarId = $config['google_calendar']['calendar_id'];
+
+    $client = getGoogleCalendarClient();
+    $service = new Google\Service\Calendar($client);
 
     try {
-        $service    = getGoogleCalendarService();
-        $calendarId = 'primary';
-
-        // Delete event from Google Calendar
-        $service->events->delete($calendarId, $booking['gcal_event_id']);
-
-        // Remove stored gcal_event_id from database
-        $updateStmt = $pdo->prepare("UPDATE booking_requests SET gcal_event_id = NULL WHERE id = ?");
-        $updateStmt->execute([$bookingId]);
-
+        $service->events->delete($calendarId, $eventId);
         return true;
-    } catch (Google\Service\Exception $e) {
-        // If event was already deleted on GCal (410 Gone or 404 Not Found), clear DB reference
-        if (in_array($e->getCode(), [404, 410], true)) {
-            $updateStmt = $pdo->prepare("UPDATE booking_requests SET gcal_event_id = NULL WHERE id = ?");
-            $updateStmt->execute([$bookingId]);
-            return true;
-        }
-        error_log("Google Calendar Delete Error (Booking #{$bookingId}): " . $e->getMessage());
     } catch (Exception $e) {
-        error_log("Google Calendar Delete Error (Booking #{$bookingId}): " . $e->getMessage());
+        // Return false if event was already deleted or not found
+        return false;
     }
-
-    return false;
 }
