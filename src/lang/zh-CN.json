@@ -1,0 +1,22 @@
+{
+  "page_title": "预约服务 - 足部护理与足病诊疗",
+  "heading": "预约您的护理服务",
+  "full_name": "姓名",
+  "email": "电子邮箱",
+  "phone": "电话号码",
+  "service": "选择护理项目",
+  "preferred_time": "期望日期与时间",
+  "policy_title": "取消与迟到政策",
+  "policy_text": "取消预约须至少提前 24 小时提出。如在 24 小时内取消、迟到或未按时到场（缺席），将收取全额服务费用。",
+  "policy_agree": "我已阅读并同意 24 小时取消规则以及未到场扣费条款。",
+  "submit_btn": "提交预约申请",
+  "reminder_subject": "预约提醒：您明日的预约 - {service}",
+  "reminder_heading": "您的预约提醒",
+  "reminder_intro": "您好 {name}，这是您即将到来的预约提醒：{time}。",
+  "reminder_policy_notice": "免费取消的截止时间为预约开始前 24 小时。24 小时以内的取消、迟到或未到场将按全额（{price} SEK）收取费用。",
+  "cancellation_link_text": "需要取消预约？您可以在预约前 24 小时内通过此安全链接在线取消：{url}",
+  "admin_new_booking_subject": "新预约申请：{name} 的 {service}",
+  "admin_new_booking_body": "收到新的预约申请。客户：{name}（{email}，{phone}）。时间：{time}。",
+  "admin_cancellation_subject": "预约变更/取消通知：#{id} - {name}",
+  "admin_cancellation_body": "{name} 的预约（#{id}）已变更/取消（时间：{time}）。备注：{notes}"
+}

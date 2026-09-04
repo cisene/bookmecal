@@ -1,0 +1,22 @@
+{
+  "page_title": "Marcar Consulta - Cuidados do Pé e Podologia",
+  "heading": "Marque o seu Tratamento",
+  "full_name": "Nome Completo",
+  "email": "Endereço de E-mail",
+  "phone": "Número de Telefone",
+  "service": "Seleção de Serviço",
+  "preferred_time": "Data e Hora Preferidas",
+  "policy_title": "Política de Cancelamento e Atrasos",
+  "policy_text": "Os cancelamentos devem ser efetuados com pelo menos 24 horas de antecedência. Cancelamentos com menos de 24 horas, atrasos ou faltas não justificadas serão cobrados na totalidade.",
+  "policy_agree": "Li e aceito a regra de cancelamento de 24 horas e os termos de cobrança para consultas não efetuadas.",
+  "submit_btn": "Enviar Pedido de Marcação",
+  "reminder_subject": "Lembrete: A sua consulta amanhã - {service}",
+  "reminder_heading": "Lembrete de Consulta",
+  "reminder_intro": "Olá {name}, este é um lembrete para a sua consulta agendada: {time}.",
+  "reminder_policy_notice": "O limite para cancelamento gratuito é de 24 horas antes da hora marcada. Cancelamentos nas últimas 24 horas, atrasos ou faltas serão cobrados na totalidade ({price} SEK).",
+  "cancellation_link_text": "Precisa de cancelar? Pode cancelar online até 24 horas antes através deste link seguro: {url}",
+  "admin_new_booking_subject": "Novo Pedido de Marcação: {service} por {name}",
+  "admin_new_booking_body": "Foi submetido um novo pedido de marcação. Cliente: {name} ({email}, {phone}). Data/Hora: {time}.",
+  "admin_cancellation_subject": "Atualização/Cancelamento de Marcação: #{id} - {name}",
+  "admin_cancellation_body": "A marcação #{id} de {name} foi atualizada/cancelada (Hora: {time}). Notas: {notes}"
+}

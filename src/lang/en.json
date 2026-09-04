@@ -1,0 +1,22 @@
+{
+  "page_title": "Book Appointment - Foot Care & Podiatry",
+  "heading": "Book Your Treatment",
+  "full_name": "Full Name",
+  "email": "Email Address",
+  "phone": "Phone Number",
+  "service": "Treatment Service",
+  "preferred_time": "Preferred Date & Time",
+  "policy_title": "Cancellation & Late Arrival Policy",
+  "policy_text": "Cancellations must be made at least 24 hours prior to your appointment. Cancellations under 24 hours, late arrivals, or missed appointments are billable in full.",
+  "policy_agree": "I have read and agree to the 24-hour cancellation rule and missed appointment billing terms.",
+  "submit_btn": "Submit Booking Request",
+  "reminder_subject": "Reminder: Upcoming Appointment Tomorrow - {service}",
+  "reminder_heading": "Upcoming Appointment Reminder",
+  "reminder_intro": "Hello {name}, this is a quick reminder regarding your scheduled appointment: {time}.",
+  "reminder_policy_notice": "The latest time for free cancellation is 24 hours before your scheduled slot. Cancellations within 24 hours, late arrivals, or no-shows are billable in full ({price} SEK).",
+  "cancellation_link_text": "Need to cancel? You can cancel online up to 24 hours in advance using this secure link: {url}",
+  "admin_new_booking_subject": "New Booking Request: {service} by {name}",
+  "admin_new_booking_body": "A new booking request has been submitted. Client: {name} ({email}, {phone}). Date/Time: {time}.",
+  "admin_cancellation_subject": "Booking Update/Cancellation: #{id} - {name}",
+  "admin_cancellation_body": "Booking #{id} for {name} has been updated/cancelled (Time: {time}). Notes: {notes}"
+}

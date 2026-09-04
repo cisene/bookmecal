@@ -1,0 +1,121 @@
+/* calendar_style.css - Layout & Color Tokens */
+
+:root {
+    /* Color Palette */
+    --color-open-bg: #e0f2fe;        /* Light Ocean Blue */
+    --color-open-border: #0284c7;    /* Deep Blue Accent */
+    --color-open-hover: #dcfce7;     /* Light Emerald Green Hover */
+    --color-open-active: #16a34a;    /* Emerald Green Selected */
+    
+    --color-blocked-bg: #ffe4e6;     /* Soft Red/Rose Background */
+    --color-blocked-border: #fda4af; /* Rose Border */
+    --color-blocked-text: #9f1239;   /* Muted Red Text */
+    
+    --color-lunch-bg: #fecdd3;       /* Deeper Rose Background for Lunch */
+    --color-lunch-text: #881337;
+}
+
+.calendar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.week-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.week-header h3 {
+    margin: 0 0 1rem 0;
+    color: #1e293b;
+    font-size: 1.1rem;
+    border-bottom: 2px solid #cbd5e1;
+    padding-bottom: 0.5rem;
+}
+
+.week-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.75rem;
+}
+
+.day-column {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.5rem;
+}
+
+.day-header {
+    text-align: center;
+    font-weight: bold;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.day-name { display: block; color: #475569; }
+.day-date { display: block; color: #0f172a; font-size: 0.9rem; }
+
+.slots-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+/* Base Slot Styling */
+.slot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    user-select: none;
+}
+
+/* Open/Free Slots (Blue & Green Accents) */
+.slot-open {
+    background-color: var(--color-open-bg);
+    border: 1px solid var(--color-open-border);
+    color: #0369a1;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.slot-open input[type="radio"] {
+    display: none;
+}
+
+.slot-open:hover {
+    background-color: var(--color-open-hover);
+    border-color: #22c55e;
+    color: #15803d;
+}
+
+/* Selected Active State */
+.slot-open:has(input[type="radio"]:checked) {
+    background-color: var(--color-open-active);
+    border-color: #15803d;
+    color: #ffffff;
+    font-weight: bold;
+}
+
+/* Blocked Slots (Red-ish Tone) */
+.slot-blocked {
+    background-color: var(--color-blocked-bg);
+    border: 1px solid var(--color-blocked-border);
+    color: var(--color-blocked-text);
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+
+.slot-lunch {
+    background-color: var(--color-lunch-bg);
+    color: var(--color-lunch-text);
+    font-style: italic;
+}

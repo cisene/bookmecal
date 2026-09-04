@@ -1,0 +1,22 @@
+{
+  "page_title": "Prendre rendez-vous - Soins des pieds & Podologie",
+  "heading": "Réservez votre soin",
+  "full_name": "Nom et prénom",
+  "email": "Adresse e-mail",
+  "phone": "Numéro de téléphone",
+  "service": "Choix du soin",
+  "preferred_time": "Date et heure souhaitées",
+  "policy_title": "Politique d'annulation et de retard",
+  "policy_text": "Toute annulation doit être effectuée au moins 24 heures avant le rendez-vous. En cas d'annulation moins de 24 heures à l'avance, de retard ou d'absence, la prestation sera facturée dans son intégralité.",
+  "policy_agree": "J'ai lu et j'accepte la règle d'annulation sous 24 heures ainsi que les conditions de facturation des rendez-vous manqués.",
+  "submit_btn": "Envoyer la demande de réservation",
+  "reminder_subject": "Rappel : Votre rendez-vous demain - {service}",
+  "reminder_heading": "Rappel de votre rendez-vous",
+  "reminder_intro": "Bonjour {name}, ceci est un rappel concernant votre rendez-vous prévu : {time}.",
+  "reminder_policy_notice": "L'annulation gratuite est possible jusqu'à 24 heures avant le rendez-vous. Passé ce délai, toute annulation tardive, retard ou absence sera facturé dans sa totalité ({price} SEK).",
+  "cancellation_link_text": "Besoin d'annuler ? Vous pouvez annuler en ligne jusqu'à 24 heures à l'avance via ce lien sécurisé : {url}",
+  "admin_new_booking_subject": "Nouvelle demande de réservation : {service} par {name}",
+  "admin_new_booking_body": "Une nouvelle demande de réservation a été soumise. Client : {name} ({email}, {phone}). Date/Heure : {time}.",
+  "admin_cancellation_subject": "Modification/Annulation de réservation : #{id} - {name}",
+  "admin_cancellation_body": "La réservation #{id} pour {name} a été modifiée/annulée (Heure : {time}). Notes : {notes}"
+}

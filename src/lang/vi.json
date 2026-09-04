@@ -1,0 +1,22 @@
+{
+  "page_title": "Đặt Lịch Hen - Chăm Sóc Chân & Podiatry",
+  "heading": "Đặt Lịch Dịch Vụ",
+  "full_name": "Họ và tên",
+  "email": "Địa chỉ email",
+  "phone": "Số điện thoại",
+  "service": "Chọn dịch vụ",
+  "preferred_time": "Ngày & giờ mong muốn",
+  "policy_title": "Chính Sách Hủy Lịch & Đến Muộn",
+  "policy_text": "Việc hủy lịch phải được thực hiện ít nhất 24 giờ trước giờ hẹn. Hủy lịch trong vòng 24 giờ, đến muộn hoặc bỏ hẹn sẽ bị tính 100% phí dịch vụ.",
+  "policy_agree": "Tôi đã đọc và đồng ý với quy định hủy lịch trước 24 giờ cũng như điều khoản thanh toán khi bỏ hẹn.",
+  "submit_btn": "Gửi Yêu Cầu Đặt Lịch",
+  "reminder_subject": "Nhắc Lịch: Lịch hẹn vào ngày mai - {service}",
+  "reminder_heading": "Nhắc Nhở Lịch Hẹn",
+  "reminder_intro": "Xin chào {name}, đây là thông báo nhắc nhở về lịch hẹn sắp tới của bạn: {time}.",
+  "reminder_policy_notice": "Thời hạn cuối để hủy lịch miễn phí là 24 giờ trước giờ hẹn. Hủy lịch trong vòng 24 giờ, đến muộn hoặc không đến sẽ bị tính phí toàn bộ ({price} SEK).",
+  "cancellation_link_text": "Bạn cần hủy lịch? Bạn có thể hủy trực tuyến tối đa 24 giờ trước giờ hẹn qua liên kết an toàn này: {url}",
+  "admin_new_booking_subject": "Yêu cầu đặt lịch mới: {service} bởi {name}",
+  "admin_new_booking_body": "Một yêu cầu đặt lịch mới đã được gửi. Khách hàng: {name} ({email}, {phone}). Ngày/Giờ: {time}.",
+  "admin_cancellation_subject": "Cập nhật/Hủy đặt lịch: #{id} - {name}",
+  "admin_cancellation_body": "Đơn đặt lịch #{id} của {name} đã được cập nhật/hủy (Thời gian: {time}). Ghi chú: {notes}"
+}

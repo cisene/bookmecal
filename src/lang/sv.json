@@ -1,0 +1,22 @@
+{
+  "page_title": "Boka tid - Fotvård & Podiatri",
+  "heading": "Boka din behandling",
+  "full_name": "För- och efternamn",
+  "email": "E-postadress",
+  "phone": "Telefonnummer",
+  "service": "Behandling",
+  "preferred_time": "Önskad datum & tid",
+  "policy_title": "Avboknings- och sena ankomstvillkor",
+  "policy_text": "Avbokning måste ske senast 24 timmar före bokad tid. Om du avbokar mindre än 24 timmar innan, anländer för sent eller missar din tid debiteras du för hela behandlingskostnaden.",
+  "policy_agree": "Jag har läst och godkänner avbokningsregeln på 24 timmar samt betalningsvillkoren för uteblivna besök.",
+  "submit_btn": "Skicka bokningsförfrågan",
+  "reminder_subject": "Påminnelse: Kommande bokning imorgon - {service}",
+  "reminder_heading": "Påminnelse om din tid",
+  "reminder_intro": "Hej {name}, detta är en påminnelse om din bokade tid: {time}.",
+  "reminder_policy_notice": "Sista tid för kostnadsfri avbokning är 24 timmar innan tiden startar. Sena avbokningar, sena ankomster eller uteblivna besök debiteras i sin helhet ({price} SEK).",
+  "cancellation_link_text": "Behöver du avboka? Du kan avboka online senast 24 timmar innan via denna säkra länk: {url}",
+  "admin_new_booking_subject": "Ny bokningsförfrågan: {service} av {name}",
+  "admin_new_booking_body": "En ny bokningsförfrågan har lagts till. Kund: {name} ({email}, {phone}). Datum/Tid: {time}.",
+  "admin_cancellation_subject": "Bokningsändring/Avbokning: #{id} - {name}",
+  "admin_cancellation_body": "Bokning #{id} för {name} har ändrats/avbokats (Tid: {time}). Anteckningar: {notes}"
+}

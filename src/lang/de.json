@@ -1,0 +1,22 @@
+{
+  "page_title": "Termin buchen - Fußpflege & Podologie",
+  "heading": "Buchen Sie Ihre Behandlung",
+  "full_name": "Vor- und Nachname",
+  "email": "E-Mail-Adresse",
+  "phone": "Telefonnummer",
+  "service": "Behandlungsauswahl",
+  "preferred_time": "Wunschdatum & Uhrzeit",
+  "policy_title": "Stornierungs- und Verspätungsbedingungen",
+  "policy_text": "Stornierungen müssen mindestens 24 Stunden vor dem Termin erfolgen. Bei Stornierungen unter 24 Stunden, verspätetem Erscheinen oder Nichterscheinen wird der volle Preis berechnet.",
+  "policy_agree": "Ich habe die 24-Stunden-Stornierungsregel und die Zahlungsbedingungen für versäumte Termine gelesen und stimme ihnen zu.",
+  "submit_btn": "Buchungsanfrage absenden",
+  "reminder_subject": "Erinnerung: Anstehender Termin morgen - {service}",
+  "reminder_heading": "Erinnerung an Ihren Termin",
+  "reminder_intro": "Hallo {name}, dies ist eine Erinnerung an Ihren gebuchten Termin: {time}.",
+  "reminder_policy_notice": "Kostenfreie Stornierungen sind bis zu 24 Stunden vor dem Termin möglich. Spätere Stornierungen, Verspätungen oder Nichterscheinen werden voll berechnet ({price} SEK).",
+  "cancellation_link_text": "Müssen Sie stornieren? Sie können Ihren Termin bis zu 24 Stunden im Voraus über diesen sicheren Link online stornieren: {url}",
+  "admin_new_booking_subject": "Neue Buchungsanfrage: {service} von {name}",
+  "admin_new_booking_body": "Eine neue Buchungsanfrage wurde eingereicht. Kunde: {name} ({email}, {phone}). Datum/Uhrzeit: {time}.",
+  "admin_cancellation_subject": "Buchungsänderung/Stornierung: #{id} - {name}",
+  "admin_cancellation_body": "Buchung #{id} für {name} wurde geändert/storniert (Zeit: {time}). Notizen: {notes}"
+}

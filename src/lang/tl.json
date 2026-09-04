@@ -1,0 +1,22 @@
+{
+  "page_title": "Mag-book ng Appointment - Pangangalaga sa Paa at Podiatry",
+  "heading": "I-book ang Inyong Serbisyo",
+  "full_name": "Buong Pangalan",
+  "email": "Email Address",
+  "phone": "Numero ng Telepono",
+  "service": "Pumili ng Serbisyo",
+  "preferred_time": "Gusto mong Petsa at Oras",
+  "policy_title": "Patakaran sa Pembakante at Huling Pagdating",
+  "policy_text": "Ang pembakante ay dapat gawin nang hindi bababa sa 24 oras bago ang inyong appointment. Ang mga pembakante na mas mababa sa 24 oras, huling pagdating, o hindi pagdating ay sisingilin nang buo.",
+  "policy_agree": "Nabasa ko at sumasang-ayon ako sa patakaran sa 24-oras na pembakante at mga tuntunin sa pagbabayad kapag hindi nakarating.",
+  "submit_btn": "Ipadala ang Kahilingan sa Pag-book",
+  "reminder_subject": "Paalala: Mabilis na Appointment Bukas - {service}",
+  "reminder_heading": "Paalala para sa Inyong Appointment",
+  "reminder_intro": "Kumusta {name}, ito ay mabilis na paalala para sa inyong nakatakdang appointment: {time}.",
+  "reminder_policy_notice": "Ang huling oras para sa libreng pembakante ay 24 oras bago ang inyong nakatakdang oras. Ang pembakante sa loob ng 24 oras, huling pagdating, o hindi paglitaw ay sisingilin nang buo ({price} SEK).",
+  "cancellation_link_text": "Kailangan bang magbakante? Maaari kayong magbakante online hanggang 24 oras bago ang appointment gamit ang ligtas na link na ito: {url}",
+  "admin_new_booking_subject": "Bagong Kahilingan sa Pag-book: {service} ni {name}",
+  "admin_new_booking_body": "May bagong kahilingan sa pag-book. Kliyente: {name} ({email}, {phone}). Petsa/Oras: {time}.",
+  "admin_cancellation_subject": "Update/Pembakante sa Booking: #{id} - {name}",
+  "admin_cancellation_body": "Ang booking #{id} para kay {name} ay na-update/na-cancel (Oras: {time}). Mga Tala: {notes}"
+}

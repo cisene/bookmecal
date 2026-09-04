@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Booking Service</title>
+    <style>
+        .slot-btn { display: inline-block; padding: 8px 12px; margin: 4px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        .slot-btn:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+<h3>Select Booking Date</h3>
+<input type="date" id="booking-date" min="<?= date('Y-m-d') ?>">
+
+<div id="slots-container" style="margin-top: 15px;"></div>
+
+<script>
+document.getElementById('booking-date').addEventListener('change', async (e) => {
+    const selectedDate = e.target.value;
+    const container = document.getElementById('slots-container');
+    container.innerHTML = 'Loading available slots...';
+
+    const response = await fetch(`./api/get_slots.php?date=${selectedDate}`);
+    const slots = await response.json();
+
+    container.innerHTML = '';
+    if (slots.length === 0) {
+        container.innerHTML = '<p>No available slots on this date.</p>';
+        return;
+    }
+
+    slots.forEach(slot => {
+        const btn = document.createElement('button');
+        btn.className = 'slot-btn';
+        
+        // Format time display (e.g., 09:00 - 10:00)
+        const start = slot.start.split(' ')[1].substring(0, 5);
+        const end = slot.end.split(' ')[1].substring(0, 5);
+        btn.innerText = `${start} - ${end}`;
+        
+        btn.onclick = () => submitBookingRequest(slot.start, slot.end);
+        container.appendChild(btn);
+    });
+});
+
+async function submitBookingRequest(start, end) {
+    const name = prompt("Enter your name:");
+    const email = prompt("Enter your email:");
+
+    if (!name || !email) return;
+
+    const res = await fetch('./api/request_booking.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, start, end })
+    });
+
+    const result = await res.json();
+    if (result.success) {
+        alert('Booking request sent! It is pending approval by the owner.');
+        location.reload();
+    } else {
+        alert('Error: ' + result.message);
+    }
+}
+</script>
+</body>
+</html>

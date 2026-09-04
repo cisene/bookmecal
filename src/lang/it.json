@@ -1,0 +1,22 @@
+{
+  "page_title": "Prenota Appuntamento - Cura del Piede & Podologia",
+  "heading": "Prenota il tuo Trattamento",
+  "full_name": "Nome e Cognome",
+  "email": "Indirizzo Email",
+  "phone": "Numero di Telefono",
+  "service": "Selezione Servizio",
+  "preferred_time": "Data e Ora Desiderate",
+  "policy_title": "Politica di Cancellazione e Ritardi",
+  "policy_text": "Le cancellazioni devono essere effettuate almeno 24 ore prima dell'appuntamento. Le cancellazioni effettuate meno di 24 ore prima, i ritardi o le mancate presenze saranno addebitati per intero.",
+  "policy_agree": "Ho letto e accetto la regola di cancellazione entro 24 ore e i termini di addebito per gli appuntamenti mancati.",
+  "submit_btn": "Invia Richiesta di Prenotazione",
+  "reminder_subject": "Promemoria: Il tuo appuntamento domani - {service}",
+  "reminder_heading": "Promemoria Appuntamento",
+  "reminder_intro": "Ciao {name}, questo è un promemoria per il tuo appuntamento programmato: {time}.",
+  "reminder_policy_notice": "Il termine ultimo per la cancellazione gratuita è 24 ore prima dell'orario previsto. Cancellazioni entro 24 ore, ritardi o mancate presenze verranno addebitati per intero ({price} SEK).",
+  "cancellation_link_text": "Devi annullare? Puoi cancellare online fino a 24 ore prima tramite questo link sicuro: {url}",
+  "admin_new_booking_subject": "Nuova Richiesta di Prenotazione: {service} da {name}",
+  "admin_new_booking_body": "È stata inviata una nuova richiesta di prenotazione. Cliente: {name} ({email}, {phone}). Data/Ora: {time}.",
+  "admin_cancellation_subject": "Aggiornamento/Cancellazione Prenotazione: #{id} - {name}",
+  "admin_cancellation_body": "La prenotazione #{id} per {name} è stata aggiornata/cancellata (Ora: {time}). Note: {notes}"
+}

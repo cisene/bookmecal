@@ -1,0 +1,22 @@
+{
+  "page_title": "ご予約 - フットケア＆足病治療",
+  "heading": "施術のご予約",
+  "full_name": "お名前",
+  "email": "メールアドレス",
+  "phone": "電話番号",
+  "service": "施術メニューの選択",
+  "preferred_time": "ご希望の日時",
+  "policy_title": "キャンセルおよび遅刻に関する規約",
+  "policy_text": "キャンセルのご連絡はご予約時間の24時間前までにお願いいたします。24時間以内のキャンセル、遅刻、無断キャンセルの場合は、施術料金の全額をご請求させていただきます。",
+  "policy_agree": "24時間前のキャンセル規定および無断キャンセル時の請求利用規約を確認し、同意します。",
+  "submit_btn": "予約リクエストを送信",
+  "reminder_subject": "【リマインド】明日のお持ちのご予約について - {service}",
+  "reminder_heading": "ご予約内容のご確認",
+  "reminder_intro": "{name} 様、明日ご予約いただいている施術内容のご確認です: {time}。",
+  "reminder_policy_notice": "無料キャンセルの期限はご予約時間の24時間前までとなります。それ以降のキャンセル、遅刻、無断キャンセルは全額請求（{price} SEK）となりますのでご注意ください。",
+  "cancellation_link_text": "キャンセルをご希望ですか？ご予約の24時間前までであれば、以下の専用リンクよりオンラインで手続が可能です: {url}",
+  "admin_new_booking_subject": "新規予約リクエスト: {service} （{name} 様）",
+  "admin_new_booking_body": "新しい予約リクエストが届きました。お客様名: {name} ({email}, {phone})。日時: {time}。",
+  "admin_cancellation_subject": "予約変更・キャンセル通知: #{id} - {name} 様",
+  "admin_cancellation_body": "{name} 様のご予約（#{id}）が変更またはキャンセルされました (日時: {time})。備考: {notes}"
+}

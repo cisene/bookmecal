@@ -1,0 +1,22 @@
+{
+  "page_title": "Reservar cita - Cuidado del Pie y Podología",
+  "heading": "Reserve su tratamiento",
+  "full_name": "Nombre y apellidos",
+  "email": "Correo electrónico",
+  "phone": "Número de teléfono",
+  "service": "Selección de servicio",
+  "preferred_time": "Fecha y hora preferidas",
+  "policy_title": "Política de cancelación y llegada tardía",
+  "policy_text": "Las cancelaciones deben realizarse al menos 24 horas antes de la cita. Las cancelaciones con menos de 24 horas de antelación, llegadas tardías o inasistencias se cobrarán en su totalidad.",
+  "policy_agree": "He leído y acepto la regla de cancelación de 24 horas y los términos de cobro por citas no asistidas.",
+  "submit_btn": "Enviar solicitud de reserva",
+  "reminder_subject": "Recordatorio: Su cita de mañana - {service}",
+  "reminder_heading": "Recordatorio de su cita",
+  "reminder_intro": "Hola {name}, este es un recordatorio de su cita programada: {time}.",
+  "reminder_policy_notice": "El plazo límite para cancelar sin coste es de 24 horas antes de la cita. Las cancelaciones dentro de las 24 horas, retrasos o inasistencias se cobrarán íntegramente ({price} SEK).",
+  "cancellation_link_text": "¿Necesita cancelar? Puede hacerlo en línea hasta 24 horas antes a través de este enlace seguro: {url}",
+  "admin_new_booking_subject": "Nueva solicitud de reserva: {service} de {name}",
+  "admin_new_booking_body": "Se ha enviado una nueva solicitud de reserva. Cliente: {name} ({email}, {phone}). Fecha/Hora: {time}.",
+  "admin_cancellation_subject": "Actualización/Cancelación de reserva: #{id} - {name}",
+  "admin_cancellation_body": "La reserva #{id} para {name} ha sido actualizada/cancelada (Hora: {time}). Notas: {notes}"
+}
