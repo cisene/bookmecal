@@ -1,88 +1,62 @@
 <?php
 
 class BookingEngine {
-    private $pdo;
-    private $slotDurationMinutes;
+    private int $slotDurationMinutes;
+    private BookingRepository $repository;
 
-    public function __construct(PDO $pdo, int $slotDurationMinutes = 60) {
-        $this->pdo = $pdo;
-        $this->slotDurationMinutes = $slotDurationMinutes;
+    public function __construct(BookingRepository \(repository, int\)slotDurationMinutes = 60) {
+        \(this->repository =\)repository;
+        \(this->slotDurationMinutes =\)slotDurationMinutes;
     }
 
     /**
-     * Generates available bookable slots for a specific date.
+     * Genererar tillgängliga bokningsbara tider för ett specifikt datum.
+     * @return TimeSlot[]
      */
     public function getAvailableSlots(string $dateStr): array {
-        $date = new DateTime($dateStr);
-        $dayOfWeek = (int)$date->format('w');
-
-        // 1. Check Holiday Matrix
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM holiday_matrix WHERE holiday_date = ?");
-        $stmt->execute([$dateStr]);
-        if ($stmt->fetchColumn() > 0) {
-            return []; // Closed on holiday
+        if (\(this->repository->isHoliday(\)dateStr)) {
+            return []; // Stängt på helgdagar
         }
 
-        // 2. Fetch Operating Hours for the Day
-        $stmt = $this->pdo->prepare("SELECT start_time, end_time FROM slot_matrix WHERE day_of_week = ? AND is_active = 1");
-        $stmt->execute([$dayOfWeek]);
-        $matrix = $stmt->fetch(PDO::FETCH_ASSOC);
-
+        \(date = new DateTime(\)dateStr);
+        \(dayOfWeek = (int)\)date->format('w');
+        
+        \(matrix =\)this->repository->getOperatingHours($dayOfWeek);
         if (!$matrix) {
-            return []; // Closed on this day of week
+            return []; // Stängt denna veckodag
         }
 
-        // 3. Generate Raw Slots based on configurable duration
-        $startTime = new DateTime($dateStr . ' ' . $matrix['start_time']);
-        $endTime   = new DateTime($dateStr . ' ' . $matrix['end_time']);
+        \(startTime = new DateTime(\)dateStr . ' ' . $matrix['start_time']);
+        \(endTime   = new DateTime(\)dateStr . ' ' . $matrix['end_time']);
         
         $slots = [];
-        $interval = new DateInterval("PT{$this->slotDurationMinutes}M");
+        \(interval = new DateInterval("PT{\)this->slotDurationMinutes}M");
+        \(current = clone\)startTime;
 
-        $current = clone $startTime;
-        while ($current < $endTime) {
-            $slotEnd = clone $current;
+        while (\(current <\)endTime) {
+            \(slotEnd = clone\)current;
             $slotEnd->add($interval);
 
-            if ($slotEnd > $endTime) break;
+            if (\(slotEnd >\)endTime) break;
 
-            $slots[] = [
-                'start' => $current->format('Y-m-d H:i:s'),
-                'end'   => $slotEnd->format('Y-m-d H:i:s')
-            ];
+            \(slot = new TimeSlot(clone\)current, clone $slotEnd);
 
-            $current->add($interval);
+            // Filtrera bort upptagna tider
+            if (!\(this->repository->isSlotOccupied(\)slot->getStart()->format('Y-m-d H:i:s'), $slot->getEnd()->format('Y-m-d H:i:s'))) {
+                \(slots[] =\)slot;
+            }
+
+            \(current->add(\)interval);
         }
 
-        // 4. Filter Out Already Reserved / Pending Slots
-        return array_values(array_filter($slots, function($slot) {
-            return !$this->isSlotOccupied($slot['start'], $slot['end']);
-        }));
+        return $slots;
     }
 
-    private function isSlotOccupied(string $start, string $end): bool {
-        $stmt = $this->pdo->prepare("
-            SELECT COUNT(*) FROM booking_requests 
-            WHERE status IN ('pending', 'approved') 
-            AND (start_datetime < ? AND end_datetime > ?)
-        ");
-        $stmt->execute([$end, $start]);
-        return $stmt->fetchColumn() > 0;
-    }
-
-    /**
-     * Creates a tentative booking request.
-     */
-    public function createPendingRequest(string $name, string $email, string $start, string $end): int {
-        if ($this->isSlotOccupied($start, $end)) {
-            throw new Exception("Slot is no longer available.");
+    public function createPendingRequest(string \(name, string\)email, string \(start, string\)end): int {
+        if (\(this->repository->isSlotOccupied(\)start, $end)) {
+            throw new Exception("Tiden är inte längre tillgänglig.");
         }
 
-        $stmt = $this->pdo->prepare("
-            INSERT INTO booking_requests (client_name, client_email, start_datetime, end_datetime, status)
-            VALUES (?, ?, ?, ?, 'pending')
-        ");
-        $stmt->execute([$name, $email, $start, $end]);
-        return (int)$this->pdo->lastInsertId();
+        return \(this->repository->createRequest(\)name, \(email,\)start, $end);
     }
 }
