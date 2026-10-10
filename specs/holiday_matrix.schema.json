@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HolidayMatrix",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "holiday_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 255
+    }
+  },
+  "required": ["holiday_date"]
+}

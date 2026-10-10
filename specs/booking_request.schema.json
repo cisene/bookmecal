@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BookingRequestExtended",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "service_id": {
+      "type": "integer"
+    },
+    "client_name": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "client_email": {
+      "type": "string",
+      "format": "email",
+      "maxLength": 100
+    },
+    "client_phone": {
+      "type": "string",
+      "maxLength": 50
+    },
+    "start_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "appointment_status": {
+      "type": "string",
+      "enum": ["scheduled", "approved", "cancelled", "late_no_show"]
+    },
+    "cancellation_token": {
+      "type": ["string", "null"],
+      "maxLength": 64
+    },
+    "preferred_language": {
+      "type": "string",
+      "maxLength": 10
+    },
+    "client_timezone": {
+      "type": "string",
+      "maxLength": 50
+    },
+    "reminder_sent": {
+      "type": "integer",
+      "enum": [0, 1]
+    },
+    "gcal_event_id": {
+      "type": ["string", "null"],
+      "maxLength": 255
+    },
+    "notes": {
+      "type": ["string", "null"]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": ["service_id", "client_name", "client_email", "client_phone", "start_datetime"]
+}

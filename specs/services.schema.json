@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Service",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "duration_minutes": {
+      "type": "integer",
+      "minimum": 5
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0.00
+    }
+  },
+  "required": ["name", "duration_minutes", "price"]
+}
