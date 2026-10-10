@@ -1,201 +1,256 @@
 <?php
-// admin.php - Dashboard with 24-Hour Late Cancellation Enforcement & Admin Alerts
-require_once 'db.php';
-require_once 'i18n.php';
-require_once 'tz_helper.php';
+// admin.php - Administrative dashboard for managing bookings
 
-$adminLang = 'sv';
-$adminTz   = 'Europe/Stockholm';
-$adminEmail = 'admin@clinic.com';
+$config = require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/BookingRepository.php';
 
-function translateAdmin(string $key, array $replacements = [], string $lang = 'sv'): string {
-    $langFilePath = __DIR__ . "/lang/{$lang}.json";
-    if (!file_exists($langFilePath)) {
-        $langFilePath = __DIR__ . "/lang/sv.json";
+// Simple admin authentication (configurable via config or default credentials)
+$adminUser = $config['app']['admin_user'] ?? 'admin';
+$adminPass = $config['app']['admin_pass'] ?? 'secret123';
+
+session_start();
+
+// Handle login submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
+    if ($_POST['username'] === $adminUser && $_POST['password'] === $adminPass) {
+        $_SESSION['admin_logged_in'] = true;
+        header('Location: admin.php');
+        exit;
+    } else {
+        $loginError = 'Invalid username or password.';
     }
-    $translations = json_decode(file_get_contents($langFilePath), true) ?? [];
-    $text = $translations[$key] ?? $key;
-
-    foreach ($replacements as $placeholder => $value) {
-        $text = str_replace('{' . $placeholder . '}', $value, $text);
-    }
-    return $text;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $bookingId = (int)($_POST['booking_id'] ?? 0);
-    $action    = $_POST['action'] ?? '';
+// Handle logout
+if (isset($_GET['logout'])) {
+    unset($_SESSION['admin_logged_in']);
+    header('Location: admin.php');
+    exit;
+}
 
-    if ($action === 'approve') {
-        $stmt = $pdo->prepare("UPDATE booking_requests SET status = 'approved' WHERE id = ?");
-        $stmt->execute([$bookingId]);
-        
-        require_once 'gcal_helper.php';
-        syncBookingToGCal($bookingId, $pdo);
+// Check if logged in
+$isLoggedIn = $_SESSION['admin_logged_in'] ?? false;
 
-    } elseif ($action === 'update_attendance') {
-        $requestedStatus = $_POST['appointment_status'] ?? 'scheduled';
-        $notes           = trim($_POST['notes'] ?? '');
+$repository = new BookingRepository($config['storage']['data_dir'] ?? null);
+$bookingsFile = ($config['storage']['data_dir'] ?? __DIR__ . '/data') . '/bookings.json';
 
-        $stmt = $pdo->prepare("
-            SELECT b.*, s.name AS service_name, s.price 
-            FROM booking_requests b 
-            JOIN services s ON b.service_id = s.id 
-            WHERE b.id = ?
-        ");
-        $stmt->execute([$bookingId]);
-        $booking = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($booking) {
-            $previousStatus = $booking['appointment_status'];
-            $finalStatus    = $requestedStatus;
-
-            // Enforce 24-Hour Cancellation Rule
-            if ($requestedStatus === 'cancelled' && $previousStatus !== 'cancelled') {
-                $now = new DateTime('now', new DateTimeZone('UTC'));
-                $appointmentTime = new DateTime($booking['start_datetime'], new DateTimeZone('UTC'));
-                
-                // Calculate hours remaining until appointment
-                $hoursUntilAppointment = ($appointmentTime->getTimestamp() - $now->getTimestamp()) / 3600;
-
-                // If cancellation is within 24 hours, reclassify as late_no_show (billable)
-                if ($hoursUntilAppointment < 24) {
-                    $finalStatus = 'late_no_show';
-                    $lateNotice = " [System Notice: Cancelled within 24h threshold (" . round($hoursUntilAppointment, 1) . "h remaining). Full charge applies.]";
-                    $notes .= $lateNotice;
+// Handle booking status update actions
+if ($isLoggedIn && isset($_GET['action'], $_GET['id'])) {
+    $action = $_GET['action'];
+    $targetId = (int)$_GET['id'];
+    
+    // Read bookings directly using repository helper or file read logic
+    // Since BookingRepository doesn't expose a public getAllBookings or updateStatus in our minimal JSON implementation,
+    // let's add or handle it via reading/writing the file directly or via repository methods.
+    // Let's implement robust file manipulation here for admin actions:
+    if (file_exists($bookingsFile)) {
+        $fp = fopen($bookingsFile, 'c+b');
+        if ($fp && flock($fp, LOCK_EX)) {
+            $content = stream_get_contents($fp);
+            $bookings = json_decode($content, true) ?: [];
+            
+            $updated = false;
+            foreach ($bookings as &$b) {
+                if ($b['id'] === $targetId) {
+                    if ($action === 'approve') {
+                        $b['status'] = 'approved';
+                        $updated = true;
+                    } elseif ($action === 'reject') {
+                        $b['status'] = 'rejected';
+                        $updated = true;
+                    }
                 }
             }
+            unset($b);
 
-            // Persist updated status and notes
-            $updateStmt = $pdo->prepare("UPDATE booking_requests SET appointment_status = ?, notes = ? WHERE id = ?");
-            $updateStmt->execute([$finalStatus, $notes, $bookingId]);
-
-            // Dispatch admin notification if status moved to cancelled or late_no_show
-            if (($finalStatus === 'cancelled' || $finalStatus === 'late_no_show') && $previousStatus === 'scheduled') {
-                $formattedTime = formatLocalizedDateTime($booking['start_datetime'], $adminTz, $adminLang);
-
-                $subject = translateAdmin('admin_cancellation_subject', [
-                    'id'   => $booking['id'],
-                    'name' => $booking['client_name']
-                ], $adminLang);
-
-                $body = translateAdmin('admin_cancellation_body', [
-                    'id'    => $booking['id'],
-                    'name'  => $booking['client_name'],
-                    'time'  => $formattedTime,
-                    'notes' => $notes ?: 'N/A'
-                ], $adminLang);
-
-                $headers  = "MIME-Version: 1.0\r\n";
-                $headers .= "Content-type: text/plain; charset=UTF-8\r\n";
-                $headers .= "From: Clinic Booking <noreply@clinic.com>\r\n";
-
-                @mail($adminEmail, $subject, $body, $headers);
+            if ($updated) {
+                ftruncate($fp, 0);
+                rewind($fp);
+                fwrite($fp, json_encode($bookings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                fflush($fp);
             }
+            flock($fp, LOCK_UN);
+            fclose($fp);
         }
     }
+    header('Location: admin.php');
+    exit;
 }
 
-$stmt = $pdo->query("
-    SELECT b.*, s.name AS service_name, s.price, s.duration_minutes, s.buffer_minutes 
-    FROM booking_requests b 
-    JOIN services s ON b.service_id = s.id 
-    ORDER BY b.start_datetime DESC
-");
-$bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Fetch all bookings for display
+$bookings = [];
+if (file_exists($bookingsFile)) {
+    $fp = fopen($bookingsFile, 'rb');
+    if ($fp) {
+        flock($fp, LOCK_SH);
+        $content = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        $bookings = json_decode($content, true) ?: [];
+    }
+}
+// Sort bookings descending by ID or creation date
+usort($bookings, fn($a, $b) => $b['id'] <=> $a['id']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Dashboard - Booking & Attendance</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Book Me Calendar</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: #f4f6f9; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        th, td { padding: 12px; border: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
-        th { background: #edf2f7; font-weight: 600; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; display: inline-block; }
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-approved { background: #d4edda; color: #155724; }
-        .btn-approve { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-        .btn-save { background: #0066cc; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-top: 4px; }
-        .late-flag { color: #c53030; font-weight: bold; font-size: 0.85em; display: block; margin-top: 4px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1, h2 { color: #2c3e50; }
+        .login-box {
+            max-width: 350px;
+            margin: 100px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .btn:hover { background-color: #0056b3; }
+        .btn-success { background-color: #28a745; }
+        .btn-success:hover { background-color: #218838; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-logout { background-color: #6c757d; float: right; }
+        .btn-logout:hover { background-color: #5a6268; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th { background-color: #f1f3f5; }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-pending { background-color: #ffc107; color: #212529; }
+        .badge-approved { background-color: #28a745; color: #fff; }
+        .badge-rejected { background-color: #dc3545; color: #fff; }
+        .error { color: #dc3545; margin-bottom: 10px; font-size: 14px; }
+        .clearfix::after { content: ""; clear: both; display: table; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Appointment Queue & Attendance Management</h2>
-
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Client & Lang/TZ</th>
-                <th>Service Details</th>
-                <th>Policy Agreement</th>
-                <th>Approval State</th>
-                <th>Attendance Status</th>
-                <th>Notes</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($bookings as $b): ?>
-                <tr>
-                    <td><strong>#<?= $b['id'] ?></strong></td>
-                    <td>
-                        <strong><?= htmlspecialchars($b['client_name']) ?></strong><br>
-                        <small><?= htmlspecialchars($b['client_email']) ?></small><br>
-                        <small>Lang: <strong><?= strtoupper($b['preferred_language']) ?></strong> | TZ: <?= $b['client_timezone'] ?></small>
-                    </td>
-                    <td>
-                        <?= htmlspecialchars($b['service_name']) ?><br>
-                        <small>Work: <?= $b['duration_minutes'] ?>m | Clean-up: <?= $b['buffer_minutes'] ?>m</small><br>
-                        <small>Local Time: <?= formatLocalizedDateTime($b['start_datetime'], $b['client_timezone'], $b['preferred_language']) ?></small>
-                    </td>
-                    <td>
-                        <?= $b['policy_accepted'] ? '<span style="color:green; font-weight:bold;">Agreed (Full Charge)</span>' : '<span style="color:red;">No</span>' ?>
-                    </td>
-                    <td>
-                        <span class="badge badge-<?= $b['status'] ?>"><?= strtoupper($b['status']) ?></span>
-                        <?php if ($b['status'] === 'pending'): ?>
-                            <form method="POST" style="margin-top:5px;">
-                                <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
-                                <input type="hidden" name="action" value="approve">
-                                <button type="submit" class="btn-approve">Approve & Sync GCal</button>
-                            </form>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <form method="POST">
-                            <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
-                            <input type="hidden" name="action" value="update_attendance">
-                            <input type="hidden" name="notes" value="<?= htmlspecialchars($b['notes'] ?? '') ?>">
-                            <select name="appointment_status" onchange="this.form.submit()">
-                                <option value="scheduled" <?= $b['appointment_status'] === 'scheduled' ? 'selected' : '' ?>>Scheduled</option>
-                                <option value="attended" <?= $b['appointment_status'] === 'attended' ? 'selected' : '' ?>>Attended</option>
-                                <option value="late_no_show" <?= $b['appointment_status'] === 'late_no_show' ? 'selected' : '' ?>>Late / No-Show (Bill Full)</option>
-                                <option value="cancelled" <?= $b['appointment_status'] === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
-                            </select>
-                        </form>
-                        <?php if ($b['appointment_status'] === 'late_no_show'): ?>
-                            <span class="late-flag">⚠️ Billable (Late / Missed)</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <form method="POST">
-                            <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
-                            <input type="hidden" name="action" value="update_attendance">
-                            <input type="hidden" name="appointment_status" value="<?= $b['appointment_status'] ?>">
-                            <input type="text" name="notes" value="<?= htmlspecialchars($b['notes'] ?? '') ?>" placeholder="Add note...">
-                            <button type="submit" class="btn-save">Save</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+    <?php if (!$isLoggedIn): ?>
+        <div class="login-box">
+            <h2>Admin Login</h2>
+            <?php if (!empty($loginError)): ?>
+                <div class="error"><?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <form method="POST">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" name="login" class="btn" style="width: 100%;">Log In</button>
+            </form>
+            <p style="margin-top: 15px; font-size: 12px; color: #666; text-align: center;">Default: admin / secret123</p>
+        </div>
+    <?php else: ?>
+        <div class="clearfix">
+            <h1 style="float: left; margin: 0;">Admin Dashboard</h1>
+            <a href="admin.php?logout=1" class="btn btn-logout">Log Out</a>
+        </div>
+        
+        <h2>Booking Requests</h2>
+        
+        <?php if (empty($bookings)): ?>
+            <p>No bookings found.</p>
+        <?php else: ?>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Client</th>
+                        <th>Email</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($bookings as $b): ?>
+                        <tr>
+                            <td><?php echo (int)$b['id']; ?></td>
+                            <td><?php echo htmlspecialchars($b['client_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($b['client_email'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($b['start_datetime'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($b['end_datetime'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td>
+                                <span class="badge badge-<?php echo htmlspecialchars($b['status'], ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?php echo ucfirst(htmlspecialchars($b['status'], ENT_QUOTES, 'UTF-8')); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($b['status'] === 'pending'): ?>
+                                    <a href="admin.php?action=approve&id=<?php echo (int)$b['id']; ?>" class="btn btn-success" style="padding: 4px 8px; font-size: 12px;">Approve</a>
+                                    <a href="admin.php?action=reject&id=<?php echo (int)$b['id']; ?>" class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;">Reject</a>
+                                <?php else: ?>
+                                    <span style="color: #666; font-size: 12px;">Processed</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    <?php endif; ?>
 </div>
 
 </body>

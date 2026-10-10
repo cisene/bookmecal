@@ -1,124 +1,85 @@
 <?php
-// api.php - Central API-endpoint för bokningssystemet
+// api.php - REST API endpoint for Book Me Calendar
 
 header('Content-Type: application/json; charset=utf-8');
 
-// 1. Ladda in beroenden
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/Database.php';
+// Load configuration and core classes
+$config = require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/BookingRepository.php';
-require_once __DIR__ . '/GoogleSync.php';
-require_once __DIR__ . '/BookingService.php';
+require_once __DIR__ . '/TimeSlot.php';
+require_once __DIR__ . '/BookingEngine.php';
 
-$config = require __DIR__ . '/config.php';
-
-// CORS-hantering (om API anropas från en separat frontend-app)
-if (!empty($config['cors']['enabled'])) {
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
-    header("Access-Control-Allow-Origin: {$origin}");
-    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization");
-    
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        http_response_code(200);
-        exit;
-    }
-}
+$action = $_GET['action'] ?? '';
 
 try {
-    // Anslut till databasen
-    $pdo = Database::getConnection($config['db']);
-    $repository = new BookingRepository($pdo);
-    
-    // Initiera GoogleSync om det är aktiverat i config
-    $googleSync = null;
-    if (!empty($config['google_calendar']['enabled'])) {
-        $googleSync = new GoogleSync($config['google_calendar']);
-    }
-
-    $service = new BookingService($repository, $googleSync, $config);
-
-    // Identifiera metod och åtgärd
-    $method = $_SERVER['REQUEST_METHOD'];
-    $action = $_GET['action'] ?? $_POST['action'] ?? '';
-
-    // Läs in JSON-payload om det finns
-    $inputJSON = file_get_contents('php://input');
-    $inputData = json_decode($inputJSON, true) ?? [];
-    $requestData = array_merge($_REQUEST, $inputData);
+    $repository = new BookingRepository($config['storage']['data_dir'] ?? null);
+    $slotDuration = $config['app']['slot_duration'] ?? 60;
+    $engine = new BookingEngine($repository, $slotDuration);
 
     switch ($action) {
-        case 'get_services':
-            if ($method !== 'GET') {
-                http_response_code(405);
-                echo json_encode(['error' => 'Metoden tillåts inte. Använd GET.']);
-                exit;
+        case 'get_slots':
+            $start = $_GET['start'] ?? date('Y-m-d');
+            // Extract the date part (YYYY-MM-DD) from potential ISO string inputs
+            $startDate = substr($start, 0, 10);
+            
+            $slots = $engine->getAvailableSlots($startDate);
+            
+            // Format slots for frontend calendar consumption (e.g., FullCalendar)
+            $formattedSlots = [];
+            foreach ($slots as $slot) {
+                $formattedSlots[] = [
+                    'title' => 'Available',
+                    'start' => $slot->getStart()->format('Y-m-d\TH:i:s'),
+                    'end'   => $slot->getEnd()->format('Y-m-d\TH:i:s'),
+                    'color' => '#28a745'
+                ];
             }
-
-            $services = $repository->getActiveServices();
+            
             echo json_encode([
                 'success' => true,
-                'data' => $services
-            ]);
-            break;
-
-        case 'check_availability':
-            if ($method !== 'GET') {
-                http_response_code(405);
-                echo json_encode(['error' => 'Metoden tillåts inte. Använd GET.']);
-                exit;
-            }
-
-            $date = $_GET['date'] ?? null;
-            if (!$date) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Parametern "date" (YYYY-MM-DD) krävs.']);
-                exit;
-            }
-
-            $isHoliday = $repository->isHoliday($date);
-            $dayOfWeek = (int)date('w', strtotime($date));
-            $operatingHours = $repository->getOperatingHours($dayOfWeek);
-
-            echo json_encode([
-                'success' => true,
-                'date' => $date,
-                'is_holiday' => $isHoliday,
-                'operating_hours' => $operatingHours
+                'data' => $formattedSlots
             ]);
             break;
 
         case 'book':
-            if ($method !== 'POST') {
+            // Only allow POST requests for booking submissions
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 http_response_code(405);
-                echo json_encode(['error' => 'Metoden tillåts inte. Använd POST.']);
+                echo json_encode(['success' => false, 'error' => 'Method not allowed']);
                 exit;
             }
 
-            try {
-                $result = $service->bookSlot($requestData);
-                http_response_code(201); // Created
-                echo json_encode($result);
-            } catch (InvalidArgumentException $e) {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            if (empty($input['name']) || empty($input['email']) || empty($input['start']) || empty($input['end'])) {
                 http_response_code(400);
-                echo json_encode(['error' => $e->getMessage()]);
-            } catch (RuntimeException $e) {
-                http_response_code(409); // Conflict (upptagen tid/helgdag)
-                echo json_encode(['error' => $e->getMessage()]);
+                echo json_encode(['success' => false, 'error' => 'Missing required fields']);
+                exit;
             }
+
+            $bookingId = $engine->createPendingRequest(
+                $input['name'],
+                $input['email'],
+                $input['start'],
+                $input['end']
+            );
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Booking request received successfully!',
+                'booking_id' => $bookingId
+            ]);
             break;
 
         default:
             http_response_code(400);
-            echo json_encode([
-                'error' => 'Ogiltig eller saknad åtgärd (action). Tillgängliga åtgärder: get_services, check_availability, book.'
-            ]);
+            echo json_encode(['success' => false, 'error' => 'Invalid or missing action']);
             break;
     }
-
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
-        'error' => 'Internt serverfel: ' . $e->getMessage()
+        'success' => false,
+        'error' => $e->getMessage()
     ]);
 }

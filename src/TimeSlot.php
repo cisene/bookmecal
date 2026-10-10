@@ -1,4 +1,6 @@
 <?php
+// TimeSlot.php - Value object representing a time interval
+
 class TimeSlot {
     public function __construct(
         private DateTime $start,

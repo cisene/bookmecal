@@ -1,107 +1,127 @@
 <?php
+// BookingRepository.php - JSON-baserad lagring för servreanvisningar utan databas
 
 class BookingRepository {
-    private PDO $pdo;
+    private string $dataDir;
+    private string $bookingsFile;
+    private string $holidaysFile;
+    private string $operatingHoursFile;
 
-    public function __construct(PDO $pdo) {
-        $this->pdo = $pdo;
+    public function __construct(?string $dataDir = null) {
+        $this->dataDir = $dataDir ?? __DIR__ . '/data';
+
+        if (!is_dir($this->dataDir)) {
+            mkdir($this->dataDir, 0755, true);
+        }
+
+        $this->bookingsFile       = $this->dataDir . '/bookings.json';
+        $this->holidaysFile       = $this->dataDir . '/holidays.json';
+        $this->operatingHoursFile = $this->dataDir . '/operating_hours.json';
+
+        $this->initDefaultFiles();
     }
 
-    /**
-     * Kontrollerar om ett visst datum är en blockerande helgdag.
-     */
+    private function initDefaultFiles(): void {
+        if (!file_exists($this->bookingsFile)) {
+            $this->writeFile($this->bookingsFile, []);
+        }
+
+        if (!file_exists($this->holidaysFile)) {
+            $this->writeFile($this->holidaysFile, []);
+        }
+
+        if (!file_exists($this->operatingHoursFile)) {
+            $defaultHours = [
+                1 => ['start_time' => '08:00', 'end_time' => '17:00'], // Måndag
+                2 => ['start_time' => '08:00', 'end_time' => '17:00'], // Tisdag
+                3 => ['start_time' => '08:00', 'end_time' => '17:00'], // Onsdag
+                4 => ['start_time' => '08:00', 'end_time' => '17:00'], // Torsdag
+                5 => ['start_time' => '08:00', 'end_time' => '17:00'], // Fredag
+            ];
+            $this->writeFile($this->operatingHoursFile, $defaultHours);
+        }
+    }
+
+    private function readFile(string $filePath): array {
+        if (!file_exists($filePath)) {
+            return [];
+        }
+
+        $fp = fopen($filePath, 'rb');
+        if (!$fp) {
+            return [];
+        }
+
+        flock($fp, LOCK_SH);
+        $content = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
+        return json_decode($content, true) ?: [];
+    }
+
+    private function writeFile(string $filePath, array $data): bool {
+        $fp = fopen($filePath, 'c+b');
+        if (!$fp) {
+            return false;
+        }
+
+        if (flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            fflush($fp);
+            flock($fp, LOCK_UN);
+            fclose($fp);
+            return true;
+        }
+
+        fclose($fp);
+        return false;
+    }
+
     public function isHoliday(string $dateStr): bool {
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM holiday_matrix WHERE holiday_date = ?");
-        $stmt->execute([$dateStr]);
-        return (int)$stmt->fetchColumn() > 0;
+        $holidays = $this->readFile($this->holidaysFile);
+        return in_array($dateStr, $holidays, true);
     }
 
-    /**
-     * Hämtar öppettider för en specifik veckodag (0 = söndag, 1 = måndag, etc.).
-     */
     public function getOperatingHours(int $dayOfWeek): ?array {
-        $stmt = $this->pdo->prepare("SELECT start_time, end_time FROM slot_matrix WHERE day_of_week = ? AND is_active = 1");
-        $stmt->execute([$dayOfWeek]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result ?: null;
+        $hours = $this->readFile($this->operatingHoursFile);
+        return $hours[$dayOfWeek] ?? null;
     }
 
-    /**
-     * Kontrollerar om en viss tidsintervall krockar med existerande bokningar.
-     */
     public function isSlotOccupied(string $start, string $end): bool {
-        $stmt = $this->pdo->prepare("
-            SELECT COUNT(*) FROM booking_requests 
-            WHERE status IN ('pending', 'approved') 
-            AND (start_datetime < ? AND end_datetime > ?)
-        ");
-        $stmt->execute([$end, $start]);
-        return (int)$stmt->fetchColumn() > 0;
+        $bookings = $this->readFile($this->bookingsFile);
+
+        foreach ($bookings as $b) {
+            if (in_array($b['status'], ['pending', 'approved'], true)) {
+                if ($b['start_datetime'] < $end && $b['end_datetime'] > $start) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
-    /**
-     * Kontrollerar om en specifik starttid redan är bokad.
-     */
-    public function isSlotBooked(string $startDatetime): bool {
-        $stmt = $this->pdo->prepare("
-            SELECT COUNT(*) FROM booking_requests 
-            WHERE status IN ('pending', 'approved') 
-            AND start_datetime = ?
-        ");
-        $stmt->execute([$startDatetime]);
-        return (int)$stmt->fetchColumn() > 0;
-    }
+    public function createRequest(string $name, string $email, string $start, string $end): int {
+        $bookings = $this->readFile($this->bookingsFile);
 
-    /**
-     * Hämtar alla aktiva tjänster.
-     */
-    public function getActiveServices(): array {
-        $stmt = $this->pdo->prepare("SELECT * FROM services WHERE is_active = 1 ORDER BY id ASC");
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
+        $newId = count($bookings) > 0 ? (max(array_column($bookings, 'id')) + 1) : 1;
 
-    /**
-     * Skapar en bokningspost i databasen.
-     */
-    public function createBookingRecord(array $data): int {
-        $stmt = $this->pdo->prepare("
-            INSERT INTO booking_requests (
-                service_id, client_name, client_email, client_phone, 
-                start_datetime, preferred_language, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())
-        ");
-        $stmt->execute([
-            $data['service_id'] ?? null,
-            $data['client_name'],
-            $data['client_email'],
-            $data['client_phone'] ?? '',
-            $data['start_datetime'],
-            $data['preferred_language'] ?? 'sv'
-        ]);
+        $newRequest = [
+            'id'             => $newId,
+            'client_name'    => $name,
+            'client_email'   => $email,
+            'start_datetime' => $start,
+            'end_datetime'   => $end,
+            'status'         => 'pending',
+            'created_at'     => date('Y-m-d H:i:s')
+        ];
 
-        return (int)$this->pdo->lastInsertId();
-    }
+        $bookings[] = $newRequest;
+        $this->writeFile($this->bookingsFile, $bookings);
 
-    /**
-     * Uppdaterar en bokning med ett Google Calendar Event-ID.
-     */
-    public function updateGcalEventId(int $bookingId, string $eventId): void {
-        $stmt = $this->pdo->prepare("
-            UPDATE booking_requests 
-            SET gcal_event_id = ? 
-            WHERE id = ?
-        ");
-        $stmt->execute([$eventId, $bookingId]);
-    }
-
-    /**
-     * Hämtar en specifik bokning via ID.
-     */
-    public function getBookingById(int $bookingId): ?array {
-        $stmt = $this->pdo->prepare("SELECT * FROM booking_requests WHERE id = ?");
-        $stmt->execute([$bookingId]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result ?: null;
+        return $newId;
     }
 }
