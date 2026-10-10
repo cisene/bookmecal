@@ -9,7 +9,7 @@ $displayAdmin = $currentAdmin ?? ($_SERVER['PHP_AUTH_USER'] ?? 'Administrator');
         <h2 style="margin: 0 0 10px 0;">Admin Dashboard</h2>
         <div class="nav">
             <a href="pending.php" style="margin-right: 15px; text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'pending.php' ? '#495057' : '#007bff'; ?>;">Pending Bookings</a>
-            <a href="config.php" style="margin-right: 15px; text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'config.php' ? '#495057' : '#007bff'; ?>;">Configuration</a>
+            <a href="config.php" style="margin-right: 15px; text-decoration: none; font-weight: bold; color: <?php echo in_array($currentPage, array('config.php', 'setup_google.php')) ? '#495057' : '#007bff'; ?>;">Configuration</a>
             <a href="availability.php" style="margin-right: 15px; text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'availability.php' ? '#495057' : '#007bff'; ?>;">Availability Slots</a>
             <a href="users.php" style="text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'users.php' ? '#495057' : '#007bff'; ?>;">Users & Audit Log</a>
         </div>

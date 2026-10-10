@@ -2,7 +2,7 @@
 // src/admin/users.php - User management and audit log viewer
 require_once __DIR__ . '/auth.php';
 
-$htpasswdFile = dirname(__DIR__) . '/../secure/.htpasswd'; 
+$htpasswdFile = __DIR__ . '/.htpasswd';
 $auditFile = dirname(__DIR__) . '/data/audit.json';
 
 $msg = '';
@@ -14,13 +14,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit('CSRF verification failed.');
     }
 
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
 
     if ($action === 'save_user') {
-        $username = trim($_POST['username'] ?? '');
-        $password = $_POST['password'] ?? '';
+        $username = trim(isset($_POST['username']) ? $_POST['username'] : '');
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
 
-        if (!preg_match('/^[a-zA-Z0-9_]{3,20}$/', $username)) {
+        // Validate username using native functions to avoid PCRE/JIT issues
+        $cleanUserForCheck = str_replace('_', '', $username);
+        $isValidUsername = (
+            strlen($username) >= 3 && 
+            strlen($username) <= 20 && 
+            ctype_alnum($cleanUserForCheck)
+        );
+
+        if (!$isValidUsername) {
             $error = 'Invalid username format (3-20 alphanumeric characters/underscores).';
         } elseif (empty($password)) {
             $error = 'Password cannot be empty.';
@@ -28,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $salt = bin2hex(random_bytes(8));
             $hash = crypt($password, '$6$' . $salt . '$');
             
-            $users = [];
+            $users = array();
             if (file_exists($htpasswdFile)) {
                 $lines = file($htpasswdFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
                 foreach ($lines as $line) {
@@ -48,20 +56,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $content .= $u . ':' . $h . "\n";
             }
 
-            $dir = dirname($htpasswdFile);
-            if (!is_dir($dir)) {
-                mkdir($dir, 0755, true);
-            }
-
-            if (file_put_contents($htpasswdFile, $content)) {
+            if (file_put_contents($htpasswdFile, $content) !== false) {
                 $msg = 'User "' . htmlspecialchars($username) . '" saved successfully.';
                 log_audit_action($currentAdmin, 'USER_MODIFY', 'Added or updated credentials for user: ' . $username);
             } else {
-                $error = 'Failed to write to .htpasswd file. Check file permissions.';
+                $error = 'Failed to write to .htpasswd file. Check file permissions in src/admin/.';
             }
         }
     } elseif ($action === 'delete_user') {
-        $username = trim($_POST['username'] ?? '');
+        $username = trim(isset($_POST['username']) ? $_POST['username'] : '');
         if ($username === $currentAdmin) {
             $error = 'You cannot delete your own active account while logged in.';
         } elseif (!empty($username) && file_exists($htpasswdFile)) {
@@ -86,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$configuredUsers = [];
+$configuredUsers = array();
 if (file_exists($htpasswdFile)) {
     $lines = file($htpasswdFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
@@ -97,7 +100,7 @@ if (file_exists($htpasswdFile)) {
     }
 }
 
-$auditLogs = [];
+$auditLogs = array();
 if (file_exists($auditFile)) {
     $decoded = json_decode(file_get_contents($auditFile), true);
     if (is_array($decoded)) {
@@ -181,7 +184,7 @@ if (file_exists($auditFile)) {
 
     <div class="card">
         <h2>Staff Audit Trail</h2>
-        <p>Real-time log of administrative actions, booking approvals, and settings changes performed by staff.</p>
+        <p>Real-time log of administrative actions, booking approvals, and settings changes performed by staff (max 200 entries).</p>
 
         <?php if (empty($auditLogs)): ?>
             <p>No audit events recorded yet.</p>
@@ -196,11 +199,11 @@ if (file_exists($auditFile)) {
                 </tr>
                 <?php foreach ($auditLogs as $log): ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($log['timestamp']); ?></td>
-                        <td><strong><?php echo htmlspecialchars($log['user']); ?></strong></td>
-                        <td><code><?php echo htmlspecialchars($log['action']); ?></code></td>
-                        <td><?php echo htmlspecialchars($log['details']); ?></td>
-                        <td><?php echo htmlspecialchars($log['ip']); ?></td>
+                        <td><?php echo htmlspecialchars(isset($log['timestamp']) ? $log['timestamp'] : ''); ?></td>
+                        <td><strong><?php echo htmlspecialchars(isset($log['user']) ? $log['user'] : ''); ?></strong></td>
+                        <td><code><?php echo htmlspecialchars(isset($log['action']) ? $log['action'] : ''); ?></code></td>
+                        <td><?php echo htmlspecialchars(isset($log['details']) ? $log['details'] : ''); ?></td>
+                        <td><?php echo htmlspecialchars(isset($log['ip']) ? $log['ip'] : ''); ?></td>
                     </tr>
                 <?php endforeach; ?>
             </table>

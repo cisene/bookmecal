@@ -1,0 +1,16 @@
+[
+    {
+        "timestamp": "2026-10-10 14:43:31",
+        "user": "chrise",
+        "action": "USER_MODIFY",
+        "details": "Added or updated credentials for user: Lynn",
+        "ip": "127.0.0.1"
+    },
+    {
+        "timestamp": "2026-10-10 14:43:07",
+        "user": "chrise",
+        "action": "USER_MODIFY",
+        "details": "Added or updated credentials for user: pamela",
+        "ip": "127.0.0.1"
+    }
+]
