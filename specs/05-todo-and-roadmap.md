@@ -1,7 +1,13 @@
 # 5. Todo List, Roadmap & Revision History
 
 ## Active Todo List & Roadmap
-- [x] *(All core and post-launch roadmap milestones successfully completed!)*
+- [x] Make locale configurable in `data/config.json`
+- [x] Make language configurable in `data/config.json`
+- [x] Make date formats configurable in `data/config.json`
+- [x] Make time formats configurable in `data/config.json`
+- [x] Make pending booking requests folder in `data/pending/`
+- [x] Pending booking requests are JSON files with all data regarding booking request
+- [x] Available booking slots are stored in `data/booking/availability.json`
 
 ---
 
@@ -9,6 +15,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-10** | • Migrated configuration to `data/config.json` supporting locale, language, and date/time formatting options.<br>• Refactored `BookingRepository` to manage individual pending requests inside `data/pending/` and availability slots in `data/booking/availability.json`. |
 | **2026-10-10** | • Built concurrency and file-locking test suite (`test_concurrency.php`) simulating parallel process writes to verify thread-safe `flock()` protection against race conditions and JSON corruption. |
 | **2026-10-10** | • Implemented object-oriented multi-language support (`Localization.php`) with static JSON dictionary caching, cookie/session language selection, and the `__t()` global helper function, accompanied by English and Swedish language dictionaries. |
 | **2026-10-10** | • Implemented security & anti-spam hardening: Added CSRF protection tokens and POST-based action forms in the admin dashboard (`admin.php`), and IP-based rate limiting on booking submissions in `api.php`. |

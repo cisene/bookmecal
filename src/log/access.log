@@ -20,3 +20,5 @@
 127.0.0.1 - - [10/Oct/2026:14:08:01 +0200] "GET / HTTP/1.1" 404 224 "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
 127.0.0.1 - - [10/Oct/2026:14:08:02 +0200] "GET / HTTP/1.1" 404 223 "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
 127.0.0.1 - - [10/Oct/2026:14:12:00 +0200] "GET / HTTP/1.1" 200 1269 "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
+127.0.0.1 - - [10/Oct/2026:14:46:44 +0200] "GET / HTTP/1.1" 200 2564 "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
+127.0.0.1 - - [10/Oct/2026:14:46:44 +0200] "GET /api.php?action=get_slots&start=2026-10-04T00%3A00%3A00%2B02%3A00&end=2026-10-11T00%3A00%3A00%2B02%3A00 HTTP/1.1" 200 1349 "http://bookmecal.local/" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"

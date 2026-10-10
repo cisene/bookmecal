@@ -1,127 +1,128 @@
 <?php
-// BookingRepository.php - JSON-baserad lagring för servreanvisningar utan databas
+// BookingRepository.php - Handles thread-safe file operations for pending requests and availability
 
 class BookingRepository {
     private string $dataDir;
-    private string $bookingsFile;
-    private string $holidaysFile;
-    private string $operatingHoursFile;
+    private string $pendingDir;
+    private string $availabilityFile;
 
     public function __construct(?string $dataDir = null) {
-        $this->dataDir = $dataDir ?? __DIR__ . '/data';
+        $this->dataDir = $dataDir ?? __DIR__ . '/src/data';
+        $this->pendingDir = $this->dataDir . '/pending';
+        $this->availabilityFile = $this->dataDir . '/booking/availability.json';
 
-        if (!is_dir($this->dataDir)) {
-            mkdir($this->dataDir, 0755, true);
+        // Ensure directories exist
+        if (!is_dir($this->pendingDir)) {
+            mkdir($this->pendingDir, 0755, true);
         }
-
-        $this->bookingsFile       = $this->dataDir . '/bookings.json';
-        $this->holidaysFile       = $this->dataDir . '/holidays.json';
-        $this->operatingHoursFile = $this->dataDir . '/operating_hours.json';
-
-        $this->initDefaultFiles();
-    }
-
-    private function initDefaultFiles(): void {
-        if (!file_exists($this->bookingsFile)) {
-            $this->writeFile($this->bookingsFile, []);
-        }
-
-        if (!file_exists($this->holidaysFile)) {
-            $this->writeFile($this->holidaysFile, []);
-        }
-
-        if (!file_exists($this->operatingHoursFile)) {
-            $defaultHours = [
-                1 => ['start_time' => '08:00', 'end_time' => '17:00'], // Måndag
-                2 => ['start_time' => '08:00', 'end_time' => '17:00'], // Tisdag
-                3 => ['start_time' => '08:00', 'end_time' => '17:00'], // Onsdag
-                4 => ['start_time' => '08:00', 'end_time' => '17:00'], // Torsdag
-                5 => ['start_time' => '08:00', 'end_time' => '17:00'], // Fredag
-            ];
-            $this->writeFile($this->operatingHoursFile, $defaultHours);
+        $availDir = dirname($this->availabilityFile);
+        if (!is_dir($availDir)) {
+            mkdir($availDir, 0755, true);
         }
     }
 
-    private function readFile(string $filePath): array {
-        if (!file_exists($filePath)) {
+    /**
+     * Creates a new pending booking request as an individual JSON file in src/data/pending/
+     */
+    public function createPendingRequest(string $clientName, string $clientEmail, string $start, string $end): int {
+        $bookingId = time(); // Unique ID based on timestamp
+        $filename = $this->pendingDir . '/booking_' . $bookingId . '.json';
+
+        $bookingData = [
+            'id' => $bookingId,
+            'client_name' => $clientName,
+            'client_email' => $clientEmail,
+            'start_datetime' => $start,
+            'end_datetime' => $end,
+            'status' => 'pending',
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+
+        $fp = fopen($filename, 'c+b');
+        if ($fp) {
+            if (flock($fp, LOCK_EX)) {
+                ftruncate($fp, 0);
+                rewind($fp);
+                fwrite($fp, json_encode($bookingData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                fflush($fp);
+                flock($fp, LOCK_UN);
+            }
+            fclose($fp);
+        }
+
+        return $bookingId;
+    }
+
+    /**
+     * Retrieves all pending booking requests from src/data/pending/
+     */
+    public function getPendingRequests(): array {
+        $requests = [];
+        $files = glob($this->pendingDir . '/booking_*.json');
+        
+        foreach ($files as $file) {
+            $fp = fopen($file, 'rb');
+            if ($fp) {
+                if (flock($fp, LOCK_SH)) {
+                    $content = stream_get_contents($fp);
+                    flock($fp, LOCK_UN);
+                    $data = json_decode($content, true);
+                    if ($data) {
+                        $requests[] = $data;
+                    }
+                }
+                fclose($fp);
+            }
+        }
+
+        usort($requests, fn($a, $b) => $b['id'] <=> $a['id']);
+        return $requests;
+    }
+
+    /**
+     * Loads available booking slots from src/data/booking/availability.json
+     */
+    public function getAvailability(): array {
+        if (!file_exists($this->availabilityFile)) {
             return [];
         }
 
-        $fp = fopen($filePath, 'rb');
+        $fp = fopen($this->availabilityFile, 'rb');
         if (!$fp) {
             return [];
         }
 
-        flock($fp, LOCK_SH);
-        $content = stream_get_contents($fp);
-        flock($fp, LOCK_UN);
+        $slots = [];
+        if (flock($fp, LOCK_SH)) {
+            $content = stream_get_contents($fp);
+            flock($fp, LOCK_UN);
+            $slots = json_decode($content, true) ?: [];
+        }
         fclose($fp);
 
-        return json_decode($content, true) ?: [];
+        return $slots;
     }
 
-    private function writeFile(string $filePath, array $data): bool {
-        $fp = fopen($filePath, 'c+b');
+    /**
+     * Saves available booking slots to src/data/booking/availability.json
+     */
+    public function saveAvailability(array $slots): bool {
+        $fp = fopen($this->availabilityFile, 'c+b');
         if (!$fp) {
             return false;
         }
 
+        $success = false;
         if (flock($fp, LOCK_EX)) {
             ftruncate($fp, 0);
             rewind($fp);
-            fwrite($fp, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            fwrite($fp, json_encode($slots, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             fflush($fp);
             flock($fp, LOCK_UN);
-            fclose($fp);
-            return true;
+            $success = true;
         }
-
         fclose($fp);
-        return false;
-    }
 
-    public function isHoliday(string $dateStr): bool {
-        $holidays = $this->readFile($this->holidaysFile);
-        return in_array($dateStr, $holidays, true);
-    }
-
-    public function getOperatingHours(int $dayOfWeek): ?array {
-        $hours = $this->readFile($this->operatingHoursFile);
-        return $hours[$dayOfWeek] ?? null;
-    }
-
-    public function isSlotOccupied(string $start, string $end): bool {
-        $bookings = $this->readFile($this->bookingsFile);
-
-        foreach ($bookings as $b) {
-            if (in_array($b['status'], ['pending', 'approved'], true)) {
-                if ($b['start_datetime'] < $end && $b['end_datetime'] > $start) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    public function createRequest(string $name, string $email, string $start, string $end): int {
-        $bookings = $this->readFile($this->bookingsFile);
-
-        $newId = count($bookings) > 0 ? (max(array_column($bookings, 'id')) + 1) : 1;
-
-        $newRequest = [
-            'id'             => $newId,
-            'client_name'    => $name,
-            'client_email'   => $email,
-            'start_datetime' => $start,
-            'end_datetime'   => $end,
-            'status'         => 'pending',
-            'created_at'     => date('Y-m-d H:i:s')
-        ];
-
-        $bookings[] = $newRequest;
-        $this->writeFile($this->bookingsFile, $bookings);
-
-        return $newId;
+        return $success;
     }
 }
