@@ -1,7 +1,7 @@
 # 5. Todo List, Roadmap & Revision History
 
 ## Active Todo List & Roadmap
-- [ ] **Testing & Verification Suite:** Build a lightweight test script to simulate concurrent booking requests and verify that thread-safe file-locking (`flock()`) correctly prevents race conditions and data corruption.
+- [x] *(All core and post-launch roadmap milestones successfully completed!)*
 
 ---
 
@@ -9,6 +9,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-10** | • Built concurrency and file-locking test suite (`test_concurrency.php`) simulating parallel process writes to verify thread-safe `flock()` protection against race conditions and JSON corruption. |
 | **2026-10-10** | • Implemented object-oriented multi-language support (`Localization.php`) with static JSON dictionary caching, cookie/session language selection, and the `__t()` global helper function, accompanied by English and Swedish language dictionaries. |
 | **2026-10-10** | • Implemented security & anti-spam hardening: Added CSRF protection tokens and POST-based action forms in the admin dashboard (`admin.php`), and IP-based rate limiting on booking submissions in `api.php`. |
 | **2026-10-10** | • Created automated installation and environment verification script (`install.php`) checking directory write permissions, PHP extensions, and generating initial configurations. |
