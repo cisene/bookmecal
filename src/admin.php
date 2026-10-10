@@ -1,19 +1,26 @@
 <?php
-// admin.php - Administrative dashboard for managing bookings
+// admin.php - Administrative dashboard for managing bookings with CSRF protection
 
 $config = require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/BookingRepository.php';
 
-// Simple admin authentication (configurable via config or default credentials)
 $adminUser = $config['app']['admin_user'] ?? 'admin';
 $adminPass = $config['app']['admin_pass'] ?? 'secret123';
 
 session_start();
 
+// Initialize CSRF token if not present
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Handle login submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    if ($_POST['username'] === $adminUser && $_POST['password'] === $adminPass) {
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $loginError = 'Invalid security token (CSRF verification failed).';
+    } elseif ($_POST['username'] === $adminUser && $_POST['password'] === $adminPass) {
         $_SESSION['admin_logged_in'] = true;
+        session_regenerate_id(true);
         header('Location: admin.php');
         exit;
     } else {
@@ -28,21 +35,21 @@ if (isset($_GET['logout'])) {
     exit;
 }
 
-// Check if logged in
 $isLoggedIn = $_SESSION['admin_logged_in'] ?? false;
 
 $repository = new BookingRepository($config['storage']['data_dir'] ?? null);
 $bookingsFile = ($config['storage']['data_dir'] ?? __DIR__ . '/data') . '/bookings.json';
 
-// Handle booking status update actions
-if ($isLoggedIn && isset($_GET['action'], $_GET['id'])) {
-    $action = $_GET['action'];
-    $targetId = (int)$_GET['id'];
+// Handle booking status update actions via POST for CSRF safety
+if ($isLoggedIn && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'])) {
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        http_response_code(403);
+        exit('CSRF verification failed.');
+    }
+
+    $action = $_POST['action'];
+    $targetId = (int)$_POST['id'];
     
-    // Read bookings directly using repository helper or file read logic
-    // Since BookingRepository doesn't expose a public getAllBookings or updateStatus in our minimal JSON implementation,
-    // let's add or handle it via reading/writing the file directly or via repository methods.
-    // Let's implement robust file manipulation here for admin actions:
     if (file_exists($bookingsFile)) {
         $fp = fopen($bookingsFile, 'c+b');
         if ($fp && flock($fp, LOCK_EX)) {
@@ -89,7 +96,6 @@ if (file_exists($bookingsFile)) {
         $bookings = json_decode($content, true) ?: [];
     }
 }
-// Sort bookings descending by ID or creation date
 usort($bookings, fn($a, $b) => $b['id'] <=> $a['id']);
 ?>
 <!DOCTYPE html>
@@ -177,6 +183,7 @@ usort($bookings, fn($a, $b) => $b['id'] <=> $a['id']);
         .badge-rejected { background-color: #dc3545; color: #fff; }
         .error { color: #dc3545; margin-bottom: 10px; font-size: 14px; }
         .clearfix::after { content: ""; clear: both; display: table; }
+        .inline-form { display: inline; }
     </style>
 </head>
 <body>
@@ -189,6 +196,7 @@ usort($bookings, fn($a, $b) => $b['id'] <=> $a['id']);
                 <div class="error"><?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="form-group">
                     <label for="username">Username:</label>
                     <input type="text" id="username" name="username" required>
@@ -239,8 +247,18 @@ usort($bookings, fn($a, $b) => $b['id'] <=> $a['id']);
                             </td>
                             <td>
                                 <?php if ($b['status'] === 'pending'): ?>
-                                    <a href="admin.php?action=approve&id=<?php echo (int)$b['id']; ?>" class="btn btn-success" style="padding: 4px 8px; font-size: 12px;">Approve</a>
-                                    <a href="admin.php?action=reject&id=<?php echo (int)$b['id']; ?>" class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;">Reject</a>
+                                    <form method="POST" class="inline-form">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+                                        <input type="hidden" name="id" value="<?php echo (int)$b['id']; ?>">
+                                        <input type="hidden" name="action" value="approve">
+                                        <button type="submit" class="btn btn-success" style="padding: 4px 8px; font-size: 12px;">Approve</button>
+                                    </form>
+                                    <form method="POST" class="inline-form">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+                                        <input type="hidden" name="id" value="<?php echo (int)$b['id']; ?>">
+                                        <input type="hidden" name="action" value="reject">
+                                        <button type="submit" class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;">Reject</button>
+                                    </form>
                                 <?php else: ?>
                                     <span style="color: #666; font-size: 12px;">Processed</span>
                                 <?php endif; ?>
