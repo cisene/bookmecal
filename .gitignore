@@ -4,5 +4,8 @@
 /vendor
 
 
-config.php
+#config.php
 composer.lock
+
+src/log
+src/log/*
