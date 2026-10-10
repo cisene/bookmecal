@@ -27,7 +27,7 @@
             "22:00": 0,
             "23:00": 0
         },
-        "updated_by": "admin"
+        "updated_by": "chrise"
     },
     "tuesday": {
         "day_index": 2,
@@ -57,7 +57,7 @@
             "22:00": 0,
             "23:00": 0
         },
-        "updated_by": "admin"
+        "updated_by": "chrise"
     },
     "wednesday": {
         "day_index": 3,
@@ -87,7 +87,7 @@
             "22:00": 0,
             "23:00": 0
         },
-        "updated_by": "admin"
+        "updated_by": "chrise"
     },
     "thursday": {
         "day_index": 4,
@@ -117,7 +117,7 @@
             "22:00": 0,
             "23:00": 0
         },
-        "updated_by": "admin"
+        "updated_by": "chrise"
     },
     "friday": {
         "day_index": 5,
@@ -147,7 +147,7 @@
             "22:00": 0,
             "23:00": 0
         },
-        "updated_by": "admin"
+        "updated_by": "chrise"
     },
     "saturday": {
         "day_index": 6,
@@ -162,7 +162,7 @@
             "07:00": 0,
             "08:00": 0,
             "09:00": 0,
-            "10:00": 1,
+            "10:00": 0,
             "11:00": 1,
             "12:00": 1,
             "13:00": 1,
@@ -177,7 +177,7 @@
             "22:00": 0,
             "23:00": 0
         },
-        "updated_by": "admin"
+        "updated_by": "chrise"
     },
     "sunday": {
         "day_index": 7,
@@ -192,7 +192,7 @@
             "07:00": 0,
             "08:00": 0,
             "09:00": 0,
-            "10:00": 1,
+            "10:00": 0,
             "11:00": 1,
             "12:00": 1,
             "13:00": 1,
@@ -207,6 +207,6 @@
             "22:00": 0,
             "23:00": 0
         },
-        "updated_by": "admin"
+        "updated_by": "chrise"
     }
 }

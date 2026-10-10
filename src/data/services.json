@@ -1,20 +1,35 @@
-[
-    {
-        "duration_minutes": 45,
-        "id": 1,
-        "name": "Medical Foot Care",
-        "price": 750.0
-    },
-    {
-        "duration_minutes": 30,
-        "id": 2,
-        "name": "Podiatry Consultation",
-        "price": 500.0
-    },
-    {
+{
+    "2": {
         "duration_minutes": 30,
         "id": 3,
         "name": "Nail & Skin Treatment",
-        "price": 450.0
+        "price": 450,
+        "is_active": false,
+        "updated_at": "2026-10-10 22:20:43",
+        "updated_by": "chrise"
+    },
+    "Fotvård-bas": {
+        "sku": "Fotvård-bas",
+        "name": "Medical Foot Care",
+        "description": "",
+        "duration": 45,
+        "price_excl_vat": 640,
+        "price_incl_vat": 800,
+        "vat_rate": 25,
+        "is_active": true,
+        "updated_at": "2026-10-10 22:20:17",
+        "updated_by": "chrise"
+    },
+    "Fotvård-Konsultation": {
+        "sku": "Fotvård-Konsultation",
+        "name": "Podiatry Consultation",
+        "description": "",
+        "duration": 30,
+        "price_excl_vat": 350,
+        "price_incl_vat": 350,
+        "vat_rate": 0,
+        "is_active": true,
+        "updated_at": "2026-10-10 22:22:27",
+        "updated_by": "chrise"
     }
-]
+}
