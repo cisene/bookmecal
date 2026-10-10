@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Availability Matrix - Admin</title>
+    <title>Availability Slots - Admin</title>
     <style>
         body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 1050px; margin: 0 auto; }
@@ -72,8 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include __DIR__ . '/header.php'; ?>
 
     <div style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-        <h2>Graphical Availability Matrix</h2>
-        <p>Manage operating hours. Hours 00:00 to 06:00 and 20:00 to 23:00 are pre-marked as unavailable by default.</p>
+        <h2>Availability Slots</h2>
+        <p>Manage weekly operating hours. Hours 00:00 to 06:00 and 20:00 to 23:00 are pre-marked as unavailable by default.</p>
 
         <?php if (!empty($successMsg)): ?><div class="alert"><?php echo $successMsg; ?></div><?php endif; ?>
 

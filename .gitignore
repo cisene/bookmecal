@@ -8,4 +8,4 @@
 composer.lock
 
 src/log
-src/log/*
+src/log/**

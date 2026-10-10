@@ -5,13 +5,14 @@ require_once __DIR__ . '/auth.php';
 $pendingDir = __DIR__ . '/../src/data/pending';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'],$_POST['csrf_token'])) {
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         http_response_code(403);
         exit('CSRF verification failed.');
     }
 
-    $action = isset($_POST['action']) ? $_POST['action'] : '';$targetId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-    $targetFile = $pendingDir . '/booking_' .$targetId . '.json';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
+    $targetId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    $targetFile = $pendingDir . '/booking_' . $targetId . '.json';
 
     if (file_exists($targetFile)) {
         $fp = fopen($targetFile, 'c+b');
@@ -20,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $booking = json_decode($content, true);
             if (is_array($booking)) {
                 $booking['status'] = ($action === 'approve') ? 'approved' : 'rejected';
-                $booking['processed_by'] =$currentAdmin; // Audit trail for multi-user BA
+                $booking['processed_by'] = $currentAdmin;
                 ftruncate($fp, 0);
                 rewind($fp);
                 fwrite($fp, json_encode($booking, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -55,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include __DIR__ . '/header.php'; ?>
 
     <div style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-        <h2>Pending Requests (`src/data/pending/`)</h2>
+        <h2>Pending Bookings</h2>
         <?php
         $files = glob($pendingDir . '/booking_*.json');
         if (empty($files)):
@@ -64,16 +65,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php else: ?>
             <table>
                 <tr><th>ID</th><th>Client</th><th>Email</th><th>Start</th><th>Status</th><th>Actions</th></tr>
-                <?php foreach ($files as$file):
+                <?php foreach ($files as $file):
                     $booking = json_decode(file_get_contents($file), true);
                     if (!is_array($booking)) continue;
                 ?>
                     <tr>
                         <td><?php echo isset($booking['id']) ? (int)$booking['id'] : 0; ?></td>
-                        <td><?php echo htmlspecialchars(isset($booking['client_name']) ?$booking['client_name'] : ''); ?></td>
-                        <td><?php echo htmlspecialchars(isset($booking['client_email']) ?$booking['client_email'] : ''); ?></td>
-                        <td><?php echo htmlspecialchars(isset($booking['start_datetime']) ?$booking['start_datetime'] : ''); ?></td>
-                        <td><?php echo htmlspecialchars(isset($booking['status']) ?$booking['status'] : 'pending'); ?></td>
+                        <td><?php echo htmlspecialchars(isset($booking['client_name']) ? $booking['client_name'] : ''); ?></td>
+                        <td><?php echo htmlspecialchars(isset($booking['client_email']) ? $booking['client_email'] : ''); ?></td>
+                        <td><?php echo htmlspecialchars(isset($booking['start_datetime']) ? $booking['start_datetime'] : ''); ?></td>
+                        <td><?php echo htmlspecialchars(isset($booking['status']) ? $booking['status'] : 'pending'); ?></td>
                         <td>
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
