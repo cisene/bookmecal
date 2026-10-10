@@ -21,5 +21,8 @@
         "enabled": false,
         "from_email": "noreply@example.com",
         "from_name": "Book Me Calendar"
+    },
+    "calendar": {
+        "cache_refresh_interval": 3600
     }
 }

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Google OAuth Tokens Schema",
+  "description": "Schema governing sensitive Google Calendar OAuth token storage in src/data/tokens.json",
+  "type": "object",
+  "properties": {
+    "access_token": {
+      "type": "string",
+      "description": "Active short-lived bearer token for Google Calendar API calls."
+    },
+    "refresh_token": {
+      "type": "string",
+      "description": "Long-lived token used to automatically request fresh access tokens."
+    },
+    "token_expiry": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Expiration timestamp for the current access token in YYYY-MM-DD HH:MM:SS format."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the last token update."
+    },
+    "updated_by": {
+      "type": "string",
+      "description": "Username of the administrator who last updated the token file."
+    }
+  },
+  "required": ["access_token", "refresh_token", "token_expiry", "updated_at", "updated_by"],
+  "additionalProperties": false
+}

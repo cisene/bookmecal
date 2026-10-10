@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Application Configuration Schema",
+  "description": "Schema governing global application settings and calendar identity in src/data/config.json",
+  "type": "object",
+  "properties": {
+    "app": {
+      "type": "object",
+      "properties": {
+        "timezone": { "type": "string", "default": "Europe/Stockholm" },
+        "locale": { "type": "string", "default": "sv_SE.UTF-8" },
+        "language": { "type": "string", "enum": ["sv", "en"], "default": "sv" },
+        "date_format": { "type": "string", "default": "Y-m-d" },
+        "time_format": { "type": "string", "default": "H:i" },
+        "storage_backend": { "type": "string", "enum": ["json", "sqlite", "mysql"], "default": "json" },
+        "last_modified_by": { "type": "string" }
+      },
+      "required": ["timezone", "storage_backend"],
+      "additionalProperties": false
+    },
+    "calendar": {
+      "type": "object",
+      "properties": {
+        "owner_name": { "type": "string", "description": "Calendar owner or clinic administrator name." },
+        "notification_email": { "type": "string", "format": "email", "description": "Primary notification email address." },
+        "google_user": { "type": "string", "description": "Google service account or account user email." },
+        "calendar_id": { "type": "string", "default": "primary", "description": "Target Google Calendar ID." },
+        "cache_refresh_interval": { "type": "integer", "minimum": 60, "default": 3600, "description": "Cache refresh interval in seconds." }
+      },
+      "required": ["owner_name", "notification_email", "google_user", "calendar_id", "cache_refresh_interval"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["app", "calendar"],
+  "additionalProperties": false
+}

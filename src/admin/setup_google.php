@@ -1,11 +1,13 @@
 <?php
-// src/admin/setup_google.php - Step-by-step Google Calendar Sync Enrollment Wizard
+// src/admin/setup_google.php - Real Google Calendar Sync Enrollment Wizard
 require_once __DIR__ . '/auth.php';
 
-$configFile = dirname(__DIR__) . '/data/config.json';
-$configDir = dirname($configFile);
-if (!is_dir($configDir)) {
-    @mkdir($configDir, 0775, true);
+$dataDir = dirname(__DIR__) . '/data';
+$configFile = $dataDir . '/config.json';
+$tokensFile = $dataDir . '/tokens.json';
+
+if (!is_dir($dataDir)) {
+    @mkdir($dataDir, 0775, true);
 }
 
 $config = array();
@@ -14,11 +16,18 @@ if (file_exists($configFile)) {
     if (is_array($decoded)) { $config = $decoded; }
 }
 
+$tokens = array();
+if (file_exists($tokensFile)) {
+    $decodedTokens = json_decode(file_get_contents($tokensFile), true);
+    if (is_array($decodedTokens)) { $tokens = $decodedTokens; }
+}
+
 $step = isset($_REQUEST['step']) ? (int)$_REQUEST['step'] : 1;
 if ($step < 1) { $step = 1; }
 if ($step > 3) { $step = 3; }
 
 $successMsg = '';
+$errorMsg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
@@ -29,17 +38,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($config['calendar'])) { $config['calendar'] = array(); }
 
     if ($step === 1) {
+        // Step 1: Real Identity & Communication Parameters -> Saved to config.json
+        $config['calendar']['owner_name'] = trim(isset($_POST['owner_name']) ? $_POST['owner_name'] : '');
+        $config['calendar']['notification_email'] = trim(isset($_POST['notification_email']) ? $_POST['notification_email'] : '');
         $config['calendar']['google_user'] = trim(isset($_POST['google_user']) ? $_POST['google_user'] : '');
-        if (!empty($_POST['google_password'])) {
-            $config['calendar']['google_password'] = $_POST['google_password'];
-        }
+        $config['calendar']['calendar_id'] = trim(isset($_POST['calendar_id']) ? $_POST['calendar_id'] : 'primary');
         $config['calendar']['last_modified_by'] = $currentAdmin;
+
+        $fp = @fopen($configFile, 'c+b');
+        if ($fp && @flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            fflush($fp);
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
         $step = 2;
     } elseif ($step === 2) {
-        $config['calendar']['token_expiry'] = trim(isset($_POST['token_expiry']) ? $_POST['token_expiry'] : date('Y-m-d H:i:s', strtotime('+1 year')));
-        $config['calendar']['access_token'] = trim(isset($_POST['access_token']) ? $_POST['access_token'] : 'simulated_oauth_token_' . bin2hex(random_bytes(8)));
-        $step = 3;
+        // Step 2: Real OAuth Credentials & Tokens -> Saved strictly to tokens.json
+        $tokens['access_token'] = trim(isset($_POST['access_token']) ? $_POST['access_token'] : '');
+        $tokens['refresh_token'] = trim(isset($_POST['refresh_token']) ? $_POST['refresh_token'] : '');
+        $tokens['token_expiry'] = trim(isset($_POST['token_expiry']) ? $_POST['token_expiry'] : date('Y-m-d H:i:s', strtotime('+1 hour')));
+        $tokens['updated_at'] = date('Y-m-d H:i:s');
+        $tokens['updated_by'] = $currentAdmin;
+
+        if (empty($tokens['access_token'])) {
+            $errorMsg = 'Access token cannot be empty for a real calendar enrollment.';
+            $step = 2;
+        } else {
+            $fp = @fopen($tokensFile, 'c+b');
+            if ($fp && @flock($fp, LOCK_EX)) {
+                ftruncate($fp, 0);
+                rewind($fp);
+                fwrite($fp, json_encode($tokens, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                fflush($fp);
+                flock($fp, LOCK_UN);
+                fclose($fp);
+            }
+            $step = 3;
+        }
     } elseif ($step === 3) {
+        // Step 3: Cache and Finalize -> config.json
         $config['calendar']['cache_refresh_interval'] = isset($_POST['cache_refresh_interval']) ? (int)$_POST['cache_refresh_interval'] : 3600;
         
         $fp = @fopen($configFile, 'c+b');
@@ -52,8 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             fclose($fp);
         }
 
-        log_audit_action($currentAdmin, 'GOOGLE_CALENDAR_ENROLL', 'Completed Google Calendar enrollment wizard successfully.');
-        $successMsg = 'Google Calendar sync flow successfully configured and activated!';
+        log_audit_action($currentAdmin, 'GOOGLE_CALENDAR_ENROLL', 'Successfully completed real Google Calendar identity enrollment and token linkage.');
+        $successMsg = 'Google Calendar identity and sync tokens successfully enrolled and secured!';
     }
 }
 ?>
@@ -61,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Google Calendar Enrollment Wizard</title>
+    <title>Real Google Calendar Enrollment Wizard</title>
     <style>
         body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 800px; margin: 0 auto; }
@@ -75,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn { background: #007bff; color: #fff; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; text-decoration: none; }
         .btn-secondary { background: #6c757d; margin-right: 10px; }
         .alert { background: #d4edda; color: #155724; padding: 12px; border-radius: 4px; margin-bottom: 20px; font-weight: 500; }
+        .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 4px; margin-bottom: 20px; font-weight: 500; }
         .help-text { font-size: 13px; color: #666; margin-top: 5px; }
     </style>
 </head>
@@ -83,12 +124,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include __DIR__ . '/header.php'; ?>
 
     <div class="card">
-        <h2>Google Calendar Sync Enrollment Guide</h2>
-        <p>Follow this quick, guided wizard to connect your Google Calendar service account and synchronize appointments automatically.</p>
+        <h2>Real Google Calendar Enrollment Wizard</h2>
+        <p>Enroll your real calendar identity parameters into config and bind live OAuth synchronization tokens securely to tokens.json.</p>
 
         <div class="steps-indicator">
-            <div class="step-badge <?php echo $step === 1 ? 'active' : ''; ?>">Step 1: Credentials</div>
-            <div class="step-badge <?php echo $step === 2 ? 'active' : ''; ?>">Step 2: Authorization</div>
+            <div class="step-badge <?php echo $step === 1 ? 'active' : ''; ?>">Step 1: Identity & Config</div>
+            <div class="step-badge <?php echo $step === 2 ? 'active' : ''; ?>">Step 2: OAuth Tokens</div>
             <div class="step-badge <?php echo $step === 3 ? 'active' : ''; ?>">Step 3: Cache & Finish</div>
         </div>
 
@@ -97,36 +138,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p><a href="config.php" class="btn">Return to Configuration</a></p>
         <?php else: ?>
 
+            <?php if (!empty($errorMsg)): ?><div class="error"><?php echo $errorMsg; ?></div><?php endif; ?>
+
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                 <input type="hidden" name="step" value="<?php echo $step; ?>">
 
                 <?php if ($step === 1): ?>
-                    <h3>Step 1: Enter Google Service Account Credentials</h3>
-                    <p class="help-text">Provide your Google API Service Account email and API secret/password.</p>
+                    <h3>Step 1: Real Identity & Communication Parameters</h3>
+                    <p class="help-text">Saved to <code>src/data/config.json</code> for ongoing system operations and notifications.</p>
                     
                     <div class="form-group" style="margin-top: 20px;">
-                        <label>Google Service User / Email</label>
-                        <input type="text" name="google_user" value="<?php echo htmlspecialchars(isset($config['calendar']['google_user']) ? $config['calendar']['google_user'] : ''); ?>" placeholder="e.g. booking-bot@project.iam.gserviceaccount.com" required>
+                        <label>Calendar Owner / Administrator Name</label>
+                        <input type="text" name="owner_name" value="<?php echo htmlspecialchars(isset($config['calendar']['owner_name']) ? $config['calendar']['owner_name'] : ''); ?>" placeholder="e.g. Dr. Jane Doe" required>
                     </div>
                     <div class="form-group">
-                        <label>Google Service Secret / Password</label>
-                        <input type="password" name="google_password" placeholder="Leave blank to keep existing secret">
+                        <label>Notification & Communication Email</label>
+                        <input type="email" name="notification_email" value="<?php echo htmlspecialchars(isset($config['calendar']['notification_email']) ? $config['calendar']['notification_email'] : ''); ?>" placeholder="e.g. calendar@clinic.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Google Service Account / Account User Email</label>
+                        <input type="text" name="google_user" value="<?php echo htmlspecialchars(isset($config['calendar']['google_user']) ? $config['calendar']['google_user'] : ''); ?>" placeholder="e.g. service-bot@project.iam.gserviceaccount.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Google Calendar ID</label>
+                        <input type="text" name="calendar_id" value="<?php echo htmlspecialchars(isset($config['calendar']['calendar_id']) ? $config['calendar']['calendar_id'] : 'primary'); ?>" placeholder="primary or custom calendar ID hash" required>
                     </div>
                     
                     <button type="submit" class="btn">Next Step &rarr;</button>
 
                 <?php elseif ($step === 2): ?>
-                    <h3>Step 2: OAuth Flow & Token Verification</h3>
-                    <p class="help-text">Verify token generation and set the active token expiration timestamp.</p>
+                    <h3>Step 2: Real OAuth Tokens Enrollment</h3>
+                    <p class="help-text">Saved securely to <code>src/data/tokens.json</code> to separate tokens from configuration storage.</p>
                     
                     <div class="form-group" style="margin-top: 20px;">
-                        <label>Simulated / Active Access Token</label>
-                        <input type="text" name="access_token" value="<?php echo htmlspecialchars(isset($config['calendar']['access_token']) ? $config['calendar']['access_token'] : 'ya29.a0AfH6SM...'); ?>">
+                        <label>Live OAuth Access Token</label>
+                        <input type="text" name="access_token" value="<?php echo htmlspecialchars(isset($tokens['access_token']) ? $tokens['access_token'] : ''); ?>" placeholder="ya29.a0AfH6SM..." required>
                     </div>
                     <div class="form-group">
-                        <label>Token Expiry Time</label>
-                        <input type="text" name="token_expiry" value="<?php echo htmlspecialchars(isset($config['calendar']['token_expiry']) ? $config['calendar']['token_expiry'] : date('Y-m-d H:i:s', strtotime('+1 year'))); ?>" placeholder="YYYY-MM-DD HH:MM:SS" required>
+                        <label>Live OAuth Refresh Token</label>
+                        <input type="text" name="refresh_token" value="<?php echo htmlspecialchars(isset($tokens['refresh_token']) ? $tokens['refresh_token'] : ''); ?>" placeholder="1//04..." required>
+                    </div>
+                    <div class="form-group">
+                        <label>Current Token Expiry Time</label>
+                        <input type="text" name="token_expiry" value="<?php echo htmlspecialchars(isset($tokens['token_expiry']) ? $tokens['token_expiry'] : date('Y-m-d H:i:s', strtotime('+1 hour'))); ?>" placeholder="YYYY-MM-DD HH:MM:SS" required>
                     </div>
 
                     <a href="setup_google.php?step=1" class="btn btn-secondary">&larr; Back</a>
@@ -134,16 +189,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <?php elseif ($step === 3): ?>
                     <h3>Step 3: Calendar Cache & Finalization</h3>
-                    <p class="help-text">Configure how often cached calendar sync data is refreshed to optimize API performance.</p>
+                    <p class="help-text">Configure caching parameters stored in <code>src/data/config.json</code>.</p>
                     
                     <div class="form-group" style="margin-top: 20px;">
-                        <label>Cache Refresh Interval (seconds)</label>
+                        <label>Calendar Cache Refresh Interval (seconds)</label>
                         <input type="number" name="cache_refresh_interval" value="<?php echo htmlspecialchars(isset($config['calendar']['cache_refresh_interval']) ? $config['calendar']['cache_refresh_interval'] : 3600); ?>" min="60" step="60" required>
-                        <div class="help-text">Standard is 3600 seconds (1 hour).</div>
                     </div>
 
                     <a href="setup_google.php?step=2" class="btn btn-secondary">&larr; Back</a>
-                    <button type="submit" class="btn" style="background: #28a745;">Complete Enrollment ✓</button>
+                    <button type="submit" class="btn" style="background: #28a745;">Complete Real Enrollment ✓</button>
 
                 <?php endif; ?>
             </form>

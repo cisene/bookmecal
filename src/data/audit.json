@@ -1,5 +1,12 @@
 [
     {
+        "timestamp": "2026-10-10 15:45:47",
+        "user": "chrise",
+        "action": "GOOGLE_CALENDAR_ENROLL",
+        "details": "Completed Google Calendar enrollment wizard successfully.",
+        "ip": "127.0.0.1"
+    },
+    {
         "timestamp": "2026-10-10 14:43:31",
         "user": "chrise",
         "action": "USER_MODIFY",
