@@ -2,7 +2,6 @@
 // src/admin/users.php - User management and audit log viewer
 require_once __DIR__ . '/auth.php';
 
-// Define path to your .htpasswd file (adjust path as needed for your server setup)
 $htpasswdFile = dirname(__DIR__) . '/../secure/.htpasswd'; 
 $auditFile = dirname(__DIR__) . '/data/audit.json';
 
@@ -26,11 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (empty($password)) {
             $error = 'Password cannot be empty.';
         } else {
-            // Generate SHA-512 crypt hash compatible with Apache .htpasswd
             $salt = bin2hex(random_bytes(8));
             $hash = crypt($password, '$6$' . $salt . '$');
             
-            // Read existing users
             $users = [];
             if (file_exists($htpasswdFile)) {
                 $lines = file($htpasswdFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -44,10 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
-            // Add/Update user
             $users[$username] = $hash;
             
-            // Write back to .htpasswd
             $content = '';
             foreach ($users as $u => $h) {
                 $content .= $u . ':' . $h . "\n";
@@ -91,7 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Load current users from .htpasswd
 $configuredUsers = [];
 if (file_exists($htpasswdFile)) {
     $lines = file($htpasswdFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -103,7 +97,6 @@ if (file_exists($htpasswdFile)) {
     }
 }
 
-// Load audit logs
 $auditLogs = [];
 if (file_exists($auditFile)) {
     $decoded = json_decode(file_get_contents($auditFile), true);

@@ -2,7 +2,12 @@
 // src/admin/config.php
 require_once __DIR__ . '/auth.php';
 
-$configFile = __DIR__ . '/../data/config.json';
+$configFile = dirname(__DIR__) . '/data/config.json';
+$configDir = dirname($configFile);
+if (!is_dir($configDir)) {
+    mkdir($configDir, 0775, true);
+}
+
 $config = array();
 if (file_exists($configFile)) {
     $decoded = json_decode(file_get_contents($configFile), true);
@@ -33,6 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flock($fp, LOCK_UN);
         fclose($fp);
     }
+    
+    log_audit_action($currentAdmin, 'CONFIG_UPDATE', 'Updated global calendar configuration settings.');
     $successMsg = 'Configuration updated successfully by ' . htmlspecialchars($currentAdmin);
 }
 ?>
@@ -43,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Configuration - Admin</title>
     <style>
         body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1050px; margin: 0 auto; }
+        .container { max-width: 1100px; margin: 0 auto; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
         .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }

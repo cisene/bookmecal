@@ -2,11 +2,16 @@
 // src/admin/availability.php
 require_once __DIR__ . '/auth.php';
 
-$availabilityFile = __DIR__ . '/../src/data/booking/availability.json';
+$availabilityFile = dirname(__DIR__) . '/data/booking/availability.json';
 $days = array('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday');
 $hours = array();
 for ($i = 0; $i < 24; $i++) {
     $hours[] = sprintf('%02d:00', $i);
+}
+
+$availabilityDir = dirname($availabilityFile);
+if (!is_dir($availabilityDir)) {
+    mkdir($availabilityDir, 0775, true);
 }
 
 $availabilityData = array();
@@ -48,6 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fclose($fp);
     }
     $availabilityData = $newMatrix;
+    
+    log_audit_action($currentAdmin, 'AVAILABILITY_UPDATE', 'Updated weekly operating hours matrix.');
     $successMsg = 'Availability schedule updated successfully!';
 }
 ?>
@@ -66,7 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         th { background: #f8f9fa; text-transform: capitalize; font-size: 14px; color: #495057; }
         td:first-child { font-weight: bold; background: #f8f9fa; color: #495057; font-size: 13px; }
         
-        /* Graphical Slot Toggle Styling */
         .slot-label {
             display: block;
             width: 100%;
@@ -81,7 +87,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .slot-input { display: none; }
         
-        /* Off state (Unavailable) */
         .slot-input + .slot-label {
             background: #f8d7da;
             color: #721c24;
@@ -89,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .slot-input + .slot-label::after { content: "Closed"; }
 
-        /* On state (Available) */
         .slot-input:checked + .slot-label {
             background: #d4edda;
             color: #155724;

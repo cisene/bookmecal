@@ -1,4 +1,4 @@
 AuthType Basic
 AuthName "Book Me Calendar - Restricted Admin"
-AuthUserFile /path/to/your/secure/.htpasswd
+AuthUserFile /media/chrise/work/repos/github/cisene/bookmecal/src/admin/.htpasswd
 Require valid-user

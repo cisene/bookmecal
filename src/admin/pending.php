@@ -2,7 +2,10 @@
 // src/admin/pending.php
 require_once __DIR__ . '/auth.php';
 
-$pendingDir = __DIR__ . '/../src/data/pending';
+$pendingDir = dirname(__DIR__) . '/data/pending';
+if (!is_dir($pendingDir)) {
+    mkdir($pendingDir, 0775, true);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
@@ -20,12 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $content = stream_get_contents($fp);
             $booking = json_decode($content, true);
             if (is_array($booking)) {
-                $booking['status'] = ($action === 'approve') ? 'approved' : 'rejected';
+                $newStatus = ($action === 'approve') ? 'approved' : 'rejected';
+                $booking['status'] = $newStatus;
                 $booking['processed_by'] = $currentAdmin;
                 ftruncate($fp, 0);
                 rewind($fp);
                 fwrite($fp, json_encode($booking, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
                 fflush($fp);
+                
+                // Record audit log
+                log_audit_action($currentAdmin, 'BOOKING_' . strtoupper($action), 'Booking ID ' . $targetId . ' status set to ' . $newStatus);
             }
             flock($fp, LOCK_UN);
             fclose($fp);
@@ -42,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Pending Bookings - Admin</title>
     <style>
         body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1050px; margin: 0 auto; }
+        .container { max-width: 1100px; margin: 0 auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         th, td { padding: 12px 15px; border-bottom: 1px solid #dee2e6; text-align: left; }
         th { background: #f8f9fa; }

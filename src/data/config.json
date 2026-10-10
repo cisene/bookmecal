@@ -1,20 +1,21 @@
 {
     "app": {
         "name": "Book Me Calendar",
-        "timezone": "Europe/Stockholm",
+        "timezone": "Europe\/Stockholm",
         "locale": "sv_SE.UTF-8",
         "language": "sv",
         "date_format": "Y-m-d",
         "time_format": "H:i",
-        "slot_duration": 60,
+        "slot_duration": 45,
         "admin_user": "admin",
-        "admin_pass": "secret123"
+        "admin_pass": "secret123",
+        "last_modified_by": "admin"
     },
     "storage": {
         "type": "json",
         "data_dir": "data",
-        "pending_dir": "data/pending",
-        "availability_file": "data/booking/availability.json"
+        "pending_dir": "data\/pending",
+        "availability_file": "data\/booking\/availability.json"
     },
     "smtp": {
         "enabled": false,

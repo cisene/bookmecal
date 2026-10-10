@@ -2,6 +2,7 @@
 // src/admin/header.php
 require_once __DIR__ . '/auth.php';
 $currentPage = basename($_SERVER['PHP_SELF']);
+$displayAdmin = $currentAdmin ?? ($_SERVER['PHP_AUTH_USER'] ?? 'Administrator');
 ?>
 <div style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
     <div>
@@ -9,10 +10,11 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <div class="nav">
             <a href="pending.php" style="margin-right: 15px; text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'pending.php' ? '#495057' : '#007bff'; ?>;">Pending Bookings</a>
             <a href="config.php" style="margin-right: 15px; text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'config.php' ? '#495057' : '#007bff'; ?>;">Configuration</a>
-            <a href="availability.php" style="text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'availability.php' ? '#495057' : '#007bff'; ?>;">Availability Slots</a>
+            <a href="availability.php" style="margin-right: 15px; text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'availability.php' ? '#495057' : '#007bff'; ?>;">Availability Slots</a>
+            <a href="users.php" style="text-decoration: none; font-weight: bold; color: <?php echo $currentPage === 'users.php' ? '#495057' : '#007bff'; ?>;">Users & Audit Log</a>
         </div>
     </div>
     <div style="text-align: right; color: #666; font-size: 14px;">
-        Logged in as: <strong><?php echo htmlspecialchars($currentAdmin); ?></strong>
+        Logged in as: <strong><?php echo htmlspecialchars($displayAdmin); ?></strong>
     </div>
 </div>
