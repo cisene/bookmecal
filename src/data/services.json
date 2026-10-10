@@ -1,5 +1,20 @@
 [
-  {"id": 1, "name": "Medical Foot Care", "duration_minutes": 45, "price": 750.00},
-  {"id": 2, "name": "Podiatry Consultation", "duration_minutes": 30, "price": 500.00},
-  {"id": 3, "name": "Nail & Skin Treatment", "duration_minutes": 30, "price": 450.00}
+    {
+        "duration_minutes": 45,
+        "id": 1,
+        "name": "Medical Foot Care",
+        "price": 750.0
+    },
+    {
+        "duration_minutes": 30,
+        "id": 2,
+        "name": "Podiatry Consultation",
+        "price": 500.0
+    },
+    {
+        "duration_minutes": 30,
+        "id": 3,
+        "name": "Nail & Skin Treatment",
+        "price": 450.0
+    }
 ]

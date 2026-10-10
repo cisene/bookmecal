@@ -23,6 +23,13 @@
         "from_name": "Book Me Calendar"
     },
     "calendar": {
-        "cache_refresh_interval": 3600
+        "cache_refresh_interval": 3600,
+        "owner_name": "Christopher Isene",
+        "notification_email": "christopher.isene@gmail.com",
+        "google_user": "christopher.isene@gmail.com",
+        "calendar_id": "test",
+        "last_modified_by": "chrise",
+        "client_id": "",
+        "client_secret": ""
     }
 }
