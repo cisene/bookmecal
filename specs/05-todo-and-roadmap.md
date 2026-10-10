@@ -1,7 +1,9 @@
 # 5. Todo List, Roadmap & Revision History
 
 ## Active Todo List & Roadmap
-- [ ] *(All core milestones completed! Ready for production deployment and optional feature expansions.)*
+- [ ] **Security & Anti-Spam Hardening:** Add CSRF tokens to form submissions in the admin panel (`admin.php`) and implement IP-based rate limiting or a lightweight challenge on `api.php?action=book` to prevent spam bots.
+- [ ] **Multi-Language & Localization Dictionaries:** Expand `Localization.php` with dedicated translation dictionaries (e.g., English and Swedish) to handle UI labels, error messages, and email templates dynamically.
+- [ ] **Testing & Verification Suite:** Build a lightweight test script to simulate concurrent booking requests and verify that thread-safe file-locking (`flock()`) correctly prevents race conditions and data corruption.
 
 ---
 
@@ -9,6 +11,8 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-10** | • Created automated installation and environment verification script (`install.php`) checking directory write permissions, PHP extensions, and generating initial configurations. |
+| **2026-10-10** | • Added post-launch hardening, localization, installer, and testing items to the active roadmap backlog. |
 | **2026-10-10** | • Implemented automated 24-hour email reminders script (`send_reminders.php`) for CLI/Cron execution with thread-safe file locks and duplicate prevention (`reminder_sent` flag). |
 | **2026-10-10** | • Built administrative management dashboard (`admin.php`) with authentication and status update actions (approve/reject). |
 | **2026-10-10** | • Implemented SMTP and mail notification handling (`EmailNotifier.php`) for client confirmations and admin alerts.<br>• Integrated `EmailNotifier` into `api.php` booking submission workflow. |
