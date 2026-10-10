@@ -1,13 +1,14 @@
 <?php
+// Localization.php - Multi-language translation class with JSON dictionary support
 
 class Localization {
     private static ?Localization $instance = null;
     private string $currentLang;
     private static array $dictionaries = [];
     
-    public const DEFAULT_LANG = 'sv';
+    public const DEFAULT_LANG = 'en';
     public const SUPPORTED_LANGS = [
-        'sv', 'en', 'de', 'th', 'tl', 'fr', 'es', 'pt', 'it', 'el', 'ko', 'vi', 'ja', 'zh-CN'
+        'en', 'sv', 'de', 'fr', 'es'
     ];
 
     public function __construct() {
@@ -18,7 +19,7 @@ class Localization {
     }
 
     /**
-     * Singleton-mönster för att nå instansen globalt.
+     * Singleton instance accessor.
      */
     public static function getInstance(): self {
         if (self::$instance === null) {
@@ -28,7 +29,7 @@ class Localization {
     }
 
     private function determineLanguage(): string {
-        // 1. Kolla GET-parameter (t.ex. ?lang=en)
+        // 1. Check GET parameter (e.g. ?lang=sv)
         if (isset($_GET['lang']) && in_array($_GET['lang'], self::SUPPORTED_LANGS, true)) {
             $lang = $_GET['lang'];
             
@@ -45,17 +46,17 @@ class Localization {
             return $lang;
         }
 
-        // 2. Kolla Cookie
+        // 2. Check Cookie
         if (isset($_COOKIE['app_lang']) && in_array($_COOKIE['app_lang'], self::SUPPORTED_LANGS, true)) {
             return $_COOKIE['app_lang'];
         }
 
-        // 3. Kolla Session
+        // 3. Check Session
         if (isset($_SESSION['app_lang']) && in_array($_SESSION['app_lang'], self::SUPPORTED_LANGS, true)) {
             return $_SESSION['app_lang'];
         }
 
-        // 4. Standardfallback
+        // 4. Fallback to default
         return self::DEFAULT_LANG;
     }
 
@@ -64,24 +65,20 @@ class Localization {
     }
 
     /**
-     * Laddar in språkfilen (JSON) i minnet med statisk cachning och BOM-rensning.
+     * Loads the language JSON dictionary into memory with static caching.
      */
     public function loadDictionary(string $lang): array {
         if (!isset(self::$dictionaries[$lang])) {
             $filePath = __DIR__ . "/lang/{$lang}.json";
             if (file_exists($filePath)) {
                 $jsonContent = file_get_contents($filePath);
-                $jsonContent = preg_replace('/^ï»¿/', '', $jsonContent);
                 self::$dictionaries[$lang] = json_decode($jsonContent, true) ?? [];
             } else {
+                // Fallback to default language dictionary if requested file is missing
                 $fallbackPath = __DIR__ . "/lang/" . self::DEFAULT_LANG . ".json";
-                if (file_exists($fallbackPath)) {
-                    $fallbackContent = file_get_contents($fallbackPath);
-                    $fallbackContent = preg_replace('/^ï»¿/', '', $fallbackContent);
-                    self::$dictionaries[$lang] = json_decode($fallbackContent, true) ?? [];
-                } else {
-                    self::$dictionaries[$lang] = [];
-                }
+                self::$dictionaries[$lang] = file_exists($fallbackPath) 
+                    ? json_decode(file_get_contents($fallbackPath), true) 
+                    : [];
             }
         }
 
@@ -89,7 +86,7 @@ class Localization {
     }
 
     /**
-     * Översätter en nyckel med dynamiska platshållare (t.ex. {name}).
+     * Translates a key with optional dynamic placeholders (e.g., {name}).
      */
     public function translate(string $key, array $placeholders = [], ?string $langOverride = null): string {
         $lang = $langOverride ?? $this->currentLang;
@@ -105,9 +102,9 @@ class Localization {
     }
 }
 
-// --- BAKÅTKOMPATIBEL BRYGGA ---
+// --- BACKWARD-COMPATIBLE GLOBAL HELPER ---
 if (!function_exists('__t')) {
     function __t(string $key, array $placeholders = [], ?string $langOverride = null): string {
         return Localization::getInstance()->translate($key, $placeholders, $langOverride);
     }
-}	
+}
