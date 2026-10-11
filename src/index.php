@@ -1,16 +1,16 @@
 <?php
 /**
  * index.php
- * Main client-facing booking interface with timeline block view and past slot handling.
+ * Main client-facing booking interface with compact categorized grid and Closed vs Fully Booked states.
  */
-$countryCode = 'se';$defaultDaysRange = 7;
+$countryCode = $_GET['country'] ?? 'se';$langCode = $_GET['lang'] ?? 'sv';$defaultDaysRange = 7;
 ?>
 <!DOCTYPE html>
-<html lang="sv">
+<html lang="<?php echo htmlspecialchars($langCode); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boka Tid - Medicinsk Fotvård</title>
+    <title>Booking System</title>
     <style>
         :root {
             --primary: #0284c7;
@@ -19,10 +19,12 @@ $countryCode = 'se';$defaultDaysRange = 7;
             --card-bg: #ffffff;
             --text: #1e293b;
             --border: #cbd5e1;
-            --slot-bg: #e0f2fe;
-            --slot-hover: #bae6fd;
+            --slot-bg: #f0f9ff;
+            --slot-border: #bae6fd;
+            --slot-hover: #0284c7;
+            --slot-hover-text: #ffffff;
             --slot-past-bg: #f1f5f9;
-            --slot-past-border: #94a3b8;
+            --slot-past-border: #e2e8f0;
             --slot-past-text: #94a3b8;
         }
         body {
@@ -36,7 +38,7 @@ $countryCode = 'se';$defaultDaysRange = 7;
         }
         .container {
             width: 100%;
-            max-width: 800px;
+            max-width: 750px;
             background: var(--card-bg);
             padding: 2rem;
             border-radius: 12px;
@@ -54,70 +56,106 @@ $countryCode = 'se';$defaultDaysRange = 7;
             box-sizing: border-box;
         }
         
-        .timeline-day {
-            background: #f8fafc;
+        .day-card {
+            background: #ffffff;
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 12px 16px;
+            padding: 14px;
             margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
         }
-        .timeline-header {
+        .day-header {
             font-weight: bold;
             color: var(--primary-dark);
             margin-bottom: 10px;
-            text-transform: capitalize;
-            font-size: 1rem;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 6px;
-        }
-        .timeline-track {
+            font-size: 1.05rem;
             display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 4px;
+            justify-content: space-between;
             align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 6px;
+            text-transform: capitalize;
         }
-        .slot-block {
-            background: var(--slot-bg);
-            border: 1px solid var(--primary);
+        .day-badge {
+            font-size: 0.8rem;
+            background: #e0f2fe;
             color: var(--primary-dark);
-            padding: 8px 14px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: normal;
+        }
+        .day-badge.closed {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+        .day-badge.booked {
+            background: #ffeeef;
+            color: #dc2626;
+        }
+        
+        .time-category {
+            margin-bottom: 8px;
+        }
+        .time-category:last-child {
+            margin-bottom: 0;
+        }
+        .category-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: bold;
+        }
+
+        .slots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 6px;
+        }
+        .slot-pill {
+            background: var(--slot-bg);
+            border: 1px solid var(--slot-border);
+            color: var(--primary-dark);
+            padding: 6px 4px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 0.9rem;
-            white-space: nowrap;
-            flex-shrink: 0;
-            transition: all 0.2s ease;
+            font-size: 0.85rem;
+            text-align: center;
+            transition: all 0.15s ease;
         }
-        .slot-block:hover {
+        .slot-pill:hover {
             background: var(--slot-hover);
-            transform: translateY(-1px);
+            color: var(--slot-hover-text);
+            border-color: var(--slot-hover);
         }
-        .slot-block.selected {
+        .slot-pill.selected {
             background: var(--primary-dark);
             color: white;
             border-color: var(--primary-dark);
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.3);
         }
         
-        /* Past / Expired Slots Styling */
-        .slot-block.past {
+        .slot-pill.past {
             background: var(--slot-past-bg);
             border-color: var(--slot-past-border);
             color: var(--slot-past-text);
             cursor: not-allowed;
-            opacity: 0.6;
+            opacity: 0.5;
             text-decoration: line-through;
         }
-        .slot-block.past:hover {
+        .slot-pill.past:hover {
             background: var(--slot-past-bg);
-            transform: none;
+            color: var(--slot-past-text);
+            border-color: var(--slot-past-border);
         }
 
         .status-msg {
             color: #64748b;
             font-size: 0.9rem;
             font-style: italic;
+            padding: 6px 0;
         }
         
         button.submit-btn {
@@ -139,20 +177,20 @@ $countryCode = 'se';$defaultDaysRange = 7;
 <body>
 
 <div class="container">
-    <h1>Boka behandling</h1>
+    <h1 id="uiTitle">Booking</h1>
     
     <form id="bookingForm" onsubmit="submitBooking(event)">
         <div class="step">
-            <label for="serviceSelect">Välj tjänst:</label>
+            <label for="serviceSelect" id="lblService">Select Service:</label>
             <select id="serviceSelect" required onchange="loadAvailabilityRange()">
-                <option value="">Laddar tjänster...</option>
+                <option value="">Loading...</option>
             </select>
         </div>
 
         <div class="step">
-            <label>Tidslinje över tillgängliga tider:</label>
+            <label id="lblTimeline">Available Time Slots:</label>
             <div id="rangeContainer">
-                <p class="status-msg">Laddar tidslinje...</p>
+                <p class="status-msg">Loading availability...</p>
             </div>
             <input type="hidden" id="selectedDate" required>
             <input type="hidden" id="selectedTime" required>
@@ -160,35 +198,37 @@ $countryCode = 'se';$defaultDaysRange = 7;
 
         <div id="customerDetails" class="hidden">
             <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
-            <h3 style="font-size: 1.1rem; color: var(--primary-dark);">Dina uppgifter</h3>
+            <h3 id="lblCustomerDetails" style="font-size: 1.1rem; color: var(--primary-dark);">Your Details</h3>
             <div class="step">
-                <label for="name">Namn:</label>
+                <label for="name" id="lblName">Name:</label>
                 <input type="text" id="name" required>
             </div>
             <div class="step">
-                <label for="email">E-post:</label>
+                <label for="email" id="lblEmail">Email:</label>
                 <input type="email" id="email" required>
             </div>
             <div class="step">
-                <label for="phone">Telefonnummer:</label>
+                <label for="phone" id="lblPhone">Phone:</label>
                 <input type="tel" id="phone" required>
             </div>
-            <button type="submit" class="submit-btn">Bekräfta bokning</button>
+            <button type="submit" id="btnSubmit" class="submit-btn">Confirm Booking</button>
         </div>
     </form>
     
     <div id="confirmationMsg" class="hidden" style="text-align:center; padding: 2rem;">
-        <h2 style="color: #16a34a;">Tack för din bokning!</h2>
-        <p>En bekräftelse har skickats till din e-post.</p>
+        <h2 id="successTitle" style="color: #16a34a;">Thank you for your booking!</h2>
+        <p id="successMessage">A confirmation has been sent to your email.</p>
     </div>
 </div>
 
 <script>
     const API_URL = 'api.php';
     const COUNTRY_CODE = '<?php echo $countryCode; ?>';
+    const LANG_CODE = '<?php echo $langCode; ?>';
     const DAYS_RANGE = <?php echo $defaultDaysRange; ?>;
     
     let adminSettings = { show_past_slots: true };
+    let i18n = {};
 
     document.addEventListener('DOMContentLoaded', () => {
         loadServices();
@@ -196,40 +236,55 @@ $countryCode = 'se';$defaultDaysRange = 7;
 
     async function loadServices() {
         try {
-            const res = await fetch(`${API_URL}?action=get_services&country=${COUNTRY_CODE}`);
-            if (!res.ok) throw new Error('Kunde inte hämta tjänster.');
+            const res = await fetch(`${API_URL}?action=get_services&country=${COUNTRY_CODE}&lang=${LANG_CODE}`);
+            if (!res.ok) throw new Error('Failed to fetch services.');
             const responseData = await res.json();
             
-            // Extract services and settings from unified endpoint response
             const services = responseData.services || responseData;
             if (responseData.settings) {
                 adminSettings = responseData.settings;
+            }
+            if (responseData.locale) {
+                i18n = responseData.locale;
+                applyLocalization();
             }
             
             const select = document.getElementById('serviceSelect');
             select.innerHTML = '';
             
             if (!Array.isArray(services)) {
-                throw new Error('Ogiltigt format på tjänstekatalogen.');
+                throw new Error('Invalid services catalog format.');
             }
             
             services.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id || s.service_id;
-                opt.textContent = `${s.name} (${s.duration_minutes || 45} min - ${s.price || 0} ${s.currency || 'SEK'})`;
+                opt.textContent = `${s.name} (${s.duration || 45} min - ${s.price || 0} ${s.currency || 'SEK'})`;
                 select.appendChild(opt);
             });
 
             if (services.length > 0) {
                 loadAvailabilityRange();
             } else {
-                document.getElementById('rangeContainer').innerHTML = '<p style="color: #dc2626;">Inga aktiva tjänster hittades.</p>';
+                document.getElementById('rangeContainer').innerHTML = `<p style="color: #dc2626;">${i18n.no_services_found || 'No active services found.'}</p>`;
             }
         } catch (e) {
             console.error(e);
-            document.getElementById('serviceSelect').innerHTML = '<option value="">Kunde inte ladda tjänster</option>';
-            document.getElementById('rangeContainer').innerHTML = '<p style="color: #dc2626;">Tjänstekatalogen kunde inte laddas.</p>';
+            document.getElementById('serviceSelect').innerHTML = '<option value="">Error loading services</option>';
+            document.getElementById('rangeContainer').innerHTML = '<p style="color: #dc2626;">Failed to load catalog.</p>';
         }
+    }
+
+    function applyLocalization() {
+        document.getElementById('lblService').textContent = i18n.select_service || 'Select Service:';
+        document.getElementById('lblTimeline').textContent = i18n.timeline_title || 'Available Time Slots:';
+        document.getElementById('lblCustomerDetails').textContent = i18n.customer_details || 'Your Details';
+        document.getElementById('lblName').textContent = i18n.name || 'Name:';
+        document.getElementById('lblEmail').textContent = i18n.email || 'Email:';
+        document.getElementById('lblPhone').textContent = i18n.phone || 'Phone:';
+        document.getElementById('btnSubmit').textContent = i18n.confirm_booking || 'Confirm Booking';
+        document.getElementById('successTitle').textContent = i18n.success_title || 'Thank you for your booking!';
+        document.getElementById('successMessage').textContent = i18n.success_message || 'A confirmation has been sent to your email.';
     }
 
     async function loadAvailabilityRange() {
@@ -239,11 +294,11 @@ $countryCode = 'se';$defaultDaysRange = 7;
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
         const container = document.getElementById('rangeContainer');
-        container.innerHTML = '<p class="status-msg">Laddar tidslinje...</p>';
+        container.innerHTML = `<p class="status-msg">${i18n.loading_timeline || 'Loading availability...'}</p>`;
 
         try {
-            const res = await fetch(`${API_URL}?action=check_availability&date=${todayStr}&days=${DAYS_RANGE}&service_id=${serviceId}&country=${COUNTRY_CODE}`);
-            if (!res.ok) throw new Error('Kunde inte hämta tillgänglighet.');
+            const res = await fetch(`${API_URL}?action=check_availability&date=${todayStr}&days=${DAYS_RANGE}&service_id=${serviceId}&country=${COUNTRY_CODE}&lang=${LANG_CODE}`);
+            if (!res.ok) throw new Error('Failed to fetch availability.');
             
             const data = await res.json();
             container.innerHTML = '';
@@ -255,7 +310,6 @@ $countryCode = 'se';$defaultDaysRange = 7;
             for (const [date, info] of Object.entries(range)) {
                 const isToday = (date === todayStr);
                 
-                // Filter slots if admin configured to hide past slots entirely on today
                 let slotsToDisplay = info.available_slots;
                 if (isToday && !adminSettings.show_past_slots) {
                     slotsToDisplay = slotsToDisplay.filter(time => {
@@ -264,74 +318,147 @@ $countryCode = 'se';$defaultDaysRange = 7;
                     });
                 }
 
-                const dayRow = document.createElement('div');
-                dayRow.className = 'timeline-day';
+                const dayCard = document.createElement('div');
+                dayCard.className = 'day-card';
                 
                 const header = document.createElement('div');
-                header.className = 'timeline-header';
-                header.textContent = formatDateLabel(date);
-                dayRow.appendChild(header);
+                header.className = 'day-header';
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.textContent = formatDateLabel(date);
+                header.appendChild(titleSpan);
 
-                const track = document.createElement('div');
-                track.className = 'timeline-track';
+                const badge = document.createElement('span');
+                badge.className = 'day-badge';
+                
+                if (info.is_closed) {
+                    badge.className = 'day-badge closed';
+                    badge.textContent = i18n.closed || 'Closed';
+                } else if (slotsToDisplay.length === 0) {
+                    badge.className = 'day-badge booked';
+                    badge.textContent = i18n.fully_booked || 'Fully Booked';
+                } else {
+                    badge.textContent = `${slotsToDisplay.length} ${i18n.free_slots || 'available slots'}`;
+                }
+                header.appendChild(badge);
+                dayCard.appendChild(header);
 
-                if (info.is_closed || slotsToDisplay.length === 0) {
-                    const closedMsg = document.createElement('span');
+                if (info.is_closed) {
+                    const closedMsg = document.createElement('div');
                     closedMsg.className = 'status-msg';
-                    closedMsg.textContent = 'Stängt / Fullbokat';
-                    track.appendChild(closedMsg);
+                    closedMsg.textContent = i18n.closed || 'Closed';
+                    dayCard.appendChild(closedMsg);
+                } else if (slotsToDisplay.length === 0) {
+                    const bookedMsg = document.createElement('div');
+                    bookedMsg.className = 'status-msg';
+                    bookedMsg.textContent = i18n.fully_booked || 'Fully Booked';
+                    dayCard.appendChild(bookedMsg);
                 } else {
                     hasVisibleSlotsAnywhere = true;
+
+                    const morningSlots = [];
+                    const afternoonSlots = [];
+
                     slotsToDisplay.forEach(time => {
-                        const block = document.createElement('div');
-                        block.className = 'slot-block';
-                        block.textContent = time;
-
-                        // Check if this slot is in the past on today
-                        let isPast = false;
-                        if (isToday) {
-                            const [hours, minutes] = time.split(':').map(Number);
-                            if ((hours * 60 + minutes) < currentTimeMinutes) {
-                                isPast = true;
-                            }
-                        }
-
-                        if (isPast) {
-                            block.classList.add('past');
-                            if (!adminSettings.show_past_slots) {
-                                return; // Skip entirely if hidden via config
-                            }
+                        const [hours] = time.split(':').map(Number);
+                        if (hours < 12) {
+                            morningSlots.push(time);
                         } else {
-                            block.onclick = () => selectSlot(date, time, block);
+                            afternoonSlots.push(time);
                         }
-
-                        track.appendChild(block);
                     });
+
+                    if (morningSlots.length > 0) {
+                        const catDiv = document.createElement('div');
+                        catDiv.className = 'time-category';
+                        
+                        const catLabel = document.createElement('div');
+                        catLabel.className = 'category-label';
+                        catLabel.textContent = i18n.morning || 'Morning';
+                        catDiv.appendChild(catLabel);
+
+                        const grid = document.createElement('div');
+                        grid.className = 'slots-grid';
+
+                        morningSlots.forEach(time => {
+                            const pill = createSlotPill(date, time, isToday, currentTimeMinutes);
+                            grid.appendChild(pill);
+                        });
+
+                        catDiv.appendChild(grid);
+                        dayCard.appendChild(catDiv);
+                    }
+
+                    if (afternoonSlots.length > 0) {
+                        const catDiv = document.createElement('div');
+                        catDiv.className = 'time-category';
+                        if (morningSlots.length > 0) catDiv.style.marginTop = '10px';
+                        
+                        const catLabel = document.createElement('div');
+                        catLabel.className = 'category-label';
+                        catLabel.textContent = i18n.afternoon || 'Afternoon';
+                        catDiv.appendChild(catLabel);
+
+                        const grid = document.createElement('div');
+                        grid.className = 'slots-grid';
+
+                        afternoonSlots.forEach(time => {
+                            const pill = createSlotPill(date, time, isToday, currentTimeMinutes);
+                            grid.appendChild(pill);
+                        });
+
+                        catDiv.appendChild(grid);
+                        dayCard.appendChild(catDiv);
+                    }
                 }
 
-                dayRow.appendChild(track);
-                container.appendChild(dayRow);
+                container.appendChild(dayCard);
             }
 
             if (!hasVisibleSlotsAnywhere) {
-                container.innerHTML = '<p style="color: #dc2626;">Inga lediga tider tillgängliga.</p>';
+                container.innerHTML = `<p style="color: #dc2626; text-align: center; padding: 1rem;">${i18n.no_slots_found || 'No available slots found for the coming week.'}</p>`;
             }
         } catch (e) {
             console.error(e);
-            container.innerHTML = '<p style="color: #dc2626;">Kunde inte hämta tillgänglighet.</p>';
+            container.innerHTML = '<p style="color: #dc2626;">Error loading availability.</p>';
         }
+    }
+
+    function createSlotPill(date, time, isToday, currentTimeMinutes) {
+        const pill = document.createElement('div');
+        pill.className = 'slot-pill';
+        pill.textContent = time;
+
+        let isPast = false;
+        if (isToday) {
+            const [hours, minutes] = time.split(':').map(Number);
+            if ((hours * 60 + minutes) < currentTimeMinutes) {
+                isPast = true;
+            }
+        }
+
+        if (isPast) {
+            pill.classList.add('past');
+            if (!adminSettings.show_past_slots) {
+                pill.style.display = 'none';
+            }
+        } else {
+            pill.onclick = () => selectSlot(date, time, pill);
+        }
+
+        return pill;
     }
 
     function formatDateLabel(dateStr) {
         const options = { weekday: 'long', month: 'short', day: 'numeric' };
         const date = new Date(dateStr);
-        return date.toLocaleDateString('sv-SE', options);
+        return date.toLocaleDateString(COUNTRY_CODE === 'se' ? 'sv-SE' : undefined, options);
     }
 
     function selectSlot(date, time, element) {
         if (element.classList.contains('past')) return;
         
-        document.querySelectorAll('.slot-block').forEach(b => b.classList.remove('selected'));
+        document.querySelectorAll('.slot-pill').forEach(b => b.classList.remove('selected'));
         element.classList.add('selected');
         
         document.getElementById('selectedDate').value = date;
@@ -362,10 +489,10 @@ $countryCode = 'se';$defaultDaysRange = 7;
                 document.getElementById('bookingForm').classList.add('hidden');
                 document.getElementById('confirmationMsg').classList.remove('hidden');
             } else {
-                alert('Bokningen misslyckades: ' + (data.error || 'Okänt fel'));
+                alert((i18n.booking_failed || 'Booking failed: ') + (data.error || 'Unknown error'));
             }
         } catch (e) {
-            alert('Ett nätverksfel uppstod.');
+            alert('A network error occurred.');
         }
     }
 </script>

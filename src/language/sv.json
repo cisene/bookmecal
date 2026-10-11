@@ -1,0 +1,22 @@
+{
+  "select_service": "Välj tjänst:",
+  "timeline_title": "Tillgängliga tider:",
+  "loading_services": "Laddar tjänster...",
+  "loading_timeline": "Laddar tillgänglighet...",
+  "closed": "Stängt",
+  "fully_booked": "Fullbokat",
+  "free_slots": "lediga tider",
+  "morning": "Förmiddag",
+  "afternoon": "Eftermiddag",
+  "evening": "Kväll",
+  "customer_details": "Dina uppgifter",
+  "name": "Namn:",
+  "email": "E-post:",
+  "phone": "Telefonnummer:",
+  "confirm_booking": "Bekräfta bokning",
+  "success_title": "Tack för din bokning!",
+  "success_message": "En bekräftelse har skickats till din e-post.",
+  "no_services_found": "Inga aktiva tjänster hittades.",
+  "no_slots_found": "Inga lediga tider tillgängliga den kommande veckan.",
+  "booking_failed": "Bokningen misslyckades: "
+}

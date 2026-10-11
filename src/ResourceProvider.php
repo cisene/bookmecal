@@ -18,7 +18,6 @@ class ResourceProvider {
             return null;
         }
         
-        // Strip UTF-8 BOM transparently if present
         if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
             $content = substr($content, 3);
         }
@@ -35,45 +34,49 @@ class ResourceProvider {
     public static function getSettings() {
         $filePath = __DIR__ . '/data/settings.json';
         $settings = self::readJsonFile($filePath);
-        
-        // Default settings if settings.json does not exist yet
-        if (!is_array($settings)) {
-            return [
-                'show_past_slots' => true
-            ];
-        }
-        
-        return $settings;
+        return is_array($settings) ? $settings : ['show_past_slots' => true];
     }
 
     public static function getHolidays($countryCode) {
         $countryCode = strtolower(trim($countryCode));
         $filePath = __DIR__ . "/holidays/{$countryCode}.json";
         $data = self::readJsonFile($filePath);
-        
-        if ($data === null && !file_exists($filePath)) {
-            return [];
-        }
-        
         return $data['holidays'] ?? [];
     }
 
-    public static function getLocale($countryCode) {
-        $countryCode = strtolower(trim($countryCode));
-        $filePath = __DIR__ . "/locale/{$countryCode}.json";
-        return self::readJsonFile($filePath);
+    public static function getLocale($languageCode) {
+        $languageCode = strtolower(trim($languageCode));
+        $filePath = __DIR__ . "/languages/{$languageCode}.json";
+        $locale = self::readJsonFile($filePath);
+        
+        return is_array($locale) ? $locale : [
+            'select_service' => 'Select Service:',
+            'timeline_title' => 'Available Time Slots:',
+            'loading_services' => 'Loading services...',
+            'loading_timeline' => 'Loading availability...',
+            'closed' => 'Closed',
+            'fully_booked' => 'Fully Booked',
+            'free_slots' => 'available slots',
+            'morning' => 'Morning',
+            'afternoon' => 'Afternoon',
+            'evening' => 'Evening',
+            'customer_details' => 'Your Details',
+            'name' => 'Name:',
+            'email' => 'Email:',
+            'phone' => 'Phone:',
+            'confirm_booking' => 'Confirm Booking',
+            'success_title' => 'Thank you for your booking!',
+            'success_message' => 'A confirmation has been sent to your email.',
+            'no_services_found' => 'No active services found.',
+            'no_slots_found' => 'No available slots found for the coming week.',
+            'booking_failed' => 'Booking failed: '
+        ];
     }
 
     public static function getServices() {
         $filePath = __DIR__ . '/data/services.json';
         $services = self::readJsonFile($filePath);
-        
-        if (!is_array($services)) {
-            error_log("[ResourceProvider] WARNING: Services catalog at " . $filePath . " is empty or not a valid array.");
-            return [];
-        }
-        
-        return $services;
+        return is_array($services) ? $services : [];
     }
 
     public static function getServiceById($serviceId) {
@@ -84,8 +87,6 @@ class ResourceProvider {
                 return $service;
             }
         }
-        
-        error_log("[ResourceProvider] WARNING: Service ID '" . $serviceId . "' was requested but not found in catalog.");
         return null;
     }
 }

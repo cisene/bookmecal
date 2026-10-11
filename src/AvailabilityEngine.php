@@ -1,7 +1,7 @@
 <?php
 /**
  * AvailabilityEngine.php
- * Core availability calculation engine using 3-tier checks with correct slot interval spacing.
+ * Core engine reading venue hours from data/openhours.json and factoring in treatment duration and cleanup buffers.
  */
 require_once __DIR__ . '/ResourceProvider.php';
 
@@ -12,36 +12,37 @@ class AvailabilityEngine {
         $this->countryCode = strtolower($countryCode);
     }
     
-    public function getAvailableSlots($date, $durationMinutes) {
-        // Step 1: Check Holiday Matrix via Abstraction Layer
+    public function getAvailableSlots($date, $serviceId) {
+        $service = ResourceProvider::getServiceById($serviceId);
+        if (!$service) {
+            return [];
+        }
+
+        $duration = (int)($service['duration'] ?? 45);
+        $cleanup = (int)($service['cleanup'] ?? 15);
+        $totalBlock = $duration + $cleanup;
+
         if ($this->isHoliday($date)) {
             return []; 
         }
 
-        // Step 2: Load Clinic Opening Hours
         $workingHours = $this->getWorkingHoursForDate($date);
         if (!$workingHours || empty($workingHours['is_open'])) {
             return []; 
         }
 
-        // Step 3: Generate candidate slots (stepping by duration or standard intervals)
-        // Here we step by durationMinutes or a clean interval (e.g., matching duration or 30 min)
-        // To avoid overlapping 15-minute micro-slots for longer treatments, we step by $durationMinutes 
-        // or a sensible default step (like 30 mins). Let's step by durationMinutes to prevent overlapping bookings.
         $candidateSlots = $this->generateTimeSlots(
             $workingHours['open_time'], 
             $workingHours['close_time'], 
-            $durationMinutes,
-            $durationMinutes // Step forward by full service duration, or change to 30 if preferred
+            $duration,
+            $totalBlock
         );
 
-        // Step 4: Fetch Calendar Truth / Booked Blocks
         $bookedIntervals = $this->getBookedIntervals($date);
 
-        // Step 5: Filter collisions
-        $availableSlots = array_values(array_filter($candidateSlots, function($slot) use ($durationMinutes, $bookedIntervals) {
+        $availableSlots = array_values(array_filter($candidateSlots, function($slot) use ($totalBlock, $bookedIntervals) {
             $slotStart = strtotime($slot['start']);
-            $slotEnd = $slotStart + ($durationMinutes * 60);
+            $slotEnd = $slotStart + ($totalBlock * 60);
 
             foreach ($bookedIntervals as $booked) {
                 $bookStart = strtotime($booked['start']);
@@ -69,10 +70,10 @@ class AvailabilityEngine {
 
     private function getWorkingHoursForDate($date) {
         $dayOfWeek = strtolower(date('l', strtotime($date)));
+        $openHoursFile = __DIR__ . '/data/openhours.json';
         
-        $availabilityFile = __DIR__ . '/data/availability.json';
-        if (file_exists($availabilityFile)) {
-            $data = json_decode(file_get_contents($availabilityFile), true);
+        if (file_exists($openHoursFile)) {
+            $data = json_decode(file_get_contents($openHoursFile), true);
             if (isset($data[$dayOfWeek])) {
                 return $data[$dayOfWeek];
             }
@@ -80,32 +81,27 @@ class AvailabilityEngine {
 
         return [
             'is_open' => true,
-            'open_time' => '09:00',
+            'open_time' => '08:00',
             'close_time' => '17:00'
         ];
     }
 
-    private function generateTimeSlots($openTime, $closeTime, $durationMinutes, $intervalMinutes = null) {
-        // If interval is not explicitly provided, default to stepping by the service duration 
-        // to prevent overlapping 15-minute slot crowding.
-        if ($intervalMinutes === null) {
-            $intervalMinutes = $durationMinutes;
-        }
-
+    private function generateTimeSlots($openTime, $closeTime, $duration, $totalBlock) {
         $slots = [];
-        $current = strtotime($openTime);
-        $closing = strtotime($closeTime);
+        $baseDate = date('Y-m-d');
+        $current = strtotime("$baseDate $openTime");
+        $closing = strtotime("$baseDate $closeTime");
 
-        while (($current + ($durationMinutes * 60)) <= $closing) {
+        while (($current + ($totalBlock * 60)) <= $closing) {
             $startStr = date('H:i', $current);
-            $endStr = date('H:i', $current + ($durationMinutes * 60));
+            $endStr = date('H:i', $current + ($duration * 60));
             
             $slots[] = [
                 'start' => $startStr,
                 'end' => $endStr
             ];
 
-            $current += ($intervalMinutes * 60);
+            $current += ($totalBlock * 60);
         }
 
         return $slots;

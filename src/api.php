@@ -1,7 +1,7 @@
 <?php
 /**
  * api.php
- * Central REST API endpoint using ResourceProvider.
+ * Central REST API endpoint supporting dynamic language selection and availability checks.
  */
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -11,6 +11,7 @@ require_once __DIR__ . '/AvailabilityEngine.php';
 
 $action = $_GET['action'] ?? '';
 $countryCode = $_GET['country'] ?? 'se';
+$langCode = $_GET['lang'] ?? 'sv';
 
 try {
     switch ($action) {
@@ -23,10 +24,10 @@ try {
                 $services = array_values($services);
             }
 
-            // Return both services and admin settings
             echo json_encode([
                 'services' => $services,
-                'settings' => ResourceProvider::getSettings()
+                'settings' => ResourceProvider::getSettings(),
+                'locale' => ResourceProvider::getLocale($langCode)
             ]);
             break;
 
@@ -48,19 +49,17 @@ try {
                 break;
             }
 
-            $duration = (int)($service['duration_minutes'] ?? 45);
             $engine = new AvailabilityEngine($countryCode);
-            
             $rangeAvailability = [];
             $currentDateObj = new DateTime($startDate);
 
             for ($i = 0; $i < $daysAhead; $i++) {
                 $dateStr = $currentDateObj->format('Y-m-d');
-                $slots = $engine->getAvailableSlots($dateStr, $duration);
+                $slots = $engine->getAvailableSlots($dateStr, $serviceId);
 
                 $rangeAvailability[$dateStr] = [
                     'date' => $dateStr,
-                    'is_closed' => empty($slots),
+                    'is_closed' => empty($slots) && (!$thisIsOpenOnDate($dateStr)),
                     'available_slots' => $slots
                 ];
 
@@ -69,7 +68,8 @@ try {
 
             echo json_encode([
                 'service_id' => $serviceId,
-                'duration_minutes' => $duration,
+                'duration' => $service['duration'] ?? 45,
+                'cleanup' => $service['cleanup'] ?? 15,
                 'range' => $rangeAvailability
             ]);
             break;
@@ -109,4 +109,16 @@ try {
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
+}
+
+function thisIsOpenOnDate($dateStr) {
+    $dayOfWeek = strtolower(date('l', strtotime($dateStr)));
+    $file = __DIR__ . '/data/openhours.json';
+    if (file_exists($file)) {
+        $data = json_decode(file_get_contents($file), true);
+        if (isset($data[$dayOfWeek])) {
+            return !empty($data[$dayOfWeek]['is_open']);
+        }
+    }
+    return true;
 }
