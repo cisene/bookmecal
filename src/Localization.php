@@ -69,13 +69,13 @@ class Localization {
      */
     public function loadDictionary(string $lang): array {
         if (!isset(self::$dictionaries[$lang])) {
-            $filePath = __DIR__ . "/lang/{$lang}.json";
+            $filePath = __DIR__ . "/language/{$lang}.json";
             if (file_exists($filePath)) {
                 $jsonContent = file_get_contents($filePath);
                 self::$dictionaries[$lang] = json_decode($jsonContent, true) ?? [];
             } else {
                 // Fallback to default language dictionary if requested file is missing
-                $fallbackPath = __DIR__ . "/lang/" . self::DEFAULT_LANG . ".json";
+                $fallbackPath = __DIR__ . "/language/" . self::DEFAULT_LANG . ".json";
                 self::$dictionaries[$lang] = file_exists($fallbackPath) 
                     ? json_decode(file_get_contents($fallbackPath), true) 
                     : [];

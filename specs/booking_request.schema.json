@@ -28,10 +28,18 @@
     },
     "appointment_status": {
       "type": "string",
-      "enum": ["scheduled", "approved", "cancelled", "late_no_show"]
+      "enum": [
+        "scheduled",
+        "approved",
+        "cancelled",
+        "late_no_show"
+      ]
     },
     "cancellation_token": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "maxLength": 64
     },
     "preferred_language": {
@@ -47,16 +55,28 @@
       "enum": [0, 1]
     },
     "gcal_event_id": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "maxLength": 255
     },
     "notes": {
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "created_at": {
       "type": "string",
       "format": "date-time"
     }
   },
-  "required": ["service_id", "client_name", "client_email", "client_phone", "start_datetime"]
+  "required": [
+    "service_id",
+    "client_name",
+    "client_email",
+    "client_phone",
+    "start_datetime"
+  ]
 }

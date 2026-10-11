@@ -11,5 +11,8 @@
       "type": "string"
     }
   },
-  "required": ["key_name", "value_text"]
+  "required": [
+    "key_name",
+    "value_text"
+  ]
 }

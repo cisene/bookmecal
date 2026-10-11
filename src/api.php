@@ -13,6 +13,18 @@ $action = $_GET['action'] ?? '';
 $countryCode = $_GET['country'] ?? 'se';
 $langCode = $_GET['lang'] ?? 'sv';
 
+function checkIsOpenOnDate($dateStr) {
+    $dayOfWeek = strtolower(date('l', strtotime($dateStr)));
+    $file = __DIR__ . '/data/openhours.json';
+    if (file_exists($file)) {
+        $data = json_decode(file_get_contents($file), true);
+        if (isset($data[$dayOfWeek])) {
+            return !empty($data[$dayOfWeek]['is_open']);
+        }
+    }
+    return true;
+}
+
 try {
     switch ($action) {
         case 'get_services':
@@ -55,11 +67,12 @@ try {
 
             for ($i = 0; $i < $daysAhead; $i++) {
                 $dateStr = $currentDateObj->format('Y-m-d');
-                $slots = $engine->getAvailableSlots($dateStr, $serviceId);
+                $isOpen = checkIsOpenOnDate($dateStr);
+                $slots = $isOpen ? $engine->getAvailableSlots($dateStr, $serviceId) : [];
 
                 $rangeAvailability[$dateStr] = [
                     'date' => $dateStr,
-                    'is_closed' => empty($slots) && (!$thisIsOpenOnDate($dateStr)),
+                    'is_closed' => !$isOpen,
                     'available_slots' => $slots
                 ];
 
@@ -109,16 +122,4 @@ try {
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
-}
-
-function thisIsOpenOnDate($dateStr) {
-    $dayOfWeek = strtolower(date('l', strtotime($dateStr)));
-    $file = __DIR__ . '/data/openhours.json';
-    if (file_exists($file)) {
-        $data = json_decode(file_get_contents($file), true);
-        if (isset($data[$dayOfWeek])) {
-            return !empty($data[$dayOfWeek]['is_open']);
-        }
-    }
-    return true;
 }

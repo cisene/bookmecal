@@ -1,7 +1,7 @@
 <?php
 /**
  * index.php
- * Main client-facing booking interface with compact categorized grid and Closed vs Fully Booked states.
+ * Main client-facing booking interface supporting dynamic localization and Closed vs Fully Booked states.
  */
 $countryCode = $_GET['country'] ?? 'se';$langCode = $_GET['lang'] ?? 'sv';$defaultDaysRange = 7;
 ?>

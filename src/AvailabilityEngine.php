@@ -1,7 +1,7 @@
 <?php
 /**
  * AvailabilityEngine.php
- * Core engine reading venue hours from data/openhours.json and factoring in treatment duration and cleanup buffers.
+ * Core engine reading venue open hours and closure windows directly from data/openhours.json.
  */
 require_once __DIR__ . '/ResourceProvider.php';
 
@@ -31,12 +31,24 @@ class AvailabilityEngine {
             return []; 
         }
 
-        $candidateSlots = $this->generateTimeSlots(
-            $workingHours['open_time'], 
-            $workingHours['close_time'], 
-            $duration,
-            $totalBlock
-        );
+        // Generate candidate slots based on open hours (supporting optional morning/afternoon split or single block)
+        $candidateSlots = [];
+        
+        if (!empty($workingHours['intervals']) && is_array($workingHours['intervals'])) {
+            // Support multiple operational intervals per day (e.g., 08:00-12:00 and 13:00-17:00)
+            foreach ($workingHours['intervals'] as $interval) {
+                $slots = $this->generateTimeSlots($interval['open_time'], $interval['close_time'], $duration, $totalBlock);
+                $candidateSlots = array_merge($candidateSlots, $slots);
+            }
+        } else {
+            // Standard single open window
+            $candidateSlots = $this->generateTimeSlots(
+                $workingHours['open_time'], 
+                $workingHours['close_time'], 
+                $duration,
+                $totalBlock
+            );
+        }
 
         $bookedIntervals = $this->getBookedIntervals($date);
 

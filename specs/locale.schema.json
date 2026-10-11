@@ -2,7 +2,13 @@
   "$schema": "[https://json-schema.org/draft/2020-12/schema](https://json-schema.org/draft/2020-12/schema)",
   "title": "LocaleConfiguration",
   "type": "object",
-  "required": ["locale", "language", "currency", "formats", "calendar"],
+  "required": [
+    "locale",
+    "language",
+    "currency",
+    "formats",
+    "calendar"
+  ],
   "properties": {
     "locale": {
       "type": "string",
@@ -14,7 +20,11 @@
     },
     "currency": {
       "type": "object",
-      "required": ["code", "symbol", "position"],
+      "required": [
+        "code",
+        "symbol",
+        "position"
+      ],
       "properties": {
         "code": {
           "type": "string",
@@ -27,14 +37,20 @@
         },
         "position": {
           "type": "string",
-          "enum": ["prefix", "suffix"],
+          "enum": [
+            "prefix",
+            "suffix"
+          ],
           "description": "Placement of the currency symbol relative to the amount."
         }
       }
     },
     "formats": {
       "type": "object",
-      "required": ["date", "time"],
+      "required": [
+        "date",
+        "time"
+      ],
       "properties": {
         "date": {
           "type": "string",
@@ -48,11 +64,17 @@
     },
     "calendar": {
       "type": "object",
-      "required": ["startOfWeek"],
+      "required": [
+        "startOfWeek"
+      ],
       "properties": {
         "startOfWeek": {
           "type": "string",
-          "enum": ["monday", "sunday", "saturday"],
+          "enum": [
+            "monday",
+            "sunday",
+            "saturday"
+          ],
           "description": "The first day of the week for UI calendar rendering."
         }
       }

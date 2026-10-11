@@ -1,7 +1,7 @@
 <?php
 /**
  * admin/openhours.php
- * Modular admin panel for managing venue open hours (`data/openhours.json`).
+ * Administrative panel for managing venue opening hours (`data/openhours.json`).
  */
 $openHoursFile = __DIR__ . '/../data/openhours.json';
 $successMessage = '';$errorMessage = '';

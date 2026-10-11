@@ -19,5 +19,9 @@
       "minimum": 0.00
     }
   },
-  "required": ["name", "duration_minutes", "price"]
+  "required": [
+    "name",
+    "duration_minutes",
+    "price"
+  ]
 }

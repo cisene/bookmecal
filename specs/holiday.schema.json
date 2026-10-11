@@ -2,7 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "HolidayConfiguration",
   "type": "object",
-  "required": ["country", "code", "holidays"],
+  "required": [
+    "country",
+    "code",
+    "holidays"
+  ],
   "properties": {
     "country": {
       "type": "string",
@@ -18,7 +22,10 @@
       "description": "List of public holidays and red days.",
       "items": {
         "type": "object",
-        "required": ["date", "name"],
+        "required": [
+          "date",
+          "name"
+        ],
         "properties": {
           "date": {
             "type": "string",
