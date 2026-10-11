@@ -1,222 +1,236 @@
 <?php
-// index.php - Frontend calendar interface using FullCalendar and Book Me Calendar API
-
-$config = require_once __DIR__ . '/config.php';
-$appName = $config['app']['name'] ?? 'Book Me Calendar';
-$defaultLang = $config['app']['default_lang'] ?? 'en';
+// index.php - Clinic Homepage & Booking Interface
+// Any backend initialization or localization loading can happen here.
+$countryCode = 'se';
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars($defaultLang, ENT_QUOTES, 'UTF-8'); ?>">
+<html lang="sv">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($appName, ENT_QUOTES, 'UTF-8'); ?></title>
-    <!-- FullCalendar CSS CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+    <title>Boka Tid - Medicinsk Fotvård</title>
     <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #cbd5e1;
+        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f8f9fa;
-            color: #333;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
             padding: 20px;
+            display: flex;
+            justify-content: center;
         }
         .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-        }
-        #calendar {
-            margin-top: 20px;
-        }
-        /* Modal styling */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
             width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            max-width: 600px;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
-        .modal-content {
-            background-color: #fff;
-            margin: 15% auto;
-            padding: 20px;
+        h1 { font-size: 1.5rem; margin-top: 0; color: var(--primary-dark); }
+        .step { margin-bottom: 1.5rem; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
             border-radius: 6px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .close:hover { color: #000; }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 8px;
+            font-size: 1rem;
             box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
         }
-        .btn-submit {
-            background-color: #28a745;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
+        .slots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .slot-btn {
+            padding: 10px;
+            background: #e0f2fe;
+            border: 1px solid var(--primary);
+            color: var(--primary-dark);
+            border-radius: 6px;
             cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-        }
-        .btn-submit:hover { background-color: #218838; }
-        #message {
-            margin-top: 15px;
+            font-weight: 600;
             text-align: center;
-            font-weight: bold;
         }
+        .slot-btn:hover { background: var(--primary); color: white; }
+        .slot-btn.selected { background: var(--primary-dark); color: white; }
+        button.submit-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button.submit-btn:hover { background: var(--primary-dark); }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1><?php echo htmlspecialchars($appName, ENT_QUOTES, 'UTF-8'); ?></h1>
-    <p style="text-align: center; color: #666;">Click on an available green slot to book your appointment.</p>
+    <h1>Boka behandling</h1>
     
-    <div id="calendar"></div>
-</div>
+    <form id="bookingForm" onsubmit="submitBooking(event)">
+        <!-- Step 1: Service Selection -->
+        <div class="step">
+            <label for="serviceSelect">Välj tjänst:</label>
+            <select id="serviceSelect" required onchange="fetchAvailability()">
+                <!-- Populated dynamically -->
+            </select>
+        </div>
 
-<!-- Booking Modal -->
-<div id="bookingModal" class="modal">
-    <div class="modal-content">
-        <span class="close" id="closeModal">&times;</span>
-        <h2>Book Time Slot</h2>
-        <form id="bookingForm">
-            <input type="hidden" id="slotStart">
-            <input type="hidden" id="slotEnd">
-            
-            <div class="form-group">
-                <label for="name">Your Name:</label>
+        <!-- Step 2: Date Selection -->
+        <div class="step">
+            <label for="bookingDate">Välj datum:</label>
+            <input type="date" id="bookingDate" required onchange="fetchAvailability()">
+        </div>
+
+        <!-- Step 3: Available Slots -->
+        <div class="step">
+            <label>Tillgängliga tider:</label>
+            <div id="slotsContainer" class="slots-grid">
+                <p style="grid-column: 1 / -1; color: #64748b;">Välj datum för att se tider.</p>
+            </div>
+            <input type="hidden" id="selectedTime" required>
+        </div>
+
+        <!-- Step 4: Customer Details -->
+        <div id="customerDetails" class="hidden">
+            <div class="step">
+                <label for="name">Namn:</label>
                 <input type="text" id="name" required>
             </div>
-            
-            <div class="form-group">
-                <label for="email">Email Address:</label>
+            <div class="step">
+                <label for="email">E-post:</label>
                 <input type="email" id="email" required>
             </div>
-            
-            <div class="form-group">
-                <label>Selected Time:</label>
-                <p id="slotDisplay" style="margin: 0; color: #555;"></p>
+            <div class="step">
+                <label for="phone">Telefonnummer:</label>
+                <input type="tel" id="phone" required>
             </div>
-            
-            <button type="submit" class="btn-submit">Confirm Booking Request</button>
-        </form>
-        <div id="message"></div>
+            <button type="submit" class="submit-btn">Bekräfta bokning</button>
+        </div>
+    </form>
+    
+    <div id="confirmationMsg" class="hidden" style="text-align:center; padding: 2rem;">
+        <h2 style="color: #16a34a;">Tack för din bokning!</h2>
+        <p>En bekräftelse har skickats till din e-post.</p>
     </div>
 </div>
 
-<!-- FullCalendar JS CDN -->
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var calendarEl = document.getElementById('calendar');
-    var modal = document.getElementById('bookingModal');
-    var closeModal = document.getElementById('closeModal');
-    var bookingForm = document.getElementById('bookingForm');
-    var messageEl = document.getElementById('message');
+    const API_URL = 'api.php';
+    const COUNTRY_CODE = '<?php echo $countryCode; ?>';
+    let selectedSlot = null;
 
-    var calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek',
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        },
-        events: 'api.php?action=get_slots',
-        eventClick: function(info) {
-            // Populate modal with selected slot details
-            document.getElementById('slotStart').value = info.event.startStr;
-            document.getElementById('slotEnd').value = info.event.endStr;
-            
-            var options = { dateStyle: 'full', timeStyle: 'short' };
-            document.getElementById('slotDisplay').innerText = 
-                info.event.start.toLocaleString([], {dateStyle: 'medium', timeStyle: 'short'}) + 
-                ' - ' + info.event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            messageEl.innerText = '';
-            bookingForm.reset();
-            modal.style.display = 'block';
-        }
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('bookingDate').min = today;
+        document.getElementById('bookingDate').value = today;
+
+        loadServices();
     });
 
-    calendar.render();
-
-    closeModal.onclick = function() {
-        modal.style.display = 'none';
-    }
-
-    window.onclick = function(event) {
-        if (event.target == modal) {
-            modal.style.display = 'none';
+    async function loadServices() {
+        try {
+            const res = await fetch(`${API_URL}?action=get_services&country=${COUNTRY_CODE}`);
+            const services = await res.json();
+            const select = document.getElementById('serviceSelect');
+            select.innerHTML = '';
+            services.exports = services; // safety
+            services.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = `${s.name} (${s.duration_minutes} min - ${s.price} ${s.currency})`;
+                select.appendChild(opt);
+            });
+            fetchAvailability();
+        } catch (e) {
+            console.error('Failed to load services', e);
         }
     }
 
-    bookingForm.onsubmit = function(e) {
+    async function fetchAvailability() {
+        const date = document.getElementById('bookingDate').value;
+        const serviceId = document.getElementById('serviceSelect').value;
+        if (!date || !serviceId) return;
+
+        const container = document.getElementById('slotsContainer');
+        container.innerHTML = '<p style="grid-column: 1 / -1; color: #64748b;">Laddar tider...</p>';
+
+        try {
+            const res = await fetch(`${API_URL}?action=check_availability&date=${date}&service_id=${serviceId}&country=${COUNTRY_CODE}`);
+            const data = await res.json();
+
+            container.innerHTML = '';
+            if (!data.available_slots || data.available_slots.length === 0) {
+                container.innerHTML = '<p style="grid-column: 1 / -1; color: #dc2626;">Inga lediga tider detta datum (helgdag eller fullbokat).</p>';
+                return;
+            }
+
+            data.available_slots.forEach(time => {
+                const btn = document.createElement('div');
+                btn.className = 'slot-btn';
+                btn.textContent = time;
+                btn.onclick = () => selectTime(time, btn);
+                container.appendChild(btn);
+            });
+        } catch (e) {
+            container.innerHTML = '<p style="grid-column: 1 / -1; color: #dc2626;">Kunde inte hämta tillgänglighet.</p>';
+        }
+    }
+
+    function selectTime(time, element) {
+        document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+        element.classList.add('selected');
+        selectedSlot = time;
+        document.getElementById('selectedTime').value = time;
+        document.getElementById('customerDetails').classList.remove('hidden');
+    }
+
+    async function submitBooking(e) {
         e.preventDefault();
-        
-        var payload = {
-            name: document.getElementById('name').value,
-            email: document.getElementById('email').value,
-            start: document.getElementById('slotStart').value,
-            end: document.getElementById('slotEnd').value
+        const payload = {
+            service_id: document.getElementById('serviceSelect').value,
+            date: document.getElementById('bookingDate').value,
+            time: selectedSlot,
+            customer_name: document.getElementById('name').value,
+            customer_email: document.getElementById('email').value,
+            customer_phone: document.getElementById('phone').value,
+            country: COUNTRY_CODE
         };
 
-        fetch('api.php?action=book', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(response => response.json())
-        .then(data => {
+        try {
+            const res = await fetch(`${API_URL}?action=book`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
             if (data.success) {
-                messageEl.style.color = 'green';
-                messageEl.innerText = data.message;
-                setTimeout(function() {
-                    modal.style.display = 'none';
-                    calendar.refetchEvents();
-                }, 2000);
+                document.getElementById('bookingForm').classList.add('hidden');
+                document.getElementById('confirmationMsg').classList.remove('hidden');
             } else {
-                messageEl.style.color = 'red';
-                messageEl.innerText = data.error || 'An error occurred.';
+                alert('Bokningen misslyckades: ' + (data.error || 'Okänt fel'));
             }
-        })
-        .catch(error => {
-            messageEl.style.color = 'red';
-            messageEl.innerText = 'Network error. Please try again.';
-        });
-    };
-});
+        } catch (e) {
+            alert('Ett nätverksfel uppstod.');
+        }
+    }
 </script>
 
 </body>

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HolidayConfiguration",
+  "type": "object",
+  "required": ["country", "code", "holidays"],
+  "properties": {
+    "country": {
+      "type": "string",
+      "description": "Full name of the country (e.g., Sweden)."
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$",
+      "description": "ISO 3166-1 alpha-2 country code (e.g., SE)."
+    },
+    "holidays": {
+      "type": "array",
+      "description": "List of public holidays and red days.",
+      "items": {
+        "type": "object",
+        "required": ["date", "name"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Holiday date in YYYY-MM-DD format."
+          },
+          "name": {
+            "type": "string",
+            "description": "Local and/or English name of the holiday."
+          }
+        }
+      }
+    }
+  }
+}
