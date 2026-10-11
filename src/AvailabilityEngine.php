@@ -1,8 +1,9 @@
 <?php
 /**
  * AvailabilityEngine.php
- * Implements the 3-tier availability filter with externalized regional holiday loading.
+ * Core availability calculation engine using 3-tier checks with correct slot interval spacing.
  */
+require_once __DIR__ . '/ResourceProvider.php';
 
 class AvailabilityEngine {
     private $countryCode;
@@ -11,36 +12,33 @@ class AvailabilityEngine {
         $this->countryCode = strtolower($countryCode);
     }
     
-    /**
-     * Get available booking slots for a specific date and service duration.
-     * 
-     * @param string $date YYYY-MM-DD
-     * @param int $durationMinutes Duration of the service in minutes
-     * @return array List of available start times (e.g., ['09:00', '09:30', ...])
-     */
     public function getAvailableSlots($date, $durationMinutes) {
-        // Step 1: Check Holiday Matrix (Layer 2)
+        // Step 1: Check Holiday Matrix via Abstraction Layer
         if ($this->isHoliday($date)) {
-            return []; // Clinic is closed on public holidays / red days
+            return []; 
         }
 
-        // Step 2: Load Clinic Opening Hours for this weekday (Layer 3)
+        // Step 2: Load Clinic Opening Hours
         $workingHours = $this->getWorkingHoursForDate($date);
         if (!$workingHours || empty($workingHours['is_open'])) {
-            return []; // Closed on this day of the week
+            return []; 
         }
 
-        // Step 3: Generate candidate slots based on service duration & interval
+        // Step 3: Generate candidate slots (stepping by duration or standard intervals)
+        // Here we step by durationMinutes or a clean interval (e.g., matching duration or 30 min)
+        // To avoid overlapping 15-minute micro-slots for longer treatments, we step by $durationMinutes 
+        // or a sensible default step (like 30 mins). Let's step by durationMinutes to prevent overlapping bookings.
         $candidateSlots = $this->generateTimeSlots(
             $workingHours['open_time'], 
             $workingHours['close_time'], 
-            $durationMinutes
+            $durationMinutes,
+            $durationMinutes // Step forward by full service duration, or change to 30 if preferred
         );
 
-        // Step 4: Fetch Calendar Truth / Booked Blocks (Layer 1)
+        // Step 4: Fetch Calendar Truth / Booked Blocks
         $bookedIntervals = $this->getBookedIntervals($date);
 
-        // Step 5: Filter out candidate slots that collide with booked intervals
+        // Step 5: Filter collisions
         $availableSlots = array_values(array_filter($candidateSlots, function($slot) use ($durationMinutes, $bookedIntervals) {
             $slotStart = strtotime($slot['start']);
             $slotEnd = $slotStart + ($durationMinutes * 60);
@@ -50,7 +48,7 @@ class AvailabilityEngine {
                 $bookEnd = strtotime($booked['end']);
 
                 if (max($slotStart, $bookStart) < min($slotEnd, $bookEnd)) {
-                    return false; // Collision detected
+                    return false; 
                 }
             }
             return true;
@@ -60,15 +58,10 @@ class AvailabilityEngine {
     }
 
     private function isHoliday($date) {
-        $holidayFile = dirname(__DIR__) . "/holidays/{$this->countryCode}.json";
-        if (file_exists($holidayFile)) {
-            $data = json_decode(file_get_contents($holidayFile), true);
-            if (isset($data['holidays']) && is_array($data['holidays'])) {
-                foreach ($data['holidays'] as $holiday) {
-                    if (isset($holiday['date']) && $holiday['date'] === $date) {
-                        return true;
-                    }
-                }
+        $holidays = ResourceProvider::getHolidays($this->countryCode);
+        foreach ($holidays as $holiday) {
+            if (isset($holiday['date']) && $holiday['date'] === $date) {
+                return true;
             }
         }
         return false;
@@ -77,7 +70,7 @@ class AvailabilityEngine {
     private function getWorkingHoursForDate($date) {
         $dayOfWeek = strtolower(date('l', strtotime($date)));
         
-        $availabilityFile = dirname(__DIR__) . '/data/availability.json';
+        $availabilityFile = __DIR__ . '/data/availability.json';
         if (file_exists($availabilityFile)) {
             $data = json_decode(file_get_contents($availabilityFile), true);
             if (isset($data[$dayOfWeek])) {
@@ -92,7 +85,13 @@ class AvailabilityEngine {
         ];
     }
 
-    private function generateTimeSlots($openTime, $closeTime, $durationMinutes, $intervalMinutes = 15) {
+    private function generateTimeSlots($openTime, $closeTime, $durationMinutes, $intervalMinutes = null) {
+        // If interval is not explicitly provided, default to stepping by the service duration 
+        // to prevent overlapping 15-minute slot crowding.
+        if ($intervalMinutes === null) {
+            $intervalMinutes = $durationMinutes;
+        }
+
         $slots = [];
         $current = strtotime($openTime);
         $closing = strtotime($closeTime);
@@ -113,7 +112,7 @@ class AvailabilityEngine {
     }
 
     private function getBookedIntervals($date) {
-        $cacheFile = dirname(__DIR__) . "/cache/gcal_events_{$date}.json";
+        $cacheFile = __DIR__ . "/cache/gcal_events_{$date}.json";
         if (file_exists($cacheFile)) {
             $events = json_decode(file_get_contents($cacheFile), true);
             if (is_array($events)) {

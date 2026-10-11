@@ -1,102 +1,112 @@
 <?php
 /**
  * api.php
- * Central REST API for the client booking interface.
+ * Central REST API endpoint using ResourceProvider.
  */
-
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
+require_once __DIR__ . '/ResourceProvider.php';
 require_once __DIR__ . '/AvailabilityEngine.php';
 
 $action = $_GET['action'] ?? '';
-$countryCode = $_GET['country'] ?? 'se'; // Default to Sweden
+$countryCode = $_GET['country'] ?? 'se';
 
-switch ($action) {
-    case 'get_services':
-        // Load services from file or database
-        $servicesFile = __DIR__ . '/data/services.json';
-        if (file_exists($servicesFile)) {
-            echo file_get_contents($servicesFile);
-        } else {
-            // Fallback sample service for foot care
-            echo json_init_services_fallback();
-        }
-        break;
-
-    case 'check_availability':
-        $date = $_GET['date'] ?? date('Y-m-d');
-        $serviceId = $_GET['service_id'] ?? 'standard_foot_care';
-        
-        // Fetch service duration (default to 45 mins if not found)
-        $duration = getServiceDuration($serviceId);
-
-        $engine = new AvailabilityEngine($countryCode);
-        $availableSlots = $engine->getAvailableSlots($date, $duration);
-
-        echo json_encode([
-            'date' => $date,
-            'duration_minutes' => $duration,
-            'available_slots' => $availableSlots
-        ]);
-        break;
-
-    case 'book':
-        // Handle incoming POST booking submission
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
-            break;
-        }
-
-        $input = json_decode(file_get_contents('php://input'), true);
-        // Basic validation
-        if (empty($input['date']) || empty($input['time']) || empty($input['customer_email'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Missing required booking fields.']);
-            break;
-        }
-
-        // Here you would write to database and create a mock/cached calendar block
-        // For now, return success response
-        echo json_encode([
-            'success' => true,
-            'message' => 'Booking confirmed successfully!',
-            'booking' => [
-                'date' => $input['date'],
-                'time' => $input['time'],
-                'service' => $input['service_id'] ?? 'Foot Care'
-            ]
-        ]);
-        break;
-
-    default:
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid action specified.']);
-        break;
-}
-
-function getServiceDuration($serviceId) {
-    $servicesFile = __DIR__ . '/data/services.json';
-    if (file_exists($servicesFile)) {
-        $services = json_decode(file_get_contents($servicesFile), true);
-        foreach ($services as $service) {
-            if ($service['id'] === $serviceId) {
-                return (int)$service['duration_minutes'];
+try {
+    switch ($action) {
+        case 'get_services':
+            $services = ResourceProvider::getServices();
+            if (!is_array($services)) {
+                $services = [];
             }
-        }
-    }
-    return 45; // Default fallback duration in minutes
-}
+            if (count($services) > 0 && array_keys($services) !== range(0, count($services) - 1)) {
+                $services = array_values($services);
+            }
 
-function json_init_services_fallback() {
-    return json_encode([
-        [
-            'id' => 'standard_foot_care',
-            'name' => 'Standard Foot Care (Medicinsk fotvård)',
-            'duration_minutes' => 45,
-            'price' => 650,
-            'currency' => 'SEK'
-        ]
-    ]);
+            // Return both services and admin settings
+            echo json_encode([
+                'services' => $services,
+                'settings' => ResourceProvider::getSettings()
+            ]);
+            break;
+
+        case 'check_availability':
+            $startDate = $_GET['date'] ?? date('Y-m-d');
+            $daysAhead = isset($_GET['days']) ? (int)$_GET['days'] : 7;
+            $serviceId = $_GET['service_id'] ?? '';
+            
+            if (empty($serviceId)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'No service selected.']);
+                break;
+            }
+
+            $service = ResourceProvider::getServiceById($serviceId);
+            if (!$service) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Selected service not found.']);
+                break;
+            }
+
+            $duration = (int)($service['duration_minutes'] ?? 45);
+            $engine = new AvailabilityEngine($countryCode);
+            
+            $rangeAvailability = [];
+            $currentDateObj = new DateTime($startDate);
+
+            for ($i = 0; $i < $daysAhead; $i++) {
+                $dateStr = $currentDateObj->format('Y-m-d');
+                $slots = $engine->getAvailableSlots($dateStr, $duration);
+
+                $rangeAvailability[$dateStr] = [
+                    'date' => $dateStr,
+                    'is_closed' => empty($slots),
+                    'available_slots' => $slots
+                ];
+
+                $currentDateObj->modify('+1 day');
+            }
+
+            echo json_encode([
+                'service_id' => $serviceId,
+                'duration_minutes' => $duration,
+                'range' => $rangeAvailability
+            ]);
+            break;
+
+        case 'book':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+                break;
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (empty($input['service_id']) || empty($input['date']) || empty($input['time']) || empty($input['customer_email'])) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Missing required booking fields.']);
+                break;
+            }
+
+            if (!ResourceProvider::getServiceById($input['service_id'])) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid service specified for booking.']);
+                break;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Booking successfully confirmed!',
+                'booking' => $input
+            ]);
+            break;
+
+        default:
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid action specified.']);
+            break;
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => $e->getMessage()]);
 }
