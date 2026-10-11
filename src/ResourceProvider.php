@@ -1,7 +1,7 @@
-<?php
+<?>
 /**
  * ResourceProvider.php
- * Transparent abstraction layer for data resources with stderr debugging logs.
+ * Transparent abstraction layer matching the file/directory structure specified in the project architecture.
  */
 
 class ResourceProvider {
@@ -46,7 +46,8 @@ class ResourceProvider {
 
     public static function getLocale($languageCode) {
         $languageCode = strtolower(trim($languageCode));
-        $filePath = __DIR__ . "/languages/{$languageCode}.json";
+        // Matches language/{code}.json per project structure
+        $filePath = __DIR__ . "/language/{$languageCode}.json";
         $locale = self::readJsonFile($filePath);
         
         return is_array($locale) ? $locale : [

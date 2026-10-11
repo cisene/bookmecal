@@ -140,3 +140,6 @@
 127.0.0.1 - - [11/Oct/2026:19:37:39 +0200] "GET /api.php?action=get_services&country=se&lang=sv HTTP/1.1" 200 1738 "http://bookmecal.local/" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
 127.0.0.1 - - [11/Oct/2026:19:37:39 +0200] "GET /favicon.ico HTTP/1.1" 200 4838 "http://bookmecal.local/" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
 127.0.0.1 - - [11/Oct/2026:19:37:41 +0200] "GET /api.php?action=check_availability&date=2026-10-11&days=7&service_id=3&country=se&lang=sv HTTP/1.1" 200 1328 "http://bookmecal.local/" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
+127.0.0.1 - chrise [11/Oct/2026:20:19:52 +0200] "GET /admin/availability.php HTTP/1.1" 200 4551 "http://bookmecal.local/admin/availability.php" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
+127.0.0.1 - chrise [11/Oct/2026:20:19:55 +0200] "GET /admin/users.php HTTP/1.1" 200 2618 "http://bookmecal.local/admin/availability.php" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"
+127.0.0.1 - chrise [11/Oct/2026:20:20:01 +0200] "GET /admin/services.php HTTP/1.1" 200 3167 "http://bookmecal.local/admin/users.php" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"

@@ -1,7 +1,7 @@
 <?php
 /**
  * AvailabilityEngine.php
- * Core engine reading venue open hours and closure windows directly from data/openhours.json.
+ * Reads slot matrix data directly from data/booking/availability.json.
  */
 require_once __DIR__ . '/ResourceProvider.php';
 
@@ -31,17 +31,13 @@ class AvailabilityEngine {
             return []; 
         }
 
-        // Generate candidate slots based on open hours (supporting optional morning/afternoon split or single block)
         $candidateSlots = [];
-        
         if (!empty($workingHours['intervals']) && is_array($workingHours['intervals'])) {
-            // Support multiple operational intervals per day (e.g., 08:00-12:00 and 13:00-17:00)
             foreach ($workingHours['intervals'] as $interval) {
                 $slots = $this->generateTimeSlots($interval['open_time'], $interval['close_time'], $duration, $totalBlock);
                 $candidateSlots = array_merge($candidateSlots, $slots);
             }
         } else {
-            // Standard single open window
             $candidateSlots = $this->generateTimeSlots(
                 $workingHours['open_time'], 
                 $workingHours['close_time'], 
@@ -82,10 +78,11 @@ class AvailabilityEngine {
 
     private function getWorkingHoursForDate($date) {
         $dayOfWeek = strtolower(date('l', strtotime($date)));
-        $openHoursFile = __DIR__ . '/data/openhours.json';
+        // Aligned with specs/README.md layout
+        $availabilityFile = __DIR__ . '/data/booking/availability.json';
         
-        if (file_exists($openHoursFile)) {
-            $data = json_decode(file_get_contents($openHoursFile), true);
+        if (file_exists($availabilityFile)) {
+            $data = json_decode(file_get_contents($availabilityFile), true);
             if (isset($data[$dayOfWeek])) {
                 return $data[$dayOfWeek];
             }
