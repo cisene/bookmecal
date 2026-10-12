@@ -5,46 +5,99 @@ A zero-database dependency, file-based PHP booking system featuring multi-user a
 ## 📂 File & Directory Structure
 
 ```text
-specs/
-├── 01-architecture-and-config.md
-├── 02-storage-and-repository.md
-├── 03-business-logic-and-engine.md
-├── 04-api-and-integrations.md
-├── 05-todo-and-roadmap.md
-├── 06-master-specification-index.md
-├── availability_logic_appendix.md
-├── schemas_appendix.md
+bookmecal/
 ├── README.md
-├── booking_request.schema.json
-├── config.schema.json
-├── holiday.schema.json
-├── holiday_matrix.schema.json
-├── locale.schema.json
-├── services.schema.json
-├── settings.schema.json
-├── slot_matrix.schema.json
-├── tokens.schema.json
-├── databaseschema.mysql.sql
-├── databaseschema.sqlite.sql
-├── databaseschema.sql
-src/
-├── admin/
-│   ├── auth.php              # Shared session bootstrap, CSRF protection, & rolling audit logger
-│   ├── header.php            # Unified admin navigation header component
-│   ├── pending.php           # Pending booking approvals manager
-│   ├── config.php            # Global application settings & storage backend editor
-│   ├── availability.php      # Weekly hourly slot availability matrix manager
-│   ├── users.php             # Staff account manager (.htpasswd) & rolling audit log viewer
-│   └── setup_google.php      # Real Google Calendar identity & OAuth token enrollment wizard
-├── data/
-│   ├── config.json           # Application preferences, storage backend, & calendar identity
-│   ├── tokens.json           # Securely isolated OAuth access & refresh tokens
-│   ├── audit.json            # Rolling audit trail log (strictly capped at 200 entries)
-│   ├── pending/              # Pending booking requests storage
-│   └── booking/
-│       └── availability.json # Weekly open/closed hours availability matrix
-└── secure/
-    └── .htpasswd             # Apache Basic Authentication user credential store
+├── specs
+│   ├── 01-architecture-and-config.md
+│   ├── 02-storage-and-repository.md
+│   ├── 03-business-logic-and-engine.md
+│   ├── 04-api-and-integrations.md
+│   ├── 05-todo-and-roadmap.md
+│   ├── 06-master-specification-index.md
+│   ├── availability_logic_appendix.md
+│   ├── booking_request.schema.json
+│   ├── config.schema.json
+│   ├── databaseschema.mysql.sql
+│   ├── databaseschema.sql
+│   ├── databaseschema.sqlite.sql
+│   ├── holiday_matrix.schema.json
+│   ├── holiday.schema.json
+│   ├── locale.schema.json
+│   ├── README.md
+│   ├── schemas_appendix.md
+│   ├── services.schema.json
+│   ├── settings.schema.json
+│   ├── slot_matrix.schema.json
+│   └── tokens.schema.json
+└── src
+    ├── admin
+    │   ├── auth.php
+    │   ├── availability.php
+    │   ├── config.php
+    │   ├── google_guide.php
+    │   ├── header.php
+    │   ├── index.php
+    │   ├── openhours.php
+    │   ├── pending.php
+    │   ├── services.php
+    │   ├── setup_google.php
+    │   └── users.php
+    ├── api.php
+    ├── AvailabilityEngine.php
+    ├── booking_calendar.php
+    ├── BookingEngine.php
+    ├── booking_modal.css
+    ├── booking.php
+    ├── BookingRepository.php
+    ├── BookingService.php
+    ├── calendar_style.css
+    ├── config.php
+    ├── data
+    │   ├── audit.json
+    │   ├── booking
+    │   │   └── availability.json
+    │   ├── config.json
+    │   ├── credentials.json
+    │   ├── openhours.json
+    │   ├── pending
+    │   ├── services.json
+    │   └── settings.json
+    ├── Database.php
+    ├── db.php
+    ├── EmailNotifier.php
+    ├── gcal_helper.php
+    ├── GoogleSync.php
+    ├── holidays
+    │   └── se.json
+    ├── i18n.php
+    ├── index.php
+    ├── install.php
+    ├── lang_switcher.php
+    ├── language
+    │   ├── de.json
+    │   ├── el.json
+    │   ├── en.json
+    │   ├── es.json
+    │   ├── fr.json
+    │   ├── it.json
+    │   ├── ja.json
+    │   ├── ko.json
+    │   ├── pt.json
+    │   ├── sv.json
+    │   ├── th.json
+    │   ├── tl.json
+    │   ├── vi.json
+    │   └── zh-CN.json
+    ├── locale
+    │   └── se.json
+    ├── Localization.php
+    ├── MultiSlotEngine.php
+    ├── ResourceProvider.php
+    ├── send_reminders.php
+    ├── submit_booking.php
+    ├── test_concurrency.php
+    ├── TimeSlot.php
+    └── tz_helper.php
 
 
 ```
