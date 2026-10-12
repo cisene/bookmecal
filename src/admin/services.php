@@ -1,5 +1,5 @@
 <?php
-// src/admin/services.php - Services management with editable SKUs, active/deactivated states, audit logging, and sorting
+// src/admin/services.php - Services management with editable SKUs, cleanup buffer, active/deactivated states, audit logging, and sorting
 require_once __DIR__ . '/auth.php';
 
 $dataDir = dirname(__DIR__) . '/data';
@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim(isset($_POST['name']) ? $_POST['name'] : '');
         $description = trim(isset($_POST['description']) ? $_POST['description'] : '');
         $duration = max(5, (int)(isset($_POST['duration']) ? $_POST['duration'] : 30));
+        $cleanup = max(0, (int)(isset($_POST['cleanup']) ? $_POST['cleanup'] : 0));
         $vatRate = max(0.0, (float)(isset($_POST['vat_rate']) ? $_POST['vat_rate'] : 25.0));
         
         $priceExclVat = max(0.0, (float)(isset($_POST['price_excl_vat']) ? $_POST['price_excl_vat'] : 0.0));
@@ -67,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'name' => $name,
                     'description' => $description,
                     'duration' => $duration,
+                    'cleanup' => $cleanup,
                     'price_excl_vat' => $priceExclVat,
                     'price_incl_vat' => $priceInclVat,
                     'vat_rate' => $vatRate,
@@ -219,7 +221,7 @@ $editService = ($editSku !== '' && isset($services[$editSku])) ? $services[$edit
 
     <div class="card">
         <h2>Services Management</h2>
-        <p>Define bookable services, unique SKUs/codes, durations, and pricing. Active services appear at the top.</p>
+        <p>Define bookable services, unique SKUs/codes, durations, cleanup buffers, and pricing. Active services appear at the top.</p>
 
         <?php if (!empty($successMsg)): ?><div class="alert"><?php echo htmlspecialchars($successMsg); ?></div><?php endif; ?>
         <?php if (!empty($errorMsg)): ?><div class="error"><?php echo htmlspecialchars($errorMsg); ?></div><?php endif; ?>
@@ -233,7 +235,7 @@ $editService = ($editSku !== '' && isset($services[$editSku])) ? $services[$edit
                     <th>SKU / Code</th>
                     <th>Service Name</th>
                     <th>Status</th>
-                    <th>Duration</th>
+                    <th>Duration & Cleanup</th>
                     <th>Price (Excl. VAT)</th>
                     <th>VAT</th>
                     <th>Price (Incl. VAT)</th>
@@ -257,7 +259,10 @@ $editService = ($editSku !== '' && isset($services[$editSku])) ? $services[$edit
                                 <span class="badge-inactive">Deactivated</span>
                             <?php endif; ?>
                         </td>
-                        <td><?php echo (int)(isset($srv['duration']) ? $srv['duration'] : 30); ?> min</td>
+                        <td>
+                            <?php echo (int)(isset($srv['duration']) ? $srv['duration'] : 30); ?> min
+                            <br><small style="color: #666;">+ <?php echo (int)(isset($srv['cleanup']) ? $srv['cleanup'] : 0); ?> min cleanup</small>
+                        </td>
                         <td><?php echo number_format((float)(isset($srv['price_excl_vat']) ? $srv['price_excl_vat'] : 0), 2); ?> kr</td>
                         <td><?php echo number_format((float)(isset($srv['vat_rate']) ? $srv['vat_rate'] : 25), 1); ?>%</td>
                         <td><strong><?php echo number_format((float)(isset($srv['price_incl_vat']) ? $srv['price_incl_vat'] : 0), 2); ?> kr</strong></td>
@@ -319,6 +324,12 @@ $editService = ($editSku !== '' && isset($services[$editSku])) ? $services[$edit
                     <label>Duration (minutes)</label>
                     <input type="number" name="duration" value="<?php echo (int)(isset($editService['duration']) ? $editService['duration'] : 30); ?>" min="5" step="5" required>
                 </div>
+                <div class="form-group">
+                    <label>Cleanup Buffer (minutes)</label>
+                    <input type="number" name="cleanup" value="<?php echo (int)(isset($editService['cleanup']) ? $editService['cleanup'] : 0); ?>" min="0" step="5" required>
+                </div>
+            </div>
+            <div class="form-row">
                 <div class="form-group">
                     <label>VAT Rate (%)</label>
                     <input type="number" name="vat_rate" value="<?php echo (float)(isset($editService['vat_rate']) ? $editService['vat_rate'] : 25.0); ?>" min="0" step="0.1" required oninput="calculateVat('rate')">

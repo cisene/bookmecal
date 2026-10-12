@@ -13,11 +13,12 @@
         "name": "Medical Foot Care",
         "description": "",
         "duration": 45,
+        "cleanup": 15,
         "price_excl_vat": 640,
         "price_incl_vat": 800,
         "vat_rate": 25,
         "is_active": true,
-        "updated_at": "2026-10-11 09:47:08",
+        "updated_at": "2026-10-12 18:26:38",
         "updated_by": "chrise"
     },
     "Fotvård-Konsultation": {
@@ -25,11 +26,12 @@
         "name": "Podiatry Consultation",
         "description": "",
         "duration": 30,
+        "cleanup": 10,
         "price_excl_vat": 350,
         "price_incl_vat": 350,
         "vat_rate": 0,
         "is_active": true,
-        "updated_at": "2026-10-10 22:22:27",
+        "updated_at": "2026-10-12 18:26:24",
         "updated_by": "chrise"
     }
 }

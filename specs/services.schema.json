@@ -10,9 +10,14 @@
       "type": "string",
       "maxLength": 255
     },
-    "duration_minutes": {
+    "duration": {
       "type": "integer",
       "minimum": 5
+    },
+    "cleanup": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Buffer or cleanup time in minutes following the service."
     },
     "price": {
       "type": "number",
@@ -21,7 +26,7 @@
   },
   "required": [
     "name",
-    "duration_minutes",
+    "duration",
     "price"
   ]
 }

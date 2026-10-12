@@ -1,4 +1,4 @@
-# Aktivera felrapportering för lokal utveckling (kommentera bort i produktion)
+# Root .htaccess - Book Me Calendar
 php_flag display_startup_errors on
 php_flag display_errors on
 php_flag log_errors on
@@ -7,49 +7,45 @@ php_value error_reporting 2047
 ServerSignature Off
 FileEtag MTime
 
-# Följ symlinks och stäng av MultiViews
+# Disable MultiViews and follow symlinks
 Options -MultiViews +FollowSymLinks
 
-# Sök- och omdirigeringsmotor
+# Enable Rewrite Engine
 RewriteEngine On
-
-# Ändra till din publika sökväg om projektet ligger i en undermapp, t.ex. /bookmecal eller /
 RewriteBase /
 
-# 1. Skydda känsliga mappar (t.ex. cache/ och data/) mot direktåtkomst
-<IfModule mod_authz_core.c>
-    RedirectMatch 403 ^/.*/(cache|data)/.*$
-</IfModule>
+# 1. Protect sensitive folders (cache/ and data/) using RewriteRule instead of RedirectMatch
+RewriteRule ^(.*/)?(cache|data)/.*$ - [F,L]
 
-# 2. Blockera onödiga eller riskabla HTTP-metoder
+# 2. Block unnecessary or risky HTTP methods
 RewriteCond %{REQUEST_METHOD} ^(CONNECT|DEBUG|DELETE|MOVE|PUT|TRACE|TRACK) [NC]
 RewriteRule .* - [F,L]
 
-# 3. CORS-headers för API-anrop (om nödvändigt för frontend)
-<IfModule mod_headers.c>
+# 3. CORS headers for API requests
+<IfModule mod_headers.h>
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
     Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
 </IfModule>
 
-# Hantera preflight OPTIONS-anrop direkt
+# Handle preflight OPTIONS requests directly
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule .* - [R=204,L]
 
 # ==========================================
-# PROJEKTETS REWRITE-REGLER
+# PROJECT REWRITE RULES
 # ==========================================
 
-# Rutt: API-anrop -> api.php (t.ex. /api -> api.php)
+# API Route -> api.php
 RewriteRule ^api/?$ api.php [L,QSA]
 
-# Rutt: Kalender-feed / Well-known standard (frivilligt stöd för iCal-prenumerationer)
+# Calendar Feed Well-known standard route
 RewriteRule ^\.well-known/calendar/?$ api.php?action=feed [L,QSA]
 
-# Rutt: Startsidan -> index.php
+# Home page -> index.php
 RewriteRule ^$ index.php [L]
 
-# Om filen eller mappen inte existerar fysiskt, skicka till index.php (för SPA eller snygga länkar om det behövs)
+# Fallback route for unmapped paths
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php?route=$1 [L,QSA]

@@ -1,7 +1,7 @@
-<?>
+<?php
 /**
  * ResourceProvider.php
- * Transparent abstraction layer matching the file/directory structure specified in the project architecture.
+ * Transparent abstraction layer for data resources with stderr debugging logs.
  */
 
 class ResourceProvider {
@@ -41,13 +41,17 @@ class ResourceProvider {
         $countryCode = strtolower(trim($countryCode));
         $filePath = __DIR__ . "/holidays/{$countryCode}.json";
         $data = self::readJsonFile($filePath);
+        
+        if ($data === null && !file_exists($filePath)) {
+            return [];
+        }
+        
         return $data['holidays'] ?? [];
     }
 
     public static function getLocale($languageCode) {
         $languageCode = strtolower(trim($languageCode));
-        // Matches language/{code}.json per project structure
-        $filePath = __DIR__ . "/language/{$languageCode}.json";
+        $filePath = __DIR__ . "/lang/{$languageCode}.json";
         $locale = self::readJsonFile($filePath);
         
         return is_array($locale) ? $locale : [
@@ -58,6 +62,7 @@ class ResourceProvider {
             'closed' => 'Closed',
             'fully_booked' => 'Fully Booked',
             'free_slots' => 'available slots',
+            'holiday' => 'Holiday / Closed',
             'morning' => 'Morning',
             'afternoon' => 'Afternoon',
             'evening' => 'Evening',
