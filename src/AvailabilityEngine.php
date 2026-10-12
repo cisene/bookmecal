@@ -1,7 +1,7 @@
 <?php
 /**
  * AvailabilityEngine.php
- * Reads slot matrix data directly from data/booking/availability.json.
+ * Reads hourly slot map data directly from data/booking/availability.json.
  */
 require_once __DIR__ . '/ResourceProvider.php';
 
@@ -12,38 +12,39 @@ class AvailabilityEngine {
         $this->countryCode = strtolower($countryCode);
     }
     
-    public function getAvailableSlots($date, $serviceId) {
-        $service = ResourceProvider::getServiceById($serviceId);
-        if (!$service) {
-            return [];
+    public function getAvailableSlots($date, $serviceId = null) {
+        $duration = 45;
+        $cleanup = 15;
+
+        if (!empty($serviceId)) {
+            $service = ResourceProvider::getServiceById($serviceId);
+            if ($service) {
+                $duration = (int)($service['duration'] ?? 45);
+                $cleanup = (int)($service['cleanup'] ?? 15);
+            }
         }
 
-        $duration = (int)($service['duration'] ?? 45);
-        $cleanup = (int)($service['cleanup'] ?? 15);
         $totalBlock = $duration + $cleanup;
 
         if ($this->isHoliday($date)) {
             return []; 
         }
 
-        $workingHours = $this->getWorkingHoursForDate($date);
-        if (!$workingHours || empty($workingHours['is_open'])) {
+        $dayConfig = $this->getDayConfigForDate($date);
+        if (!$dayConfig || empty($dayConfig['slots'])) {
             return []; 
         }
 
         $candidateSlots = [];
-        if (!empty($workingHours['intervals']) && is_array($workingHours['intervals'])) {
-            foreach ($workingHours['intervals'] as $interval) {
-                $slots = $this->generateTimeSlots($interval['open_time'], $interval['close_time'], $duration, $totalBlock);
-                $candidateSlots = array_merge($candidateSlots, $slots);
+        $slotsMap = $dayConfig['slots'];
+
+        foreach ($slotsMap as $timeStr => $isActive) {
+            if ($isActive == 1) {
+                $candidateSlots[] = [
+                    'start' => $timeStr,
+                    'end' => date('H:i', strtotime("$timeStr +{$duration} minutes"))
+                ];
             }
-        } else {
-            $candidateSlots = $this->generateTimeSlots(
-                $workingHours['open_time'], 
-                $workingHours['close_time'], 
-                $duration,
-                $totalBlock
-            );
         }
 
         $bookedIntervals = $this->getBookedIntervals($date);
@@ -76,9 +77,8 @@ class AvailabilityEngine {
         return false;
     }
 
-    private function getWorkingHoursForDate($date) {
+    private function getDayConfigForDate($date) {
         $dayOfWeek = strtolower(date('l', strtotime($date)));
-        // Aligned with specs/README.md layout
         $availabilityFile = __DIR__ . '/data/booking/availability.json';
         
         if (file_exists($availabilityFile)) {
@@ -88,32 +88,7 @@ class AvailabilityEngine {
             }
         }
 
-        return [
-            'is_open' => true,
-            'open_time' => '08:00',
-            'close_time' => '17:00'
-        ];
-    }
-
-    private function generateTimeSlots($openTime, $closeTime, $duration, $totalBlock) {
-        $slots = [];
-        $baseDate = date('Y-m-d');
-        $current = strtotime("$baseDate $openTime");
-        $closing = strtotime("$baseDate $closeTime");
-
-        while (($current + ($totalBlock * 60)) <= $closing) {
-            $startStr = date('H:i', $current);
-            $endStr = date('H:i', $current + ($duration * 60));
-            
-            $slots[] = [
-                'start' => $startStr,
-                'end' => $endStr
-            ];
-
-            $current += ($totalBlock * 60);
-        }
-
-        return $slots;
+        return null;
     }
 
     private function getBookedIntervals($date) {

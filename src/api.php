@@ -1,8 +1,9 @@
 <?php
 /**
  * api.php
- * Central REST API endpoint supporting dynamic language selection and availability checks.
+ * Central REST API endpoint with output buffering to ensure pure JSON responses.
  */
+ob_start();
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
@@ -32,10 +33,9 @@ try {
             if (!is_array($services)) {
                 $services = [];
             }
-            if (count($services) > 0 && array_keys($services) !== range(0, count($services) - 1)) {
-                $services = array_values($services);
-            }
+            $services = array_values($services);
 
+            ob_clean();
             echo json_encode([
                 'services' => $services,
                 'settings' => ResourceProvider::getSettings(),
@@ -46,19 +46,17 @@ try {
         case 'check_availability':
             $startDate = $_GET['date'] ?? date('Y-m-d');
             $daysAhead = isset($_GET['days']) ? (int)$_GET['days'] : 7;
-            $serviceId = $_GET['service_id'] ?? '';
+            $serviceId = $_GET['service_id'] ?? null;
             
-            if (empty($serviceId)) {
-                http_response_code(400);
-                echo json_encode(['error' => 'No service selected.']);
-                break;
-            }
+            $duration = 45;
+            $cleanup = 15;
 
-            $service = ResourceProvider::getServiceById($serviceId);
-            if (!$service) {
-                http_response_code(404);
-                echo json_encode(['error' => 'Selected service not found.']);
-                break;
+            if (!empty($serviceId)) {
+                $service = ResourceProvider::getServiceById($serviceId);
+                if ($service) {
+                    $duration = (int)($service['duration'] ?? 45);
+                    $cleanup = (int)($service['cleanup'] ?? 15);
+                }
             }
 
             $engine = new AvailabilityEngine($countryCode);
@@ -68,6 +66,7 @@ try {
             for ($i = 0; $i < $daysAhead; $i++) {
                 $dateStr = $currentDateObj->format('Y-m-d');
                 $isOpen = checkIsOpenOnDate($dateStr);
+                
                 $slots = $isOpen ? $engine->getAvailableSlots($dateStr, $serviceId) : [];
 
                 $rangeAvailability[$dateStr] = [
@@ -79,10 +78,11 @@ try {
                 $currentDateObj->modify('+1 day');
             }
 
+            ob_clean();
             echo json_encode([
                 'service_id' => $serviceId,
-                'duration' => $service['duration'] ?? 45,
-                'cleanup' => $service['cleanup'] ?? 15,
+                'duration' => $duration,
+                'cleanup' => $cleanup,
                 'range' => $rangeAvailability
             ]);
             break;
@@ -90,6 +90,7 @@ try {
         case 'book':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 http_response_code(405);
+                ob_clean();
                 echo json_encode(['error' => 'Method not allowed']);
                 break;
             }
@@ -97,16 +98,19 @@ try {
             $input = json_decode(file_get_contents('php://input'), true);
             if (empty($input['service_id']) || empty($input['date']) || empty($input['time']) || empty($input['customer_email'])) {
                 http_response_code(400);
+                ob_clean();
                 echo json_encode(['error' => 'Missing required booking fields.']);
                 break;
             }
 
             if (!ResourceProvider::getServiceById($input['service_id'])) {
                 http_response_code(400);
+                ob_clean();
                 echo json_encode(['error' => 'Invalid service specified for booking.']);
                 break;
             }
 
+            ob_clean();
             echo json_encode([
                 'success' => true,
                 'message' => 'Booking successfully confirmed!',
@@ -116,10 +120,12 @@ try {
 
         default:
             http_response_code(400);
+            ob_clean();
             echo json_encode(['error' => 'Invalid action specified.']);
             break;
     }
 } catch (Exception $e) {
     http_response_code(500);
+    ob_clean();
     echo json_encode(['error' => $e->getMessage()]);
 }
