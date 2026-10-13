@@ -1,17 +1,18 @@
 <?php
 /**
- * BookingRepository.php
- * Data Access Layer with flock() concurrency control and timezone-bound ISO datetimes.
+ * src/classes/BookingRepository.php
+ * Data Access Layer using flock() concurrency control, IANA timezones, 
+ * and strict null fallbacks for unconfigured records.
  */
 
 require_once __DIR__ . '/ResourceProvider.php';
 
 class BookingRepository {
     private string $dataDir;
-    private DateTimeZone $timezone;
+    private ?DateTimeZone $timezone;
 
     public function __construct() {
-        $this->dataDir = __DIR__ . '/data';
+        $this->dataDir = dirname(__DIR__) . '/data';
         if (!is_dir($this->dataDir)) {
             @mkdir($this->dataDir, 0775, true);
         }
@@ -21,25 +22,34 @@ class BookingRepository {
         $this->timezone = new DateTimeZone($tzString);
     }
 
-    private function readJson(string $filePath): array {
+    private function readJson(string $filePath): ?array {
         if (!file_exists($filePath)) {
-            return [];
+            return null;
         }
         $content = file_get_contents($filePath);
         if ($content === false) {
-            return [];
+            return null;
         }
         if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
             $content = substr($content, 3);
         }
         $decoded = json_decode($content, true);
-        return is_array($decoded) ? $decoded : [];
+        return is_array($decoded) ? $decoded : null;
     }
 
     private function writeJson(string $filePath, array $data): bool {
         $dir = dirname($filePath);
         if (!is_dir($dir)) {
             @mkdir($dir, 0775, true);
+        }
+
+        if (!file_exists($filePath)) {
+            @file_put_contents($filePath, '{}');
+            @chmod($filePath, 0664);
+        }
+
+        if (!is_writable($filePath)) {
+            return false;
         }
 
         $fp = @fopen($filePath, 'c+b');
@@ -57,7 +67,7 @@ class BookingRepository {
         return $written !== false;
     }
 
-    public function getServices(): array {
+    public function getServices(): ?array {
         return $this->readJson($this->dataDir . '/services.json');
     }
 
@@ -67,6 +77,9 @@ class BookingRepository {
 
     public function isHoliday(string $dateStr, string $countryCode = 'se'): bool {
         $holidays = ResourceProvider::getHolidays($countryCode);
+        if (!$holidays) {
+            return false;
+        }
         foreach ($holidays as $h) {
             if (isset($h['date']) && $h['date'] === $dateStr) {
                 return true;
@@ -80,13 +93,13 @@ class BookingRepository {
         $hours = $this->readJson($openHoursFile);
         
         $dayOfWeek = strtolower($dayOfWeek);
-        if (isset($hours[$dayOfWeek]) && !empty($hours[$dayOfWeek]['is_open'])) {
+        if (isset($hours[$dayOfWeek]) && is_array($hours[$dayOfWeek])) {
             return $hours[$dayOfWeek];
         }
         return null;
     }
 
-    public function createPendingRequest(array $bookingData): string {
+    public function createPendingRequest(array $bookingData): ?string {
         $pendingDir = $this->dataDir . '/pending';
         if (!is_dir($pendingDir)) {
             @mkdir($pendingDir, 0775, true);
@@ -95,12 +108,12 @@ class BookingRepository {
         $bookingId = uniqid('book_');
         $bookingData['id'] = $bookingId;
         
-        // Attach timezone-aware ISO timestamp
         $now = new DateTime('now', $this->timezone);
         $bookingData['created_at_iso'] = $now->format('Y-m-d\TH:i:sP');
 
         $filePath = $pendingDir . '/booking_' . $bookingId . '.json';
-        $this->writeJson($filePath, $bookingData);
-        return $bookingId;
+        $success = $this->writeJson($filePath, $bookingData);
+        
+        return $success ? $bookingId : null;
     }
 }

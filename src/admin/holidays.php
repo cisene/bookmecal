@@ -1,36 +1,21 @@
 <?php
 /**
  * src/admin/holidays.php
- * Holiday Calendar Management
- * Manages regional holiday blocks (e.g., holidays/se.json) to prevent hardcoded dates.
+ * Administrative panel for managing country-specific holiday schedules.
  */
-
 require_once __DIR__ . '/auth.php';
+require_once dirname(__DIR__) . '/classes/ResourceProvider.php';
 
-$holidaysDir = dirname(__DIR__) . '/holidays';
-$regionCode = 'se'; // Default region, extensible later
-$holidayFile = $holidaysDir . '/' . $regionCode . '.json';
+ResourceProvider::initTimezone();
+$settings = ResourceProvider::getSettings();
+$defaultCountry = $settings['default_country'] ?? 'se';
 
-if (!is_dir($holidaysDir)) {
-    @mkdir($holidaysDir, 0775, true);
-}
+$country = isset($_GET['country']) ? strtolower(trim($_GET['country'])) : $defaultCountry;
+$holidaysFile = dirname(__DIR__) . "/holidays/{$country}.json";
+$successMessage = '';
+$errorMessage = '';
 
-// Initialize structure if file doesn't exist
-$holidayData = array(
-    'country' => 'Sweden',
-    'code' => strtoupper($regionCode),
-    'holidays' => array()
-);
-
-if (file_exists($holidayFile)) {
-    $decoded = json_decode(file_get_contents($holidayFile), true);
-    if (is_array($decoded)) {
-        $holidayData = $decoded;
-    }
-}
-
-$successMsg = '';
-$errorMsg = '';
+$holidaysData = ResourceProvider::getHolidays($country);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'])) {
@@ -38,88 +23,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit('CSRF verification failed.');
     }
 
-    $action = isset($_POST['action']) ? trim($_POST['action']) : '';
+    $action = $_POST['action'] ?? '';
 
-    if ($action === 'add_holiday') {
-        $date = trim(isset($_POST['date']) ? $_POST['date'] : '');
-        $name = trim(isset($_POST['name']) ? $_POST['name'] : '');
-
-        if (empty($date) || empty($name)) {
-            $errorMsg = 'Both date and holiday name are required.';
-        } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            $errorMsg = 'Invalid date format. Use YYYY-MM-DD.';
-        } else {
-            $exists = false;
-            foreach ($holidayData['holidays'] as $h) {
-                if ($h['date'] === $date) {
-                    $exists = true;
-                    break;
-                }
-            }
-
-            if ($exists) {
-                $errorMsg = 'A holiday on this date already exists.';
-            } else {
-                $holidayData['holidays'][] = array(
-                    'date' => $date,
-                    'name' => $name
-                );
-
-                usort($holidayData['holidays'], function($a, $b) {
-                    return strcmp($a['date'], $b['date']);
-                });
-
-                $fp = @fopen($holidayFile, 'c+b');
-                if ($fp && @flock($fp, LOCK_EX)) {
-                    ftruncate($fp, 0);
-                    rewind($fp);
-                    fwrite($fp, json_encode($holidayData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                    fflush($fp);
-                    flock($fp, LOCK_UN);
-                    fclose($fp);
-                }
-
-                if (function_exists('log_audit_action')) {
-                    log_audit_action(isset($currentAdmin) ? $currentAdmin : 'admin', 'HOLIDAY_ADD', "Added holiday: {$name} on {$date}");
-                }
-
-                $successMsg = 'Holiday added successfully!';
-            }
-        }
-    } elseif ($action === 'delete_holiday') {
-        $targetDate = trim(isset($_POST['date']) ? $_POST['date'] : '');
-        
-        $filtered = array();
-        $removedName = '';
-        foreach ($holidayData['holidays'] as $h) {
-            if ($h['date'] === $targetDate) {
-                $removedName = $h['name'];
-            } else {
-                $filtered[] = $h;
-            }
+    try {
+        if (!is_array($holidaysData)) {
+            $holidaysData = [];
         }
 
-        if ($removedName !== '') {
-            $holidayData['holidays'] = $filtered;
+        if ($action === 'add_holiday') {
+            $date = trim($_POST['date'] ?? '');
+            $title = trim($_POST['title'] ?? '');
 
-            $fp = @fopen($holidayFile, 'c+b');
+            $d = DateTime::createFromFormat('Y-m-d', $date);
+            if (!$d || $d->format('Y-m-d') !== $date) {
+                throw new Exception('Invalid date format. Use YYYY-MM-DD.');
+            }
+
+            if ($title === '') {
+                $title = 'Holiday';
+            }
+
+            // Append or update
+            $holidaysData[] = [
+                'date' => $date,
+                'title' => $title
+            ];
+
+            // Sort chronologically
+            usort($holidaysData, function($a, $b) {
+                return strcmp($a['date'], $b['date']);
+            });
+
+            $dir = dirname($holidaysFile);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+
+            $payload = json_encode(['country' => $country, 'holidays' => $holidaysData], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            
+            $fp = @fopen($holidaysFile, 'c+b');
+            if (!$fp || !@flock($fp, LOCK_EX)) {
+                throw new Exception('Failed to acquire file lock for holiday file.');
+            }
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp, $payload);
+            fflush($fp);
+            flock($fp, LOCK_UN);
+            fclose($fp);
+
+            $successMessage = 'Holiday successfully added!';
+        } elseif ($action === 'delete_holiday') {
+            $targetDate = trim($_POST['date'] ?? '');
+            $holidaysData = array_values(array_filter($holidaysData, function($h) use ($targetDate) {
+                return ($h['date'] ?? '') !== $targetDate;
+            }));
+
+            $payload = json_encode(['country' => $country, 'holidays' => $holidaysData], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            $fp = @fopen($holidaysFile, 'c+b');
             if ($fp && @flock($fp, LOCK_EX)) {
                 ftruncate($fp, 0);
                 rewind($fp);
-                fwrite($fp, json_encode($holidayData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                fwrite($fp, $payload);
                 fflush($fp);
                 flock($fp, LOCK_UN);
                 fclose($fp);
             }
-
-            if (function_exists('log_audit_action')) {
-                log_audit_action(isset($currentAdmin) ? $currentAdmin : 'admin', 'HOLIDAY_DELETE', "Deleted holiday: {$removedName} on {$targetDate}");
-            }
-
-            $successMsg = 'Holiday deleted successfully.';
-        } else {
-            $errorMsg = 'Holiday not found.';
+            $successMessage = 'Holiday successfully removed.';
         }
+    } catch (Exception $e) {
+        $errorMessage = 'An error occurred: ' . $e->getMessage();
     }
 }
 ?>
@@ -127,26 +100,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Holiday Calendar Management - Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holiday Management - Admin</title>
+    <link rel="stylesheet" href="../css/admin.css">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1100px; margin: 0 auto; }
-        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
-        th, td { padding: 12px 15px; border: 1px solid #dee2e6; text-align: left; font-size: 14px; }
-        th { background: #f8f9fa; font-weight: 600; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 5px; color: #495057; }
-        .form-group input { width: 100%; max-width: 400px; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; box-sizing: border-box; }
-        .form-row { display: flex; gap: 20px; max-width: 500px; }
-        .form-row .form-group { flex: 1; }
-        .btn { background: #007bff; color: #fff; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block; transition: background 0.2s; }
-        .btn:hover { background: #0056b3; }
-        .btn-danger { background: #dc3545; padding: 6px 12px; font-size: 13px; }
-        .btn-danger:hover { background: #bd2130; }
-        .alert { background: #d4edda; color: #155724; padding: 12px 15px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; padding: 12px 15px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #f5c6cb; }
-        code { background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+        :root { --primary: #0284c7; --primary-dark: #0369a1; --bg: #f4f7f6; --card-bg: #ffffff; --text: #1e293b; --border: #cbd5e1; }
+        body { font-family: system-ui, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { font-size: 1.5rem; margin-top: 0; color: var(--primary-dark); margin-bottom: 1.5rem; }
+        .alert { padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .form-inline { display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; }
+        .form-group { flex: 1; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9rem; }
+        input[type="text"], select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn:hover { background: var(--primary-dark); }
+        .btn-danger { background: #dc2626; padding: 6px 12px; font-size: 0.85rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+        th { background: #f8fafc; font-weight: 600; }
+        .null-val { color: #94a3b8; font-style: italic; }
     </style>
 </head>
 <body>
@@ -154,38 +130,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include __DIR__ . '/header.php'; ?>
 
     <div class="card">
-        <h2>Holiday Calendar Management (<?php echo htmlspecialchars($holidayData['country']); ?>)</h2>
-        <p>Manage public holidays and red days dynamically stored in <code>holidays/se.json</code>[cite: 1]. These dates block booking availability automatically.</p>
+        <h2>Regional Holiday Management (Country: <?php echo strtoupper(htmlspecialchars($country)); ?>)</h2>
 
-        <?php if (!empty($successMsg)): ?>
-            <div class="alert"><?php echo htmlspecialchars($successMsg); ?></div>
-        <?php endif; ?>
-        <?php if (!empty($errorMsg)): ?>
-            <div class="error"><?php echo htmlspecialchars($errorMsg); ?></div>
-        <?php endif; ?>
+        <?php if (!empty($successMessage)): ?><div class="alert alert-success"><?php echo htmlspecialchars($successMessage); ?></div><?php endif; ?>
+        <?php if (!empty($errorMessage)): ?><div class="alert alert-error"><?php echo htmlspecialchars($errorMessage); ?></div><?php endif; ?>
 
-        <h3>Configured Holidays</h3>
-        <?php if (empty($holidayData['holidays'])): ?>
-            <p style="color: #6c757d; font-style: italic;">No holidays defined yet.</p>
+        <form method="GET" style="margin-bottom: 20px;">
+            <label style="font-weight: 600; margin-bottom: 5px; display: block;">Select Country Region Scope:</label>
+            <select name="country" onchange="this.form.submit()" style="max-width: 200px;">
+                <option value="se" <?php echo $country === 'se' ? 'selected' : ''; ?>>Sweden (SE)</option>
+                <option value="no" <?php echo $country === 'no' ? 'selected' : ''; ?>>Norway (NO)</option>
+                <option value="fi" <?php echo $country === 'fi' ? 'selected' : ''; ?>>Finland (FI)</option>
+                <option value="ee" <?php echo $country === 'ee' ? 'selected' : ''; ?>>Estonia (EE)</option>
+                <option value="lv" <?php echo $country === 'lv' ? 'selected' : ''; ?>>Latvia (LV)</option>
+                <option value="lt" <?php echo $country === 'lt' ? 'selected' : ''; ?>>Lithuania (LT)</option>
+            </select>
+        </form>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+            <input type="hidden" name="action" value="add_holiday">
+
+            <div class="form-inline">
+                <div class="form-group">
+                    <label>Date (YYYY-MM-DD)</label>
+                    <input type="text" name="date" placeholder="2026-12-24" maxlength="10" required pattern="^\d{4}-\d{2}-\d{2}$">
+                </div>
+                <div class="form-group">
+                    <label>Holiday Title / Description</label>
+                    <input type="text" name="title" placeholder="Christmas Eve" required>
+                </div>
+                <div>
+                    <button type="submit" class="btn">Add Holiday</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Configured Holidays</h2>
+        <?php if (empty($holidaysData)): ?>
+            <p class="null-val">No holidays configured for this region (NULL).</p>
         <?php else: ?>
             <table>
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Holiday Name</th>
-                        <th>Actions</th>
+                        <th>Title</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($holidayData['holidays'] as $holiday): ?>
+                    <?php foreach ($holidaysData as $h): ?>
                         <tr>
-                            <td><code><?php echo htmlspecialchars($holiday['date']); ?></code></td>
-                            <td><strong><?php echo htmlspecialchars($holiday['name']); ?></strong></td>
+                            <td><code><?php echo htmlspecialchars($h['date'] ?? ''); ?></code></td>
+                            <td><strong><?php echo htmlspecialchars($h['title'] ?? ''); ?></strong></td>
                             <td>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to remove <?php echo htmlspecialchars($holiday['name']); ?>?');">
+                                <form method="POST" style="display:inline;" onsubmit="return confirm('Remove this holiday?');">
                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
                                     <input type="hidden" name="action" value="delete_holiday">
-                                    <input type="hidden" name="date" value="<?php echo htmlspecialchars($holiday['date']); ?>">
+                                    <input type="hidden" name="date" value="<?php echo htmlspecialchars($h['date'] ?? ''); ?>">
                                     <button type="submit" class="btn btn-danger">Delete</button>
                                 </form>
                             </td>
@@ -194,25 +198,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </tbody>
             </table>
         <?php endif; ?>
-
-        <h3 style="margin-top: 40px; border-top: 1px solid #dee2e6; padding-top: 25px;">Add New Holiday</h3>
-        <form method="POST">
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
-            <input type="hidden" name="action" value="add_holiday">
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Date (YYYY-MM-DD)</label>
-                    <input type="date" name="date" required placeholder="YYYY-MM-DD">
-                </div>
-                <div class="form-group">
-                    <label>Holiday Name</label>
-                    <input type="text" name="name" required placeholder="e.g. Midsummer Eve (Midsommarafton)">
-                </div>
-            </div>
-
-            <button type="submit" class="btn">Add Holiday</button>
-        </form>
     </div>
 </div>
 </body>

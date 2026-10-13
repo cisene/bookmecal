@@ -1,15 +1,15 @@
 <?php
 /**
- * ResourceProvider.php
- * Transparent abstraction layer for data resources with timezone bootstrap and SKU lookups.
+ * src/classes/ResourceProvider.php
+ * Transparent abstraction layer for data resources without hardcoded assumptions or fallback defaults.
  */
 
 class ResourceProvider {
     
     public static function initTimezone() {
         $settings = self::getSettings();
-        $tz = $settings['timezone'] ?? 'Europe/Stockholm';
-        if (function_exists('date_default_timezone_set')) {
+        $tz = $settings['timezone'] ?? null;
+        if ($tz && function_exists('date_default_timezone_set')) {
             @date_default_timezone_set($tz);
         }
         return $tz;
@@ -29,44 +29,32 @@ class ResourceProvider {
             $content = substr($content, 3);
         }
 
-        return json_decode($content, true);
+        $decoded = json_decode($content, true);
+        return is_array($decoded) ? $decoded : null;
     }
 
     public static function getSettings() {
-        $filePath = __DIR__ . '/data/settings.json';
-        $settings = self::readJsonFile($filePath);
-        return is_array($settings) ? $settings : [
-            'default_country' => 'se',
-            'timezone' => 'Europe/Stockholm',
-            'supported_timezones' => [
-                'Europe/Stockholm', 'Europe/Oslo', 'Europe/Helsinki',
-                'Europe/Tallinn', 'Europe/Riga', 'Europe/Vilnius'
-            ]
-        ];
+        $filePath = dirname(__DIR__) . '/data/settings.json';
+        return self::readJsonFile($filePath);
     }
 
     public static function getHolidays($countryCode) {
         $countryCode = strtolower(trim($countryCode));
-        $filePath = __DIR__ . "/holidays/{$countryCode}.json";
+        $filePath = dirname(__DIR__) . "/holidays/{$countryCode}.json";
         $data = self::readJsonFile($filePath);
-        return $data['holidays'] ?? [];
-    }
-
-    public static function getLocale($languageCode) {
-        $languageCode = strtolower(trim($languageCode));
-        $filePath = __DIR__ . "/language/{$languageCode}.json";
-        $locale = self::readJsonFile($filePath);
-        return is_array($locale) ? $locale : [];
+        return $data['holidays'] ?? null;
     }
 
     public static function getServices() {
-        $filePath = __DIR__ . '/data/services.json';
-        $services = self::readJsonFile($filePath);
-        return is_array($services) ? $services : [];
+        $filePath = dirname(__DIR__) . '/data/services.json';
+        return self::readJsonFile($filePath);
     }
 
     public static function getServiceById($serviceId) {
         $services = self::getServices();
+        if (!$services) {
+            return null;
+        }
         $serviceId = trim(urldecode((string)$serviceId));
         
         if (isset($services[$serviceId])) {
@@ -92,5 +80,4 @@ class ResourceProvider {
     }
 }
 
-// Automatically enforce configured timezone on inclusion
 ResourceProvider::initTimezone();

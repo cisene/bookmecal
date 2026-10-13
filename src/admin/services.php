@@ -1,354 +1,235 @@
 <?php
-// src/admin/services.php - Services management with editable SKUs, cleanup buffer, active/deactivated states, audit logging, and sorting
+/**
+ * src/admin/services.php
+ * Administrative panel for managing services and SKUs (`data/services.json`),
+ * incorporating strict NULL fallback evaluation and thread-safe file operations.
+ */
 require_once __DIR__ . '/auth.php';
+require_once dirname(__DIR__) . '/classes/ResourceProvider.php';
 
-$dataDir = dirname(__DIR__) . '/data';
-$servicesFile = $dataDir . '/services.json';
+ResourceProvider::initTimezone();
 
-if (!is_dir($dataDir)) {
-    @mkdir($dataDir, 0775, true);
-}
+$servicesFile = dirname(__DIR__) . '/data/services.json';
+$successMessage = '';$errorMessage = '';
 
-$services = array();
+$services = null;
 if (file_exists($servicesFile)) {
-    $decoded = json_decode(file_get_contents($servicesFile), true);
-    if (is_array($decoded)) { $services = $decoded; }
+    $content = file_get_contents($servicesFile);
+    if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
+        $content = substr($content, 3);
+    }
+    $decoded = json_decode($content, true);
+    if (is_array($decoded)) {
+        $services =$decoded;
+    }
 }
-
-$successMsg = '';
-$errorMsg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '',$_POST['csrf_token'])) {
         http_response_code(403);
         exit('CSRF verification failed.');
     }
 
-    $action = isset($_POST['action']) ? $_POST['action'] : '';
+    $action =$_POST['action'] ?? '';
 
-    if ($action === 'save_service') {
-        $originalSku = trim(isset($_POST['original_sku']) ? $_POST['original_sku'] : '');
-        $newSku = trim(isset($_POST['sku']) ? $_POST['sku'] : '');
-        $name = trim(isset($_POST['name']) ? $_POST['name'] : '');
-        $description = trim(isset($_POST['description']) ? $_POST['description'] : '');
-        $duration = max(5, (int)(isset($_POST['duration']) ? $_POST['duration'] : 30));
-        $cleanup = max(0, (int)(isset($_POST['cleanup']) ? $_POST['cleanup'] : 0));
-        $vatRate = max(0.0, (float)(isset($_POST['vat_rate']) ? $_POST['vat_rate'] : 25.0));
-        
-        $priceExclVat = max(0.0, (float)(isset($_POST['price_excl_vat']) ? $_POST['price_excl_vat'] : 0.0));
-        $priceInclVat = max(0.0, (float)(isset($_POST['price_incl_vat']) ? $_POST['price_incl_vat'] : 0.0));
-
-        if ($priceExclVat > 0 && $priceInclVat === 0.0) {
-            $priceInclVat = round($priceExclVat * (1 + ($vatRate / 100)), 2);
-        } elseif ($priceInclVat > 0 && $priceExclVat === 0.0) {
-            $priceExclVat = round($priceInclVat / (1 + ($vatRate / 100)), 2);
-        }
-
-        if ($newSku === '') {
-            $errorMsg = 'Service SKU / Code is required.';
-        } elseif ($name === '') {
-            $errorMsg = 'Service name is required.';
-        } else {
-            // Check if SKU changed and already exists
-            if ($originalSku !== $newSku && isset($services[$newSku])) {
-                $errorMsg = 'A service with SKU "' . htmlspecialchars($newSku) . '" already exists.';
-            } else {
-                // Determine active state (preserve if editing, default true if new)
-                $isActive = true;
-                if ($originalSku !== '' && isset($services[$originalSku])) {
-                    $isActive = isset($services[$originalSku]['is_active']) ? $services[$originalSku]['is_active'] : true;
-                    // If SKU was changed, remove the old key entry
-                    if ($originalSku !== $newSku) {
-                        unset($services[$originalSku]);
-                    }
-                }
-
-                $serviceData = array(
-                    'sku' => $newSku,
-                    'name' => $name,
-                    'description' => $description,
-                    'duration' => $duration,
-                    'cleanup' => $cleanup,
-                    'price_excl_vat' => $priceExclVat,
-                    'price_incl_vat' => $priceInclVat,
-                    'vat_rate' => $vatRate,
-                    'is_active' => $isActive,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                    'updated_by' => $currentAdmin
-                );
-
-                $services[$newSku] = $serviceData;
-
-                $fp = @fopen($servicesFile, 'c+b');
-                if ($fp && @flock($fp, LOCK_EX)) {
-                    ftruncate($fp, 0);
-                    rewind($fp);
-                    fwrite($fp, json_encode($services, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                    fflush($fp);
-                    flock($fp, LOCK_UN);
-                    fclose($fp);
-                }
-
-                $logMsg = ($originalSku !== '' && $originalSku !== $newSku) 
-                    ? "Renamed service SKU from '{$originalSku}' to '{$newSku}'" 
-                    : "Added or updated service SKU: {$newSku}";
-                
-                log_audit_action($currentAdmin, 'SERVICE_SAVE', $logMsg);
-                $successMsg = 'Service "' . htmlspecialchars($name) . '" saved successfully!';
-                
-                // Clear edit GET state after successful save
-                $editSku = '';
+    try {
+        if ($action === 'save_service') {
+            $serviceId = trim($_POST['service_id'] ?? '');
+            if ($serviceId === '') {$serviceId = 'srv_' . uniqid();
             }
-        }
-    } elseif ($action === 'toggle_status') {
-        $sku = trim(isset($_POST['sku']) ? $_POST['sku'] : '');
-        if ($sku !== '' && isset($services[$sku])) {
-            $currentState = isset($services[$sku]['is_active']) ? $services[$sku]['is_active'] : true;
-            $newState = !$currentState;
-            $services[$sku]['is_active'] = $newState;
-            $services[$sku]['updated_at'] = date('Y-m-d H:i:s');
-            $services[$sku]['updated_by'] = $currentAdmin;
+
+            $name = trim($_POST['name'] ?? '');
+            $sku = trim($_POST['sku'] ?? '');
+            $durationRaw = trim($_POST['duration_minutes'] ?? '');
+            $priceRaw = trim($_POST['price'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+
+            $durationMinutes = ($durationRaw !== '') ? (int)$durationRaw : null;
+            $price = ($priceRaw !== '') ? (float)$priceRaw : null;
+
+            if (!is_array($services)) {$services = [];
+            }
+
+            $services[$serviceId] = [
+                'id' => $serviceId,
+                'name' => $name !== '' ?$name : null,
+                'sku' => $sku !== '' ?$sku : null,
+                'duration_minutes' => $durationMinutes,
+                'price' => $price,
+                'description' => $description !== '' ?$description : null,
+                'updated_at' => (new DateTime('now'))->format('Y-m-d\TH:i:sP')
+            ];
+
+            $jsonEncoded = json_encode($services, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            
+            $dir = dirname($servicesFile);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
 
             $fp = @fopen($servicesFile, 'c+b');
-            if ($fp && @flock($fp, LOCK_EX)) {
-                ftruncate($fp, 0);
-                rewind($fp);
-                fwrite($fp, json_encode($services, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                fflush($fp);
-                flock($fp, LOCK_UN);
-                fclose($fp);
+            if (!$fp \vert{}\vert{} !@flock($fp, LOCK_EX)) {
+                throw new Exception('Failed to acquire file lock for services.json.');
             }
 
-            $logAction = $newState ? 'SERVICE_REACTIVATE' : 'SERVICE_DEACTIVATE';
-            log_audit_action($currentAdmin, $logAction, 'Changed status for service SKU: ' . $sku . ' to ' . ($newState ? 'Active' : 'Deactivated'));
-            $successMsg = 'Service status updated successfully.';
-        }
-    } elseif ($action === 'delete_service') {
-        $sku = trim(isset($_POST['sku']) ? $_POST['sku'] : '');
-        if ($sku !== '' && isset($services[$sku])) {
-            $isActive = isset($services[$sku]['is_active']) ? $services[$sku]['is_active'] : true;
-            if ($isActive) {
-                $errorMsg = 'Active services cannot be deleted. Please deactivate the service first.';
-            } else {
-                unset($services[$sku]);
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp,$jsonEncoded);
+            fflush($fp);
+            flock($fp, LOCK_UN);
+            fclose($fp);
 
+            if (function_exists('log_audit_action')) {
+                log_audit_action($currentAdmin ?? 'admin', 'SERVICE_SAVE', "Saved service record: {$serviceId}");
+            }
+
+            $successMessage = 'Service successfully saved!';
+        } elseif ($action === 'delete_service') {
+            $serviceId = trim($_POST['service_id'] ?? '');
+            if ($serviceId !== '' && isset($services[$serviceId])) {
+                unset($services[$serviceId]);
+                
+                $jsonEncoded = json_encode($services, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
                 $fp = @fopen($servicesFile, 'c+b');
                 if ($fp && @flock($fp, LOCK_EX)) {
                     ftruncate($fp, 0);
                     rewind($fp);
-                    fwrite($fp, json_encode($services, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    fwrite($fp,$jsonEncoded);
                     fflush($fp);
                     flock($fp, LOCK_UN);
                     fclose($fp);
                 }
-
-                log_audit_action($currentAdmin, 'SERVICE_DELETE', 'Permanently deleted deactivated service SKU: ' . $sku);
-                $successMsg = 'Deactivated service permanently deleted.';
+                $successMessage = 'Service successfully deleted.';
             }
         }
+    } catch (Exception $e) {
+        $errorMessage = 'An error occurred: ' .$e->getMessage();
     }
 }
-
-// Sort services: Active services at the top, deactivated at the bottom
-uasort($services, function($a, $b) {
-    $aActive = isset($a['is_active']) ? (int)$a['is_active'] : 1;
-    $bActive = isset($b['is_active']) ? (int)$b['is_active'] : 1;
-    if ($aActive === $bActive) {
-        $aKey = isset($a['sku']) ? (string)$a['sku'] : '';
-        $bKey = isset($b['sku']) ? (string)$b['sku'] : '';
-        return strcmp($aKey, $bKey);
-    }
-    return $bActive - $aActive;
-});
-
-$editSku = isset($_GET['edit']) ? trim($_GET['edit']) : '';
-$editService = ($editSku !== '' && isset($services[$editSku])) ? $services[$editSku] : null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Services Management - Admin</title>
+    <link rel="stylesheet" href="../css/admin.css">
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1100px; margin: 0 auto; }
-        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
-        th, td { padding: 10px 12px; border: 1px solid #dee2e6; text-align: left; font-size: 14px; }
-        th { background: #f8f9fa; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
-        .form-group input, .form-group textarea { width: 100%; max-width: 500px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .form-row { display: flex; gap: 20px; max-width: 500px; }
-        .form-row .form-group { flex: 1; }
-        .btn { background: #007bff; color: #fff; padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; text-decoration: none; display: inline-block; }
-        .btn-secondary { background: #6c757d; }
-        .btn-warning { background: #ffc107; color: #212529; }
-        .btn-success { background: #28a745; }
-        .btn-danger { background: #dc3545; }
-        .badge-active { background: #d4edda; color: #155724; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
-        .badge-inactive { background: #f8d7da; color: #721c24; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
-        .alert { background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-        .error { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-    </style>
-    <script>
-        function calculateVat(source) {
-            const vatRateInput = document.querySelector('input[name="vat_rate"]');
-            const exclInput = document.querySelector('input[name="price_excl_vat"]');
-            const inclInput = document.querySelector('input[name="price_incl_vat"]');
-
-            const vatRate = parseFloat(vatRateInput.value) || 0;
-
-            if (source === 'excl') {
-                const excl = parseFloat(exclInput.value) || 0;
-                const incl = excl * (1 + (vatRate / 100));
-                inclInput.value = incl.toFixed(2);
-            } else if (source === 'incl') {
-                const incl = parseFloat(inclInput.value) || 0;
-                const excl = vatRate >= 0 ? incl / (1 + (vatRate / 100)) : incl;
-                exclInput.value = excl.toFixed(2);
-            } else if (source === 'rate') {
-                const excl = parseFloat(exclInput.value) || 0;
-                const incl = excl * (1 + (vatRate / 100));
-                inclInput.value = incl.toFixed(2);
-            }
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #cbd5e1;
         }
-    </script>
+        body { font-family: system-ui, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { font-size: 1.5rem; margin-top: 0; color: var(--primary-dark); margin-bottom: 1.5rem; }
+        .alert { padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9rem; }
+        .form-group input[type="text"], .form-group input[type="number"], .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
+        textarea { resize: vertical; height: 80px; }
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn:hover { background: var(--primary-dark); }
+        .btn-danger { background: #dc2626; }
+        .btn-danger:hover { background: #b91c1c; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+        th { background: #f8fafc; font-weight: 600; }
+        .null-val { color: #94a3b8; font-style: italic; }
+    </style>
 </head>
 <body>
 <div class="container">
     <?php include __DIR__ . '/header.php'; ?>
 
     <div class="card">
-        <h2>Services Management</h2>
-        <p>Define bookable services, unique SKUs/codes, durations, cleanup buffers, and pricing. Active services appear at the top.</p>
+        <h2>Services & SKU Management</h2>
+        <p style="color: #64748b; font-size: 0.9rem; margin-top: -10px; margin-bottom: 20px;">
+            Configure bookable services, durations, pricing rules, and SKUs with strict NULL fallbacks.
+        </p>
 
-        <?php if (!empty($successMsg)): ?><div class="alert"><?php echo htmlspecialchars($successMsg); ?></div><?php endif; ?>
-        <?php if (!empty($errorMsg)): ?><div class="error"><?php echo htmlspecialchars($errorMsg); ?></div><?php endif; ?>
+        <?php if (!empty($successMessage)): ?><div class="alert alert-success"><?php echo htmlspecialchars($successMessage); ?></div><?php endif; ?>
+        <?php if (!empty($errorMessage)): ?><div class="alert alert-error"><?php echo htmlspecialchars($errorMessage); ?></div><?php endif; ?>
 
-        <h3>Active Services Catalog</h3>
+        <!-- Service Form -->
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+            <input type="hidden" name="action" value="save_service">
+            <input type="hidden" name="service_id" id="service_id" value="">
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Service Name</label>
+                    <input type="text" name="name" id="field_name" required placeholder="e.g. Initial Consultation">
+                </div>
+                <div class="form-group">
+                    <label>SKU Code</label>
+                    <input type="text" name="sku" id="field_sku" placeholder="CONS-01">
+                </div>
+                <div class="form-group">
+                    <label>Duration (Minutes)</label>
+                    <input type="number" name="duration_minutes" id="field_duration" min="1" placeholder="60">
+                </div>
+                <div class="form-group">
+                    <label>Price</label>
+                    <input type="number" step="0.01" name="price" id="field_price" placeholder="500.00">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>Description</label>
+                    <textarea name="description" id="field_description" placeholder="Detailed service description..."></textarea>
+                </div>
+            </div>
+
+            <button type="submit" class="btn">Save Service</button>
+        </form>
+    </div>
+
+    <!-- Service List Table -->
+    <div class="card">
+        <h2>Existing Services</h2>
         <?php if (empty($services)): ?>
-            <p>No services defined yet. Create your first service below.</p>
+            <p class="null-val">No service records found (NULL).</p>
         <?php else: ?>
             <table>
-                <tr>
-                    <th>SKU / Code</th>
-                    <th>Service Name</th>
-                    <th>Status</th>
-                    <th>Duration & Cleanup</th>
-                    <th>Price (Excl. VAT)</th>
-                    <th>VAT</th>
-                    <th>Price (Incl. VAT)</th>
-                    <th>Actions</th>
-                </tr>
-                <?php foreach ($services as $skuKey => $srv): ?>
-                    <?php 
-                    $displaySku = isset($srv['sku']) ? (string)$srv['sku'] : (string)$skuKey;
-                    $isActive = isset($srv['is_active']) ? $srv['is_active'] : true; 
-                    ?>
-                    <tr style="<?php echo $isActive ? '' : 'background: #fdfdfe; color: #6c757d;'; ?>">
-                        <td><code><?php echo htmlspecialchars($displaySku); ?></code></td>
-                        <td>
-                            <strong><?php echo htmlspecialchars(isset($srv['name']) ? $srv['name'] : ''); ?></strong><br>
-                            <small style="color: #666;"><?php echo htmlspecialchars(isset($srv['description']) ? $srv['description'] : ''); ?></small>
-                        </td>
-                        <td>
-                            <?php if ($isActive): ?>
-                                <span class="badge-active">Active</span>
-                            <?php else: ?>
-                                <span class="badge-inactive">Deactivated</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php echo (int)(isset($srv['duration']) ? $srv['duration'] : 30); ?> min
-                            <br><small style="color: #666;">+ <?php echo (int)(isset($srv['cleanup']) ? $srv['cleanup'] : 0); ?> min cleanup</small>
-                        </td>
-                        <td><?php echo number_format((float)(isset($srv['price_excl_vat']) ? $srv['price_excl_vat'] : 0), 2); ?> kr</td>
-                        <td><?php echo number_format((float)(isset($srv['vat_rate']) ? $srv['vat_rate'] : 25), 1); ?>%</td>
-                        <td><strong><?php echo number_format((float)(isset($srv['price_incl_vat']) ? $srv['price_incl_vat'] : 0), 2); ?> kr</strong></td>
-                        <td>
-                            <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
-                                <a href="services.php?edit=<?php echo urlencode($displaySku); ?>" class="btn btn-secondary">Edit</a>
-                                
-                                <form method="POST" style="display:inline;">
-                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                                    <input type="hidden" name="action" value="toggle_status">
-                                    <input type="hidden" name="sku" value="<?php echo htmlspecialchars($displaySku); ?>">
-                                    <?php if ($isActive): ?>
-                                        <button type="submit" class="btn btn-warning" onclick="return confirm('Deactivate service <?php echo htmlspecialchars($displaySku); ?>?');">Deactivate</button>
-                                    <?php else: ?>
-                                        <button type="submit" class="btn btn-success" onclick="return confirm('Reactivate service <?php echo htmlspecialchars($displaySku); ?>?');">Reactivate</button>
-                                    <?php endif; ?>
-                                </form>
-
-                                <?php if (!$isActive): ?>
-                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete deactivated service <?php echo htmlspecialchars($displaySku); ?>?');">
-                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                                        <input type="hidden" name="action" value="delete_service">
-                                        <input type="hidden" name="sku" value="<?php echo htmlspecialchars($displaySku); ?>">
-                                        <button type="submit" class="btn btn-danger">Delete</button>
-                                    </form>
-                                <?php endif; ?>
-                            </div>
-                        </td>
+                <thead>
+                    <tr>
+                        <th>Name / SKU</th>
+                        <th>Duration</th>
+                        <th>Price</th>
+                        <th>Description</th>
+                        <th>Actions</th>
                     </tr>
-                <?php endforeach; ?>
+                </thead>
+                <tbody>
+                    <?php foreach ($services as $id =>$srv): ?>
+                        <tr>
+                            <td>
+                                <strong><?php echo htmlspecialchars($srv['name'] ?? 'NULL'); ?></strong><br>
+                                <small style="color: #64748b;">SKU: <?php echo htmlspecialchars($srv['sku'] ?? 'NULL'); ?></small>
+                            </td>
+                            <td><?php echo isset($srv['duration_minutes']) ? htmlspecialchars($srv['duration_minutes']) . ' min' : '<span class="null-val">NULL</span>'; ?></td>
+                            <td><?php echo isset($srv['price']) ? htmlspecialchars(number_format($srv['price'], 2)) : '<span class="null-val">NULL</span>'; ?></td>
+                            <td><?php echo htmlspecialchars($srv['description'] ?? 'NULL'); ?></td>
+                            <td>
+                                <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this service?');">
+                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+                                    <input type="hidden" name="action" value="delete_service">
+                                    <input type="hidden" name="service_id" value="<?php echo htmlspecialchars($id); ?>">
+                                    <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85rem;">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
             </table>
         <?php endif; ?>
-
-        <h3 style="margin-top: 30px;"><?php echo ($editService !== null) ? 'Edit Service: ' . htmlspecialchars($editSku) : 'Add New Service'; ?></h3>
-        <?php if ($editService !== null): ?>
-            <p><a href="services.php" class="btn btn-secondary" style="margin-bottom: 15px;">&larr; Cancel Edit & Create New</a></p>
-        <?php endif; ?>
-
-        <form method="POST">
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-            <input type="hidden" name="action" value="save_service">
-            <input type="hidden" name="original_sku" value="<?php echo htmlspecialchars($editSku); ?>">
-            
-            <div class="form-group">
-                <label>Service SKU / Code</label>
-                <input type="text" name="sku" required placeholder="e.g. 0 or SRV-CONSULT-01" value="<?php echo htmlspecialchars(($editService !== null) ? (isset($editService['sku']) ? $editService['sku'] : $editSku) : ''); ?>">
-                <small style="color:#666;">You can edit the SKU code. Changing it will renumber or rename the service identifier.</small>
-            </div>
-            <div class="form-group">
-                <label>Service Name</label>
-                <input type="text" name="name" required placeholder="e.g. Initial Consultation" value="<?php echo htmlspecialchars(($editService !== null) ? (isset($editService['name']) ? $editService['name'] : '') : ''); ?>">
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea name="description" rows="2" placeholder="Brief description of the service..."><?php echo htmlspecialchars(($editService !== null) ? (isset($editService['description']) ? $editService['description'] : '') : ''); ?></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Duration (minutes)</label>
-                    <input type="number" name="duration" value="<?php echo (int)(isset($editService['duration']) ? $editService['duration'] : 30); ?>" min="5" step="5" required>
-                </div>
-                <div class="form-group">
-                    <label>Cleanup Buffer (minutes)</label>
-                    <input type="number" name="cleanup" value="<?php echo (int)(isset($editService['cleanup']) ? $editService['cleanup'] : 0); ?>" min="0" step="5" required>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>VAT Rate (%)</label>
-                    <input type="number" name="vat_rate" value="<?php echo (float)(isset($editService['vat_rate']) ? $editService['vat_rate'] : 25.0); ?>" min="0" step="0.1" required oninput="calculateVat('rate')">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Price Excl. VAT (kr)</label>
-                    <input type="number" name="price_excl_vat" value="<?php echo (float)(isset($editService['price_excl_vat']) ? $editService['price_excl_vat'] : 0.00); ?>" min="0" step="0.01" oninput="calculateVat('excl')">
-                </div>
-                <div class="form-group">
-                    <label>Price Incl. VAT (kr)</label>
-                    <input type="number" name="price_incl_vat" value="<?php echo (float)(isset($editService['price_incl_vat']) ? $editService['price_incl_vat'] : 0.00); ?>" min="0" step="0.01" oninput="calculateVat('incl')">
-                </div>
-            </div>
-            <small style="color: #666; display: block; margin-bottom: 15px;">* Typing in either Excl. or Incl. VAT price will automatically calculate the other value in real time.</small>
-
-            <button type="submit" class="btn"><?php echo ($editService !== null) ? 'Update Service' : 'Save Service'; ?></button>
-        </form>
     </div>
 </div>
 </body>
