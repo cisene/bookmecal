@@ -14,12 +14,14 @@ bookmecal/
 │   ├── 04-api-and-integrations.md
 │   ├── 05-todo-and-roadmap.md
 │   ├── 06-master-specification-index.md
+│   ├── 07-tests-and-validation.md
 │   ├── availability_logic_appendix.md
 │   ├── booking_request.schema.json
 │   ├── config.schema.json
 │   ├── databaseschema.mysql.sql
 │   ├── databaseschema.sql
 │   ├── databaseschema.sqlite.sql
+│   ├── employee.schema.json
 │   ├── holiday_matrix.schema.json
 │   ├── holiday.schema.json
 │   ├── locale.schema.json
@@ -34,8 +36,10 @@ bookmecal/
     │   ├── auth.php
     │   ├── availability.php
     │   ├── config.php
+    │   ├── employees.php
     │   ├── google_guide.php
     │   ├── header.php
+    │   ├── holidays.php
     │   ├── index.php
     │   ├── openhours.php
     │   ├── pending.php
@@ -58,6 +62,7 @@ bookmecal/
     │   │   └── availability.json
     │   ├── config.json
     │   ├── credentials.json
+    │   ├── employees
     │   ├── openhours.json
     │   ├── pending
     │   ├── services.json
@@ -77,6 +82,7 @@ bookmecal/
     │   ├── no.json
     │   └── se.json
     ├── i18n.php
+    ├── ics.php
     ├── index.php
     ├── install.php
     ├── lang_switcher.php

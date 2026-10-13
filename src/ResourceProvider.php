@@ -1,11 +1,20 @@
 <?php
 /**
  * ResourceProvider.php
- * Transparent abstraction layer for data resources with robust SKU/ID lookups and URL-decoding.
+ * Transparent abstraction layer for data resources with timezone bootstrap and SKU lookups.
  */
 
 class ResourceProvider {
     
+    public static function initTimezone() {
+        $settings = self::getSettings();
+        $tz = $settings['timezone'] ?? 'Europe/Stockholm';
+        if (function_exists('date_default_timezone_set')) {
+            @date_default_timezone_set($tz);
+        }
+        return $tz;
+    }
+
     private static function readJsonFile($filePath) {
         if (!file_exists($filePath)) {
             return null;
@@ -16,7 +25,6 @@ class ResourceProvider {
             return null;
         }
         
-        // Strip UTF-8 BOM transparently if present
         if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
             $content = substr($content, 3);
         }
@@ -27,7 +35,14 @@ class ResourceProvider {
     public static function getSettings() {
         $filePath = __DIR__ . '/data/settings.json';
         $settings = self::readJsonFile($filePath);
-        return is_array($settings) ? $settings : ['show_past_slots' => true];
+        return is_array($settings) ? $settings : [
+            'default_country' => 'se',
+            'timezone' => 'Europe/Stockholm',
+            'supported_timezones' => [
+                'Europe/Stockholm', 'Europe/Oslo', 'Europe/Helsinki',
+                'Europe/Tallinn', 'Europe/Riga', 'Europe/Vilnius'
+            ]
+        ];
     }
 
     public static function getHolidays($countryCode) {
@@ -54,12 +69,10 @@ class ResourceProvider {
         $services = self::getServices();
         $serviceId = trim(urldecode((string)$serviceId));
         
-        // 1. Direct check if decoded serviceId matches an associative array key (SKU)
         if (isset($services[$serviceId])) {
             return $services[$serviceId];
         }
 
-        // 2. Fallback scan matching keys, SKUs, or legacy internal IDs safely with url-decoding
         foreach ($services as $key => $service) {
             $decodedKey = trim(urldecode((string)$key));
             if ($decodedKey === $serviceId || (string)$key === (string)$serviceId) {
@@ -78,3 +91,6 @@ class ResourceProvider {
         return null;
     }
 }
+
+// Automatically enforce configured timezone on inclusion
+ResourceProvider::initTimezone();

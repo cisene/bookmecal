@@ -1,18 +1,24 @@
 <?php
 /**
  * BookingRepository.php
- * Data Access Layer (DAL) for managing flat-file JSON datasets 
- * (services, operating hours, holidays, and pending bookings) with thread-safe flock() locking.
+ * Data Access Layer with flock() concurrency control and timezone-bound ISO datetimes.
  */
+
+require_once __DIR__ . '/ResourceProvider.php';
 
 class BookingRepository {
     private string $dataDir;
+    private DateTimeZone $timezone;
 
     public function __construct() {
         $this->dataDir = __DIR__ . '/data';
         if (!is_dir($this->dataDir)) {
             @mkdir($this->dataDir, 0775, true);
         }
+        
+        $settings = ResourceProvider::getSettings();
+        $tzString = $settings['timezone'] ?? 'Europe/Stockholm';
+        $this->timezone = new DateTimeZone($tzString);
     }
 
     private function readJson(string $filePath): array {
@@ -56,32 +62,11 @@ class BookingRepository {
     }
 
     public function getServiceById(string $serviceId) {
-        $services = $this->getServices();
-        $serviceId = trim(urldecode($serviceId));
-
-        if (isset($services[$serviceId])) {
-            return $services[$serviceId];
-        }
-
-        foreach ($services as $key => $service) {
-            if (trim(urldecode((string)$key)) === $serviceId || (string)$key === $serviceId) {
-                return $service;
-            }
-            if (isset($service['sku']) && trim(urldecode((string)$service['sku'])) === $serviceId) {
-                return $service;
-            }
-            if (isset($service['id']) && (string)$service['id'] === $serviceId) {
-                return $service;
-            }
-        }
-        return null;
+        return ResourceProvider::getServiceById($serviceId);
     }
 
     public function isHoliday(string $dateStr, string $countryCode = 'se'): bool {
-        $holidayFile = __DIR__ . "/holidays/" . strtolower(trim($countryCode)) . ".json";
-        $data = $this->readJson($holidayFile);
-        $holidays = $data['holidays'] ?? [];
-
+        $holidays = ResourceProvider::getHolidays($countryCode);
         foreach ($holidays as $h) {
             if (isset($h['date']) && $h['date'] === $dateStr) {
                 return true;
@@ -101,39 +86,6 @@ class BookingRepository {
         return null;
     }
 
-    public function isSlotOccupied(string $startDatetime, string $endDatetime): bool {
-        $pendingDir = $this->dataDir . '/pending';
-        if (!is_dir($pendingDir)) {
-            return false;
-        }
-
-        $files = glob($pendingDir . '/booking_*.json');
-        if (empty($files)) {
-            return false;
-        }
-
-        $startTs = strtotime($startDatetime);
-        $endTs = strtotime($endDatetime);
-
-        foreach ($files as $file) {
-            $booking = $this->readJson($file);
-            if (empty($booking) || isset($booking['status']) && $booking['status'] === 'rejected') {
-                continue;
-            }
-
-            $bStart = strtotime($booking['start_datetime'] ?? '');
-            $bEnd = strtotime($booking['end_datetime'] ?? '');
-
-            if ($bStart && $bEnd) {
-                if (max($startTs, $bStart) < min($endTs, $bEnd)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
     public function createPendingRequest(array $bookingData): string {
         $pendingDir = $this->dataDir . '/pending';
         if (!is_dir($pendingDir)) {
@@ -142,8 +94,12 @@ class BookingRepository {
 
         $bookingId = uniqid('book_');
         $bookingData['id'] = $bookingId;
-        $filePath = $pendingDir . '/booking_' . $bookingId . '.json';
+        
+        // Attach timezone-aware ISO timestamp
+        $now = new DateTime('now', $this->timezone);
+        $bookingData['created_at_iso'] = $now->format('Y-m-d\TH:i:sP');
 
+        $filePath = $pendingDir . '/booking_' . $bookingId . '.json';
         $this->writeJson($filePath, $bookingData);
         return $bookingId;
     }

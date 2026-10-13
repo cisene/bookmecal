@@ -1,3 +1,13 @@
 {
-  "show_past_slots": true
+    "default_country": "se",
+    "timezone": "Europe\/Stockholm",
+    "supported_timezones": [
+        "Europe\/Stockholm",
+        "Europe\/Oslo",
+        "Europe\/Helsinki",
+        "Europe\/Tallinn",
+        "Europe\/Riga",
+        "Europe\/Vilnius"
+    ],
+    "show_past_slots": true
 }

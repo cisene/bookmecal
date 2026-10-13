@@ -2,8 +2,12 @@
 /**
  * src/admin/openhours.php
  * Administrative panel for managing venue opening hours (`data/openhours.json`).
+ * Enforces strict 24-hour clock formatting (HH:mm), timezone awareness, and robust file permissions.
  */
 require_once __DIR__ . '/auth.php';
+require_once dirname(__DIR__) . '/ResourceProvider.php';
+
+ResourceProvider::initTimezone();
 
 $openHoursFile = dirname(__DIR__) . '/data/openhours.json';
 $successMessage = '';$errorMessage = '';
@@ -27,8 +31,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $postedData = $_POST['hours'] ?? [];$newConfig = [];
 
-        foreach ($defaultHours as$day => $defaults) {$isOpen = isset($postedData[$day]['is_open']) ? true : false;
-            $openTime =$postedData[$day]['open_time'] ?? '08:00';$closeTime = $postedData[$day]['close_time'] ?? '17:00';
+        foreach ($defaultHours as$day => $defaults) {$isOpen = isset($postedData[$day]['is_open']) && $postedData[$day]['is_open'] === '1';
+            $openTime = trim($postedData[$day]['open_time'] ?? $defaults['open_time']);
+            $closeTime = trim($postedData[$day]['close_time'] ?? $defaults['close_time']);
+
+            // Validate strict 24-hour format (HH:mm) via DateTime parsing to bypass PCRE JIT limits
+            $dOpen = DateTime::createFromFormat('H:i',$openTime);
+            if (!$dOpen || $dOpen->format('H:i') !==$openTime) {
+                $openTime =$defaults['open_time'];
+            }
+
+            $dClose = DateTime::createFromFormat('H:i',$closeTime);
+            if (!$dClose || $dClose->format('H:i') !==$closeTime) {
+                $closeTime =$defaults['close_time'];
+            }
 
             $newConfig[$day] = [
                 'is_open' => $isOpen,
@@ -44,20 +60,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             @mkdir($dir, 0775, true);
         }
 
-        $fp = @fopen($openHoursFile, 'c+b');
-        if ($fp && @flock($fp, LOCK_EX)) {
-            ftruncate($fp, 0);
-            rewind($fp);
-            fwrite($fp,$jsonEncoded);
-            fflush($fp);
-            flock($fp, LOCK_UN);
-            fclose($fp);
-        } else {
-            throw new Exception('Failed to acquire file lock for openhours.json.');
+        // Initialize file if missing with safe permissions
+        if (!file_exists($openHoursFile)) {
+            @file_put_contents($openHoursFile, '{}');
+            @chmod($openHoursFile, 0664);
         }
 
+        // Verify write access before locking
+        if (!is_writable($openHoursFile)) {
+            throw new Exception("File is not writable. Please check server permissions for: {$openHoursFile}");
+        }
+
+        $fp = @fopen($openHoursFile, 'c+b');
+        if (!$fp || !@flock($fp, LOCK_EX)) {
+            throw new Exception('Failed to acquire file lock for openhours.json. Check file permissions.');
+        }
+
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp,$jsonEncoded);
+        fflush($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
         if (function_exists('log_audit_action')) {
-            log_audit_action(isset($currentAdmin) ?$currentAdmin : 'admin', 'OPENHOURS_UPDATE', 'Updated weekly venue opening hours.');
+            log_audit_action(isset($currentAdmin) ?$currentAdmin : 'admin', 'OPENHOURS_UPDATE', 'Updated weekly venue opening hours (24-hour format).');
         }
 
         $successMessage = 'Opening hours successfully updated!';
@@ -137,11 +164,14 @@ if (file_exists($openHoursFile)) {
             align-items: center;
             gap: 10px;
         }
-        input[type="time"] {
+        input.time-input-24h {
+            width: 80px;
             padding: 6px 10px;
             border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 0.95rem;
+            font-family: monospace;
+            text-align: center;
         }
         input[type="checkbox"] {
             transform: scale(1.2);
@@ -168,7 +198,7 @@ if (file_exists($openHoursFile)) {
     <?php include __DIR__ . '/header.php'; ?>
 
     <div class="card">
-        <h2>Venue Opening Hours</h2>
+        <h2>Venue Opening Hours (Strict 24-Hour Clock)</h2>
 
         <?php if (!empty($successMessage)): ?>
             <div class="alert alert-success"><?php echo htmlspecialchars($successMessage); ?></div>
@@ -190,9 +220,9 @@ if (file_exists($openHoursFile)) {
                             Open
                         </label>
                         <div class="time-inputs">
-                            <input type="time" name="hours[<?php echo $day; ?>][open_time]" value="<?php echo htmlspecialchars($settings['open_time'] ?? '08:00'); ?>">
+                            <input type="text" class="time-input-24h" name="hours[<?php echo $day; ?>][open_time]" value="<?php echo htmlspecialchars($settings['open_time'] ?? '08:00'); ?>" placeholder="HH:mm" maxlength="5">
                             <span>to</span>
-                            <input type="time" name="hours[<?php echo $day; ?>][close_time]" value="<?php echo htmlspecialchars($settings['close_time'] ?? '17:00'); ?>">
+                            <input type="text" class="time-input-24h" name="hours[<?php echo $day; ?>][close_time]" value="<?php echo htmlspecialchars($settings['close_time'] ?? '17:00'); ?>" placeholder="HH:mm" maxlength="5">
                         </div>
                     </div>
                 </div>

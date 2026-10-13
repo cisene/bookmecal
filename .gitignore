@@ -14,3 +14,7 @@ src/admin/.htaccess
 src/admin/.htpasswd
 
 src/data/employees/
+
+src/log/
+src/log/access.log
+src/log/error.log
