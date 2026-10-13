@@ -68,6 +68,13 @@ bookmecal/
     ├── gcal_helper.php
     ├── GoogleSync.php
     ├── holidays
+    │   ├── ax.json
+    │   ├── dk.json
+    │   ├── ee.json
+    │   ├── fi.json
+    │   ├── lt.json
+    │   ├── lv.json
+    │   ├── no.json
     │   └── se.json
     ├── i18n.php
     ├── index.php
@@ -103,6 +110,8 @@ bookmecal/
 ```
 
 
+## Specifications
+
 | File                                                                  | Description |
 | --------------------------------------------------------------------- | ----------- |
 | [01-architecture-and-config.md](01-architecture-and-config.md)        |             |
@@ -128,6 +137,7 @@ bookmecal/
 | [databaseschema.sql](databaseschema.sql)                              |             |
 
 
+## Configuration and variable files
 
 | File                                                                  | Description |
 | --------------------------------------------------------------------- | ----------- |
@@ -141,11 +151,22 @@ bookmecal/
 
 
 
+## Holiday Calendar files
 
 | File                                                                  | Description                 |
 | --------------------------------------------------------------------- | --------------------------- |
-| holidays/se.json                                                      | Swedish Holiday information |
+| holidays/ax.json                                                      | Åland Holiday Calendar |
+| holidays/dk.json                                                      | Denmark Holiday Calendar |
+| holidays/ee.json                                                      | Estonia Holiday Calendar |
+| holidays/fi.json                                                      | Finland Holiday Calendar |
+| holidays/lt.json                                                      | Lithuania Holiday Calendar |
+| holidays/lv.json                                                      | Latvia Holiday Calendar |
+| holidays/no.json                                                      | Norway Holiday Calendar |
+| holidays/se.json                                                      | Swedish Holiday Calendar |
 
+
+
+## Language files
 
 | File                                                                  | Description                 |
 | --------------------------------------------------------------------- | --------------------------- |

@@ -1,0 +1,29 @@
+{
+  "country": "Denmark",
+  "code": "DK",
+  "holidays": [
+    { "date": "2026-01-01", "name": "New Year's Day (Nytårsdag)" },
+    { "date": "2026-04-02", "name": "Maundy Thursday (Skærtorsdag)" },
+    { "date": "2026-04-03", "name": "Good Friday (Langfredag)" },
+    { "date": "2026-04-05", "name": "Easter Sunday (Påskedag)" },
+    { "date": "2026-04-06", "name": "Easter Monday (Anden påskedag)" },
+    { "date": "2026-05-14", "name": "Ascension Day (Kristi himmelfartsdag)" },
+    { "date": "2026-05-24", "name": "Pentecost Sunday (Pinsedag)" },
+    { "date": "2026-05-25", "name": "Whit Monday (Anden pinsedag)" },
+    { "date": "2026-06-05", "name": "Constitution Day (Grundlovsdag)" },
+    { "date": "2026-12-25", "name": "Christmas Day (Juledag)" },
+    { "date": "2026-12-26", "name": "Boxing Day (Anden juledag)" },
+
+    { "date": "2027-01-01", "name": "New Year's Day (Nytårsdag)" },
+    { "date": "2027-03-26", "name": "Maundy Thursday (Skærtorsdag)" },
+    { "date": "2027-03-27", "name": "Good Friday (Langfredag)" },
+    { "date": "2027-03-28", "name": "Easter Sunday (Påskedag)" },
+    { "date": "2027-03-29", "name": "Easter Monday (Anden påskedag)" },
+    { "date": "2027-05-06", "name": "Ascension Day (Kristi himmelfartsdag)" },
+    { "date": "2027-05-16", "name": "Pentecost Sunday (Pinsedag)" },
+    { "date": "2027-05-17", "name": "Whit Monday (Anden pinsedag)" },
+    { "date": "2027-06-05", "name": "Constitution Day (Grundlovsdag)" },
+    { "date": "2027-12-25", "name": "Christmas Day (Juledag)" },
+    { "date": "2027-12-26", "name": "Boxing Day (Anden juledag)" }
+  ]
+}
