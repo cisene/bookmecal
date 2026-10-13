@@ -1,72 +1,108 @@
 <?php
+/**
+ * BookingService.php
+ * Orchestrates booking validation, repository interaction, Google Calendar synchronization, 
+ * and email notifications.
+ */
+
+require_once __DIR__ . '/BookingRepository.php';
+require_once __DIR__ . '/AvailabilityEngine.php';
+require_once __DIR__ . '/GoogleSync.php';
+require_once __DIR__ . '/EmailNotifier.php';
 
 class BookingService {
     private BookingRepository $repository;
-    private ?GoogleSync $googleSync;
-    private array $config;
 
-    public function __construct(BookingRepository $repository, ?GoogleSync $googleSync = null, array $config = []) {
+    public function __construct(BookingRepository $repository) {
         $this->repository = $repository;
-        $this->googleSync = $googleSync;
-        $this->config = $config;
     }
 
-    /**
-     * Hanterar hela bokningsflödet: validering, lagring och eventuell kalendersynk.
-     *
-     * @param array $data Innehåller service_id, client_name, client_email, client_phone, start_datetime, preferred_language, m.m.
-     * @return array Innehåller boknings-ID, status och eventuellt Google Calendar Event-ID.
-     */
-    public function bookSlot(array $data): array {
-        // 1. Validera obligatoriska fält
-        if (empty($data['start_datetime']) || empty($data['client_name']) || empty($data['client_email'])) {
-            throw new InvalidArgumentException("Alla obligatoriska fält (namn, e-post och starttid) måste fyllas i.");
+    public function processBooking(array $data): array {
+        $country = $data['country'] ?? 'se';
+        $serviceId = $data['service_id'] ?? '';
+        $date = $data['date'] ?? '';
+        $time = $data['time'] ?? '';
+        
+        $clientName = trim($data['name'] ?? ($data['customer_name'] ?? ''));
+        $clientEmail = trim($data['email'] ?? ($data['customer_email'] ?? ''));
+        $clientPhone = trim($data['phone'] ?? ($data['customer_phone'] ?? ''));
+
+        if (empty($clientName) || empty($clientEmail) || empty($serviceId) || empty($date) || empty($time)) {
+            return [
+                'success' => false,
+                'error' => 'Missing required booking parameters.'
+            ];
         }
 
-        $startDatetime = $data['start_datetime'];
-        $dateObj = new DateTime($startDatetime);
-        $dateStr = $dateObj->format('Y-m-d');
-
-        // 2. Kontrollera om datumet är en helgdag
-        if ($this->repository->isHoliday($dateStr)) {
-            throw new RuntimeException("Det valda datumet är en helgdag och kan inte bokas.");
+        $service = $this->repository->getServiceById($serviceId);
+        if (!$service) {
+            return [
+                'success' => false,
+                'error' => 'Specified service not found.'
+            ];
         }
 
-        // 3. Kontrollera om tiden redan är bokad
-        if ($this->repository->isSlotBooked($startDatetime)) {
-            throw new RuntimeException("Den valda tiden är tyvärr redan upptagen.");
+        $engine = new AvailabilityEngine($this->repository, $country);
+        $availableSlots = $engine->getAvailableSlots($date, $serviceId);
+
+        if (!is_array($availableSlots) || !in_array($time, $availableSlots)) {
+            return [
+                'success' => false,
+                'error' => 'The selected time slot is no longer available.'
+            ];
         }
 
-        // 4. Spara bokningen i databasen
-        $bookingId = $this->repository->createBookingRecord($data);
+        $duration = (int)($service['duration'] ?? ($service['duration_minutes'] ?? 45));
+        $cleanup = (int)($service['cleanup'] ?? 0);
+        
+        $startDateTime = new DateTime("$date $time");
+        $endDateTime = clone $startDateTime;
+        $endDateTime->modify("+{$duration} minutes");
 
-        $gcalEventId = null;
+        $bookingRecord = [
+            'service_id' => $serviceId,
+            'service_name' => $service['name'] ?? 'Treatment',
+            'client_name' => $clientName,
+            'client_email' => $clientEmail,
+            'client_phone' => $clientPhone,
+            'date' => $date,
+            'time' => $time,
+            'duration_minutes' => $duration,
+            'cleanup_minutes' => $cleanup,
+            'start_datetime' => $startDateTime->format('Y-m-d H:i:s'),
+            'end_datetime' => $endDateTime->format('Y-m-d H:i:s'),
+            'status' => 'pending',
+            'created_at' => date('Y-m-d H:i:s'),
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        ];
 
-        // 5. Synkronisera till Google Calendar om det är aktiverat
-        if ($this->googleSync !== null && !empty($this->config['google_calendar']['enabled'])) {
-            try {
-                $gcalEventId = $this->googleSync->createEvent($data);
-                if ($gcalEventId) {
-                    $this->repository->updateGcalEventId($bookingId, $gcalEventId);
+        $bookingId = $this->repository->createPendingRequest($bookingRecord);
+
+        // Sync to Google Calendar if configured
+        try {
+            if (class_exists('GoogleSync')) {
+                $gSync = new GoogleSync();
+                if (method_exists($gSync, 'createEvent')) {
+                    $gSync->createEvent(array_merge($bookingRecord, ['id' => $bookingId]));
                 }
-            } catch (Exception $e) {
-                // Logga felet men låt bokningen gå igenom i databasen
-                error_log("Google Calendar sync failed for booking #{$bookingId}: " . $e->getMessage());
             }
+        } catch (Throwable $e) {
+            error_log("[GoogleSync Error] Failed to sync booking {$bookingId}: " . $e->getMessage());
+        }
+
+        // Send Email Confirmation
+        try {
+            if (class_exists('EmailNotifier')) {
+                EmailNotifier::sendBookingConfirmation(array_merge($bookingRecord, ['id' => $bookingId]));
+            }
+        } catch (Throwable $e) {
+            error_log("[Email Error] Failed to send confirmation for booking {$bookingId}: " . $e->getMessage());
         }
 
         return [
-            'success'       => true,
-            'booking_id'    => $bookingId,
-            'gcal_event_id' => $gcalEventId,
-            'message'       => 'Bokningen har genomförts framgångsrikt.'
+            'success' => true,
+            'message' => 'Booking request submitted successfully!',
+            'booking_id' => $bookingId
         ];
-    }
-
-    /**
-     * Hämtar en bokning baserat på ID.
-     */
-    public function getBooking(int $bookingId): ?array {
-        return $this->repository->getBookingById($bookingId);
     }
 }

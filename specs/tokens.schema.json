@@ -27,6 +27,12 @@
       "description": "Username of the administrator who last updated the token file."
     }
   },
-  "required": ["access_token", "refresh_token", "token_expiry", "updated_at", "updated_by"],
+  "required": [
+    "access_token",
+    "refresh_token",
+    "token_expiry",
+    "updated_at",
+    "updated_by"
+  ],
   "additionalProperties": false
 }

@@ -1,34 +1,27 @@
 <?php
 /**
  * ResourceProvider.php
- * Transparent abstraction layer for data resources with stderr debugging logs.
+ * Transparent abstraction layer for data resources with robust SKU/ID lookups and URL-decoding.
  */
 
 class ResourceProvider {
     
     private static function readJsonFile($filePath) {
         if (!file_exists($filePath)) {
-            error_log("[ResourceProvider] ERROR: Resource file not found at path: " . $filePath);
             return null;
         }
 
         $content = file_get_contents($filePath);
         if ($content === false) {
-            error_log("[ResourceProvider] ERROR: Failed to read resource file contents at path: " . $filePath);
             return null;
         }
         
+        // Strip UTF-8 BOM transparently if present
         if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
             $content = substr($content, 3);
         }
 
-        $data = json_decode($content, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log("[ResourceProvider] ERROR: JSON decode failed for file " . $filePath . " - Error: " . json_last_error_msg());
-            return null;
-        }
-
-        return $data;
+        return json_decode($content, true);
     }
 
     public static function getSettings() {
@@ -41,42 +34,14 @@ class ResourceProvider {
         $countryCode = strtolower(trim($countryCode));
         $filePath = __DIR__ . "/holidays/{$countryCode}.json";
         $data = self::readJsonFile($filePath);
-        
-        if ($data === null && !file_exists($filePath)) {
-            return [];
-        }
-        
         return $data['holidays'] ?? [];
     }
 
     public static function getLocale($languageCode) {
         $languageCode = strtolower(trim($languageCode));
-        $filePath = __DIR__ . "/lang/{$languageCode}.json";
+        $filePath = __DIR__ . "/language/{$languageCode}.json";
         $locale = self::readJsonFile($filePath);
-        
-        return is_array($locale) ? $locale : [
-            'select_service' => 'Select Service:',
-            'timeline_title' => 'Available Time Slots:',
-            'loading_services' => 'Loading services...',
-            'loading_timeline' => 'Loading availability...',
-            'closed' => 'Closed',
-            'fully_booked' => 'Fully Booked',
-            'free_slots' => 'available slots',
-            'holiday' => 'Holiday / Closed',
-            'morning' => 'Morning',
-            'afternoon' => 'Afternoon',
-            'evening' => 'Evening',
-            'customer_details' => 'Your Details',
-            'name' => 'Name:',
-            'email' => 'Email:',
-            'phone' => 'Phone:',
-            'confirm_booking' => 'Confirm Booking',
-            'success_title' => 'Thank you for your booking!',
-            'success_message' => 'A confirmation has been sent to your email.',
-            'no_services_found' => 'No active services found.',
-            'no_slots_found' => 'No available slots found for the coming week.',
-            'booking_failed' => 'Booking failed: '
-        ];
+        return is_array($locale) ? $locale : [];
     }
 
     public static function getServices() {
@@ -87,12 +52,29 @@ class ResourceProvider {
 
     public static function getServiceById($serviceId) {
         $services = self::getServices();
-        foreach ($services as $service) {
-            $currentId = $service['id'] ?? ($service['service_id'] ?? null);
-            if ($currentId !== null && (string)$currentId === (string)$serviceId) {
+        $serviceId = trim(urldecode((string)$serviceId));
+        
+        // 1. Direct check if decoded serviceId matches an associative array key (SKU)
+        if (isset($services[$serviceId])) {
+            return $services[$serviceId];
+        }
+
+        // 2. Fallback scan matching keys, SKUs, or legacy internal IDs safely with url-decoding
+        foreach ($services as $key => $service) {
+            $decodedKey = trim(urldecode((string)$key));
+            if ($decodedKey === $serviceId || (string)$key === (string)$serviceId) {
+                return $service;
+            }
+            
+            $currentSku = isset($service['sku']) ? trim(urldecode((string)$service['sku'])) : null;
+            $currentId = isset($service['id']) ? trim((string)$service['id']) : null;
+            
+            if (($currentSku !== null && $currentSku === $serviceId) ||
+                ($currentId !== null && $currentId === $serviceId)) {
                 return $service;
             }
         }
+        
         return null;
     }
 }

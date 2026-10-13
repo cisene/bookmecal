@@ -1,6 +1,7 @@
 <?php
 /**
- * src/admin/services.php / holidays.php - Holiday Calendar Management
+ * src/admin/holidays.php
+ * Holiday Calendar Management
  * Manages regional holiday blocks (e.g., holidays/se.json) to prevent hardcoded dates.
  */
 
@@ -48,7 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             $errorMsg = 'Invalid date format. Use YYYY-MM-DD.';
         } else {
-            // Check for duplicate date
             $exists = false;
             foreach ($holidayData['holidays'] as $h) {
                 if ($h['date'] === $date) {
@@ -65,12 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'name' => $name
                 );
 
-                // Sort holidays chronologically
                 usort($holidayData['holidays'], function($a, $b) {
                     return strcmp($a['date'], $b['date']);
                 });
 
-                // Thread-safe save
                 $fp = @fopen($holidayFile, 'c+b');
                 if ($fp && @flock($fp, LOCK_EX)) {
                     ftruncate($fp, 0);
@@ -153,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 <div class="container">
-    <?php if (file_exists(__DIR__ . '/header.php')) { include __DIR__ . '/header.php'; } ?>
+    <?php include __DIR__ . '/header.php'; ?>
 
     <div class="card">
         <h2>Holiday Calendar Management (<?php echo htmlspecialchars($holidayData['country']); ?>)</h2>

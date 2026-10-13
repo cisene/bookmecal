@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Employee",
+  "description": "Schema representing an employee or practitioner profile in the booking system, including professional qualifications, certificates, diplomas, and business attributes.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier or employee code."
+    },
+    "givenName": {
+      "type": "string",
+      "description": "First or given name of the employee."
+    },
+    "familyName": {
+      "type": "string",
+      "description": "Last or family name of the employee."
+    },
+    "avatar": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL or path to the employee profile avatar image."
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Professional email address."
+    },
+    "phoneNumber": {
+      "type": "string",
+      "description": "Primary or office phone number."
+    },
+    "mobileNumber": {
+      "type": "string",
+      "description": "Direct mobile phone number."
+    },
+    "swishPaymentNumber": {
+      "type": "string",
+      "description": "07xxx number or 123xxx xx xx number"
+    },
+    "inactive": {
+      "type": "boolean",
+      "default": false,
+      "description": "Flag indicating whether the employee is currently inactive or deactivated."
+    },
+    "isBookable": {
+      "type": "boolean",
+      "default": true,
+      "description": "Employee is bookable"
+    },
+    "jobTitle": {
+      "type": "string",
+      "description": "Professional title or role (e.g., Licensed Medical Foot Care Specialist)."
+    },
+    "organisationNumber": {
+      "type": "string",
+      "description": "Corporate or organizational registration number (e.g., Swedish Org.nr)."
+    },
+    "qualifications": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of professional qualifications or licenses held."
+    },
+    "certificates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "issueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "expiryDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "description": "Certificates and professional accreditations."
+    },
+    "diplomas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "institution": { "type": "string" },
+          "year": { "type": "integer" }
+        },
+        "required": ["title"]
+      },
+      "description": "Academic degrees and professional diplomas."
+    },
+    "businessAttributes": {
+      "type": "object",
+      "description": "Assortment of operational attributes.",
+      "properties": {
+
+        "bookCancel": {
+          "type": "integer",
+          "default": 1440,
+          "description": "Minimum time before cancellation of booking in minutes."
+        },
+        
+        "bookInAdvance": {
+          "type": "integer",
+          "default": 15,
+          "description": "Booking days ahead"
+        },
+
+        "acceptsValueCard": {
+          "type": "boolean",
+          "default": false,
+          "description": "Accepts value card"
+        },
+        "allowCustomerMessage": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow customer message in booking"
+        },
+        "blockCancelBooking": {
+          "type": "boolean",
+          "default": false,
+          "description": "Block cancellation of booking"
+        },
+
+        "sellsGiftCard": {
+          "type": "boolean",
+          "default": false,
+          "description": "Selling Giftcard"
+        },
+
+        "sellsValueCard": {
+          "type": "boolean",
+          "default": false,
+          "description": "Selling ValueCard"
+        },
+
+        "showPhoto": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show photo of employee in presentation"
+        },
+
+        "useCashPayment": {
+          "type": "boolean",
+          "default": false,
+          "description": "Cash payments are allowed"
+        },
+
+        "useCashPartialPayment": {
+          "type": "boolean",
+          "default": false,
+          "description": "Cash partial payments are allowed"
+        },
+
+        "useInvoicePayment": {
+          "type": "boolean",
+          "default": false,
+          "description": "Invoicing are allowed"
+        },
+
+        "useSwishPayment": {
+          "type": "boolean",
+          "default": false,
+          "description": "Swish payments are allowed"
+        },
+
+        "visibleTimes": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow available times to be visible"
+        },
+
+        "department": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "specialties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "workingDays": {
+          "type": "array",
+          "items": { 
+            "type": "string",
+            "enum": [
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday",
+              "saturday",
+              "sunday"
+            ]
+          }
+        },
+        "customNotes": {
+          "type": "string"
+        }
+      }
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the last record modification."
+    },
+    "updatedBy": {
+      "type": "string",
+      "description": "User or administrator who last modified the profile."
+    }
+  },
+  "required": [
+    "givenName",
+    "familyName",
+    "organisationNumber"
+  ]
+}
