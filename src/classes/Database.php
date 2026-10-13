@@ -4,10 +4,14 @@ class Database {
     private static ?PDO $connection = null;
 
     /**
-     * Skapar eller återanvänder en eksisterande PDO-anslutning baserat på konfiguration.
+     * Skapar eller återanvänder en existerande PDO-anslutning baserat på konfiguration.
      * Stöder MySQL, SQLite och PostgreSQL.
      */
-    public static function getConnection(array $config = []): PDO {
+
+    public function __destruct() {}
+    public function __construct() {}
+
+    public static function getConnection(array $config = ['driver' => 'json']): PDO {
         if (self::$connection !== null) {
             return self::$connection;
         }

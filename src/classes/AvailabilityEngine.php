@@ -11,6 +11,8 @@ class AvailabilityEngine {
     public function __construct($countryCode = 'se') {
         $this->countryCode = strtolower($countryCode);
     }
+
+    public function __destruct() {}
     
     public function getAvailableSlots($date, $serviceId = null) {
         $duration = 45;

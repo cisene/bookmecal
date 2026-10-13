@@ -6,6 +6,8 @@ A zero-database dependency, file-based PHP booking system featuring multi-user a
 
 ```text
 bookmecal/
+.
+├── phpunit.xml
 ├── README.md
 ├── specs
 │   ├── 01-architecture-and-config.md
@@ -31,86 +33,91 @@ bookmecal/
 │   ├── settings.schema.json
 │   ├── slot_matrix.schema.json
 │   └── tokens.schema.json
-└── src
-    ├── admin
-    │   ├── auth.php
-    │   ├── availability.php
-    │   ├── config.php
-    │   ├── employees.php
-    │   ├── google_guide.php
-    │   ├── header.php
-    │   ├── holidays.php
-    │   ├── index.php
-    │   ├── openhours.php
-    │   ├── pending.php
-    │   ├── services.php
-    │   ├── setup_google.php
-    │   └── users.php
-    ├── api.php
-    ├── AvailabilityEngine.php
-    ├── booking_calendar.php
-    ├── BookingEngine.php
-    ├── booking_modal.css
-    ├── booking.php
-    ├── BookingRepository.php
-    ├── BookingService.php
-    ├── calendar_style.css
-    ├── config.php
-    ├── data
-    │   ├── audit.json
-    │   ├── booking
-    │   │   └── availability.json
-    │   ├── config.json
-    │   ├── credentials.json
-    │   ├── employees
-    │   ├── openhours.json
-    │   ├── pending
-    │   ├── services.json
-    │   └── settings.json
-    ├── Database.php
-    ├── db.php
-    ├── EmailNotifier.php
-    ├── gcal_helper.php
-    ├── GoogleSync.php
-    ├── holidays
-    │   ├── ax.json
-    │   ├── dk.json
-    │   ├── ee.json
-    │   ├── fi.json
-    │   ├── lt.json
-    │   ├── lv.json
-    │   ├── no.json
-    │   └── se.json
-    ├── i18n.php
-    ├── ics.php
-    ├── index.php
-    ├── install.php
-    ├── lang_switcher.php
-    ├── language
-    │   ├── de.json
-    │   ├── el.json
-    │   ├── en.json
-    │   ├── es.json
-    │   ├── fr.json
-    │   ├── it.json
-    │   ├── ja.json
-    │   ├── ko.json
-    │   ├── pt.json
-    │   ├── sv.json
-    │   ├── th.json
-    │   ├── tl.json
-    │   ├── vi.json
-    │   └── zh-CN.json
-    ├── locale
-    │   └── se.json
-    ├── Localization.php
-    ├── MultiSlotEngine.php
-    ├── ResourceProvider.php
-    ├── send_reminders.php
-    ├── submit_booking.php
-    ├── test_concurrency.php
-    ├── TimeSlot.php
-    └── tz_helper.php
+├── src
+│   ├── admin
+│   │   ├── auth.php
+│   │   ├── availability.php
+│   │   ├── config.php
+│   │   ├── employees.php
+│   │   ├── google_guide.php
+│   │   ├── header.php
+│   │   ├── holidays.php
+│   │   ├── index.php
+│   │   ├── openhours.php
+│   │   ├── pending.php
+│   │   ├── services.php
+│   │   ├── setup_google.php
+│   │   └── users.php
+│   ├── api.php
+│   ├── cache
+│   ├── classes
+│   │   ├── AvailabilityEngine.php
+│   │   ├── BookingEngine.php
+│   │   ├── BookingRepository.php
+│   │   ├── BookingService.php
+│   │   ├── Constants.php
+│   │   ├── Database.php
+│   │   ├── EmailNotifier.php
+│   │   ├── GoogleSync.php
+│   │   ├── Languages.php
+│   │   ├── Localization.php
+│   │   ├── MultiSlotEngine.php
+│   │   ├── ResourceProvider.php
+│   │   └── TimeSlot.php
+│   ├── css
+│   │   ├── booking_modal.css
+│   │   └── calendar_style.css
+│   ├── data
+│   │   ├── audit.json
+│   │   ├── booking
+│   │   │   └── availability.json
+│   │   ├── config.json
+│   │   ├── credentials.json
+│   │   ├── employees
+│   │   ├── openhours.json
+│   │   ├── pending
+│   │   ├── services.json
+│   │   └── settings.json
+│   ├── holidays
+│   │   ├── ax.json
+│   │   ├── dk.json
+│   │   ├── ee.json
+│   │   ├── fi.json
+│   │   ├── lt.json
+│   │   ├── lv.json
+│   │   ├── no.json
+│   │   └── se.json
+│   ├── index.php
+│   ├── language
+│   │   ├── de.json
+│   │   ├── el.json
+│   │   ├── en.json
+│   │   ├── es.json
+│   │   ├── fr.json
+│   │   ├── it.json
+│   │   ├── ja.json
+│   │   ├── ko.json
+│   │   ├── pt.json
+│   │   ├── sv.json
+│   │   ├── th.json
+│   │   ├── tl.json
+│   │   ├── vi.json
+│   │   └── zh-CN.json
+│   ├── locale
+│   │   └── se.json
+│   └── send_reminders.php
+└── tests
+    ├── AvailabilityEngineTest.php
+    ├── BookingEngineTest.php
+    ├── BookingRepositoryTest.php
+    ├── BookingServiceTest.php
+    ├── DatabaseTest.php
+    ├── EmailNotifierTest.php
+    ├── GoogleSyncTest.php
+    ├── LocalizationTest.php
+    ├── MultiSlotEngineTest.php
+    ├── ResourceProviderTest.php
+    └── TimeSlotTest.php
 
 
 ```

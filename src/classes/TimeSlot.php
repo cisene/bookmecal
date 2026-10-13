@@ -7,6 +7,8 @@ class TimeSlot {
         private DateTime $end
     ) {}
 
+    public function __destruct() {}
+
     public function getStart(): DateTime {
         return $this->start;
     }

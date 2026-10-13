@@ -3,7 +3,9 @@
 /.idea
 /vendor
 
-
+.phpunit.cache
+.phpunit.cache/
+.phpunit.cache/*
 #config.php
 composer.lock
 
