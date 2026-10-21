@@ -24,7 +24,7 @@
   "booking.slots.closed": "休業日",
   "booking.slots.freeCount": "空き {count} 枠",
   "booking.slots.fullyBooked": "満席",
-  "booking.slots.instructions": "緑色の空き枠をクリックしてご予約ください。",
+  "booking.slots.instructions": "緑色の部分をタップして開始時刻を選び、ブロックをドラッグするか「前へ」「後へ」で調整してください。",
   "booking.slots.loading": "空き状況を読み込み中...",
   "booking.slots.noneFound": "今後1週間に空き枠はありません。",
   "booking.slots.preferredTime": "ご希望の日時",

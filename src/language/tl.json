@@ -24,7 +24,7 @@
   "booking.slots.closed": "Sarado",
   "booking.slots.freeCount": "{count} bakanteng oras",
   "booking.slots.fullyBooked": "Puno na",
-  "booking.slots.instructions": "I-click ang isang bakanteng berdeng oras upang i-book ang inyong appointment.",
+  "booking.slots.instructions": "I-tap ang isang berdeng bahagi para pumili ng oras ng simula, saka i-drag ang block o gamitin ang Mas maaga at Mas huli para ayusin ito.",
   "booking.slots.loading": "Nilo-load ang mga bakanteng oras...",
   "booking.slots.noneFound": "Walang bakanteng oras sa susunod na linggo.",
   "booking.slots.preferredTime": "Gusto mong Petsa at Oras",

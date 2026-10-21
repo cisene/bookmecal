@@ -24,7 +24,7 @@
   "booking.slots.closed": "Geschlossen",
   "booking.slots.freeCount": "{count} freie Termine",
   "booking.slots.fullyBooked": "Ausgebucht",
-  "booking.slots.instructions": "Klicken Sie auf einen freien grünen Termin, um ihn zu buchen.",
+  "booking.slots.instructions": "Tippen Sie auf einen grünen Bereich, um eine Startzeit zu wählen. Ziehen Sie dann den Block oder nutzen Sie Früher und Später zur Feinabstimmung.",
   "booking.slots.loading": "Verfügbarkeit wird geladen...",
   "booking.slots.noneFound": "In der kommenden Woche sind keine freien Termine verfügbar.",
   "booking.slots.preferredTime": "Wunschdatum & Uhrzeit",

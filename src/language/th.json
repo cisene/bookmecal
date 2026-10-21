@@ -24,7 +24,7 @@
   "booking.slots.closed": "ปิดทำการ",
   "booking.slots.freeCount": "ว่าง {count} ช่วงเวลา",
   "booking.slots.fullyBooked": "เต็มแล้ว",
-  "booking.slots.instructions": "คลิกช่วงเวลาสีเขียวที่ว่างเพื่อจองนัดหมายของคุณ",
+  "booking.slots.instructions": "แตะพื้นที่สีเขียวเพื่อเลือกเวลาเริ่ม จากนั้นลากบล็อกหรือใช้ปุ่มก่อนหน้าและถัดไปเพื่อปรับเวลา",
   "booking.slots.loading": "กำลังโหลดเวลาว่าง...",
   "booking.slots.noneFound": "ไม่มีช่วงเวลาว่างในสัปดาห์หน้า",
   "booking.slots.preferredTime": "วันและเวลาที่ต้องการ",

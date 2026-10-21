@@ -1,32 +1,60 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Service",
+  "description": "One treatment in src/data/services.json. The file is an object keyed by SKU.",
   "type": "object",
   "properties": {
-    "id": {
-      "type": "integer"
+    "sku": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Unique code, also the key in services.json."
     },
     "name": {
       "type": "string",
       "maxLength": 255
     },
+    "description": {
+      "type": "string"
+    },
     "duration": {
       "type": "integer",
-      "minimum": 5
+      "minimum": 5,
+      "description": "Treatment time in minutes. The booking's end_time is start + duration."
     },
     "cleanup": {
       "type": "integer",
       "minimum": 0,
-      "description": "Buffer or cleanup time in minutes following the service."
+      "default": 0,
+      "description": "Buffer or cleanup time in minutes following the service. Blocks the next start but may run past closing time."
     },
-    "price": {
+    "price_incl_vat": {
       "type": "number",
-      "minimum": 0.00
+      "minimum": 0.0
+    },
+    "price_excl_vat": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Derived from price_incl_vat and vat_rate when saved."
+    },
+    "vat_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "VAT in percent."
+    },
+    "is_active": {
+      "type": "boolean",
+      "description": "Inactive services are hidden from the booking page and cannot be booked."
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "updated_by": {
+      "type": "string"
     }
   },
   "required": [
     "name",
-    "duration",
-    "price"
+    "duration"
   ]
 }

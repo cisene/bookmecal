@@ -24,7 +24,7 @@
   "booking.slots.closed": "Fechado",
   "booking.slots.freeCount": "{count} horários livres",
   "booking.slots.fullyBooked": "Esgotado",
-  "booking.slots.instructions": "Clique num horário verde disponível para marcar a sua consulta.",
+  "booking.slots.instructions": "Toque numa área verde para escolher a hora de início e depois arraste o bloco ou use Mais cedo e Mais tarde para ajustar.",
   "booking.slots.loading": "A carregar disponibilidade...",
   "booking.slots.noneFound": "Não há horários disponíveis na próxima semana.",
   "booking.slots.preferredTime": "Data e Hora Preferidas",

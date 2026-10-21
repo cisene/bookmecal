@@ -1,7 +1,7 @@
 <?php
 /**
  * src/api.php
- * JSON API: service discovery, slot availability and booking requests.
+ * JSON API: service discovery, slot availability (per day or per week) and booking requests.
  * Errors carry an English 'error' (for logs/debugging) and a stable 'code' that clients translate.
  */
 
@@ -68,6 +68,25 @@ switch (request_string($_GET, 'action')) {
             fail(400, 'invalid_request', 'Invalid date format or unknown service ID.');
         }
         respond(['success' => true, 'date' => $date, 'slots' => $slots]);
+        break;
+
+    case 'check_week':
+        $date = request_string($_GET, 'date');
+        $serviceId = request_string($_GET, 'service_id');
+        $country = ResourceProvider::sanitizeCountryCode(request_string($_GET, 'country', $defaultCountry));
+
+        if ($date === '' || $serviceId === '') {
+            fail(400, 'missing_fields', 'Missing required parameters: date and service_id.');
+        }
+        if ($country === null) {
+            fail(400, 'invalid_country', 'Invalid country code.');
+        }
+
+        $week = $serviceLayer->getWeekPlan($date, $serviceId, $country);
+        if ($week === null) {
+            fail(400, 'invalid_request', 'Invalid date format or unknown service ID.');
+        }
+        respond(['success' => true] + $week);
         break;
 
     case 'book':

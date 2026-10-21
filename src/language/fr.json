@@ -24,7 +24,7 @@
   "booking.slots.closed": "Fermé",
   "booking.slots.freeCount": "{count} créneaux libres",
   "booking.slots.fullyBooked": "Complet",
-  "booking.slots.instructions": "Cliquez sur un créneau vert disponible pour réserver votre rendez-vous.",
+  "booking.slots.instructions": "Touchez une zone verte pour choisir l'heure de début, puis faites glisser le bloc ou utilisez Plus tôt et Plus tard pour l'ajuster.",
   "booking.slots.loading": "Chargement des disponibilités...",
   "booking.slots.noneFound": "Aucun créneau disponible la semaine prochaine.",
   "booking.slots.preferredTime": "Date et heure souhaitées",

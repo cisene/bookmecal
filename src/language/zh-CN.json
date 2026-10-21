@@ -24,7 +24,7 @@
   "booking.slots.closed": "休息",
   "booking.slots.freeCount": "{count} 个空闲时段",
   "booking.slots.fullyBooked": "已约满",
-  "booking.slots.instructions": "点击绿色的空闲时段即可预约。",
+  "booking.slots.instructions": "点击绿色区域选择开始时间，然后拖动时间块或使用“更早”和“更晚”进行微调。",
   "booking.slots.loading": "正在加载可预约时间...",
   "booking.slots.noneFound": "未来一周内没有可预约的时段。",
   "booking.slots.preferredTime": "期望日期与时间",

@@ -24,7 +24,7 @@
   "booking.slots.closed": "휴무",
   "booking.slots.freeCount": "예약 가능 {count}건",
   "booking.slots.fullyBooked": "예약 마감",
-  "booking.slots.instructions": "예약하시려면 녹색으로 표시된 예약 가능 시간을 클릭하세요.",
+  "booking.slots.instructions": "녹색 영역을 눌러 시작 시간을 선택한 다음 블록을 끌거나 이전/다음 버튼으로 조정하세요.",
   "booking.slots.loading": "예약 현황을 불러오는 중...",
   "booking.slots.noneFound": "다음 주에는 예약 가능한 시간이 없습니다.",
   "booking.slots.preferredTime": "희망 날짜 및 시간",

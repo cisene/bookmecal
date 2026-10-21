@@ -24,7 +24,7 @@
   "booking.slots.closed": "Κλειστό",
   "booking.slots.freeCount": "{count} διαθέσιμες ώρες",
   "booking.slots.fullyBooked": "Πλήρως κρατημένο",
-  "booking.slots.instructions": "Κάντε κλικ σε μια διαθέσιμη πράσινη ώρα για να κλείσετε το ραντεβού σας.",
+  "booking.slots.instructions": "Πατήστε σε μια πράσινη περιοχή για να επιλέξετε ώρα έναρξης και μετά σύρετε το μπλοκ ή χρησιμοποιήστε Νωρίτερα και Αργότερα για να την προσαρμόσετε.",
   "booking.slots.loading": "Φόρτωση διαθεσιμότητας...",
   "booking.slots.noneFound": "Δεν υπάρχουν διαθέσιμες ώρες την επόμενη εβδομάδα.",
   "booking.slots.preferredTime": "Επιθυμητή Ημερομηνία & Ώρα",

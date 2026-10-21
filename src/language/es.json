@@ -24,7 +24,7 @@
   "booking.slots.closed": "Cerrado",
   "booking.slots.freeCount": "{count} horarios libres",
   "booking.slots.fullyBooked": "Completo",
-  "booking.slots.instructions": "Haga clic en un horario verde disponible para reservar su cita.",
+  "booking.slots.instructions": "Toque una zona verde para elegir la hora de inicio y luego arrastre el bloque o use Antes y Después para ajustarla.",
   "booking.slots.loading": "Cargando disponibilidad...",
   "booking.slots.noneFound": "No hay horarios disponibles en la próxima semana.",
   "booking.slots.preferredTime": "Fecha y hora preferidas",

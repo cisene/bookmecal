@@ -1,7 +1,7 @@
 <?php
 /**
  * src/index.php
- * Public booking page: pick a service, a date and a free slot, then send a booking request.
+ * Public booking page: pick a service, then a free start time in the week view, then send a booking request.
  */
 
 require_once __DIR__ . '/bootstrap.php';
@@ -14,6 +14,7 @@ View::render('public/booking', [
     'today' => (new DateTime('today', ResourceProvider::getTimezone()))->format('Y-m-d'),
     'clientConfig' => [
         'apiUrl' => 'api.php',
+        'locale' => $localization->getCurrentLang(),
         'country' => ResourceProvider::getSettings()['default_country'] ?? 'se',
         'texts' => $localization->exportPrefix('booking.'),
     ],

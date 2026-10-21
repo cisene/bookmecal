@@ -24,7 +24,7 @@
   "booking.slots.closed": "Chiuso",
   "booking.slots.freeCount": "{count} orari liberi",
   "booking.slots.fullyBooked": "Al completo",
-  "booking.slots.instructions": "Fai clic su un orario verde disponibile per prenotare il tuo appuntamento.",
+  "booking.slots.instructions": "Tocca un'area verde per scegliere l'orario di inizio, poi trascina il blocco o usa Prima e Dopo per regolarlo.",
   "booking.slots.loading": "Caricamento disponibilità...",
   "booking.slots.noneFound": "Nessun orario disponibile nella prossima settimana.",
   "booking.slots.preferredTime": "Data e Ora Desiderate",

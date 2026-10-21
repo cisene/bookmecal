@@ -4,9 +4,12 @@
 * **Storage Philosophy:** Zero-maintenance, file-based JSON storage repository utilizing thread-safe `flock()` concurrency control.
 * **Configuration:** Centralized settings managed in `data/config.json` (supporting configurable locales, languages, and date/time formats).
 * **Directory Structure:**
-  * `src/data/` (Protected by `.htaccess` redirection rules)
+  * `src/data/` (Protected by `.htaccess` rules, see [02-storage-and-repository.md](02-storage-and-repository.md))
   * `src/data/pending/` (Individual JSON files for incoming booking requests)
-  * `src/data/booking/availability.json` (Slot matrices and operating hours)
+  * `src/data/openhours.json` (Opening hours used by the booking)
+  * `src/data/booking/availability.json` (Admin slot matrix, not used by the booking yet)
+  * `src/templates/` (HTML templates), `src/classes/` (logic), `src/language/` (translations)
+* **Availability:** Soft slots, a treatment can start every 5 minutes where treatment plus cleanup fits (see [availability_logic_appendix.md](availability_logic_appendix.md)).
 
 ---
 
@@ -22,8 +25,12 @@ Our specification treats relational schemas and their JSON data contracts as fir
 ---
 
 ## 3. Implementation & Automation Modules
-* **Installer (`install.php`):** Automated server environment checks, permission verifications, and initial configuration generation.
-* **Security & Anti-Spam (`admin.php`, `api.php`):** CSRF token validation, session management, and IP-based rate limiting on booking submissions.
-* **Localization (`Localization.php`):** Multi-language support (English/Swedish) with static JSON dictionary caching and the `__t()` helper function.
-* **Zero-Maintenance Background Sync:** Automated Google Calendar appointment request synchronization (with automatic consumption/deletion of processed pending files to prevent duplicates) and 24-hour reminder emails triggered transparently during admin dashboard access.
-* **Testing Suite (`test_concurrency.php`):** Parallel process simulation to verify thread-safe file-locking protection against race conditions.
+* **Booking page (`index.php`, `js/booking.js`):** Week view with a draggable selection block, see [04-api-and-integrations.md](04-api-and-integrations.md).
+* **API (`api.php`):** `get_services`, `check_availability`, `check_week`, `book`.
+* **Security (`admin/auth.php`, `api.php`):** HTTP Basic Auth (fail closed), CSRF tokens on all admin forms, hardened session cookies, strict input validation in the API.
+* **Localization (`Localization.php`):** 14 languages with per-key English fallback and the `__t()` helper function (see [01-architecture-and-config.md](01-architecture-and-config.md) §1.3).
+* **Reminders (`send_reminders.php`):** CLI/cron script sending 24-hour reminder emails for approved bookings.
+* **Testing Suite (`tests/`):** PHPUnit tests, see [07-tests-and-validation.md](07-tests-and-validation.md).
+
+### Not implemented yet
+* Installer (`install.php`), IP-based rate limiting on booking submissions, background Google Calendar sync. See [05-todo-and-roadmap.md](05-todo-and-roadmap.md).

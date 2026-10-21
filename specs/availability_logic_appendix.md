@@ -1,6 +1,6 @@
 # Appendix A: The 3-Tier Availability Evaluation Logic
 
-To guarantee absolute accuracy, prevent double-bookings, and respect both clinic operational hours and national holidays, Book Me Calendar evaluates visitor booking availability through a sequential 3-tier filtering pipeline.
+To guarantee absolute accuracy, prevent double-bookings, and respect both clinic operational hours and national holidays, Book Me Calendar evaluates visitor booking availability through a sequential 3-tier filtering pipeline. Implemented in `BookingService` (see [03-business-logic-and-engine.md](03-business-logic-and-engine.md)).
 
 ## Pipeline Overview
 
@@ -20,16 +20,19 @@ To guarantee absolute accuracy, prevent double-bookings, and respect both clinic
 └─────┬─────┘                              (No Slots)
 │ Open
 ▼
-[ Generate Candidate Slots ]
-(e.g. 09:00 - 17:00 in 15m intervals)
+[ Generate Candidate Starts ]
+(every SLOT_STEP = 5 minutes from opening time,
+ while start + duration <= closing time)
 │
 ▼
-┌───────────┐      Overlap with existing booking?
-│  Tier 1   │ ─────────────────────────► [ FILTERED OUT ]
+┌───────────┐      start + duration + cleanup overlaps
+│  Tier 1   │      a booking (incl. its cleanup),
+│           │      or start is in the past?
+│           │ ─────────────────────────► [ FILTERED OUT ]
 └─────┬─────┘
 │ Survives
 ▼
-[ FINAL AVAILABLE SLOTS DISPLAYED TO VISITOR ]
+[ FREE STARTS SHOWN IN THE WEEK VIEW ]
 
 ```
 
@@ -39,13 +42,16 @@ To guarantee absolute accuracy, prevent double-bookings, and respect both clinic
 
 ### Tier 1: Calendar Truth (Base Layer)
 * **Role:** Represents the ultimate source of truth regarding schedule occupancy.
-* **Mechanism:** Queries cached Google Calendar event data (or local booking records). Each event supplies a busy start and end timestamp. Any candidate slot overlapping with a busy interval is instantly discarded.
+* **Mechanism:** Local booking records with status `pending`, `approved` or `confirmed` each supply a busy interval from start to end of treatment plus the booked service's cleanup. A candidate start is discarded when its own treatment plus cleanup overlaps any busy interval. Google Calendar busy times are planned to join this tier.
+* **Double-booking guard:** The `book` API action repeats this check and saves the booking while holding an exclusive lock, so the result cannot change between check and save.
 
 ### Tier 2: The Holiday Matrix (Regional Mask)
 * **Role:** Handles national bank holidays, public closures, and red days (*röda dagar*).
-* **Mechanism:** Evaluates the target date against country-specific holiday calendars (e.g., Swedish public holidays). If a match occurs, the entire day returns an empty availability array immediately without checking opening hours.
+* **Mechanism:** Evaluates the target date against country-specific holiday calendars (`src/holidays/<cc>.json`). If a match occurs, the entire day returns an empty availability array immediately without checking opening hours.
 
-### Tier 3: Admin Availability Matrix (Operational Layer)
-* **Role:** Enforces the clinic's standard working hours configured in the admin dashboard.
-* **Mechanism:** Looks up the specific weekday (e.g., Tuesday) to retrieve opening and closing times. Generates granular time windows scaled to the exact duration of the requested service.
+### Tier 3: Opening Hours (Operational Layer)
+* **Role:** Enforces the clinic's standard working hours configured in the admin dashboard (Opening hours page, `data/openhours.json`).
+* **Mechanism:** Looks up the specific weekday to retrieve opening and closing times. Candidate starts are generated in fixed steps of `SLOT_STEP` minutes (soft slots), not in blocks of the service's duration, so treatments of different lengths can fill the day without forced gaps.
 
+## Soft slots and fragmentation
+With a 5-minute step a booking can leave gaps that are too short for any treatment (for example 09:50–10:05 before a 10:05 booking when the treatment takes 45 + 15 minutes). The week view shows such time as white (open but not bookable for the chosen treatment). A future option is to prefer starts that sit directly before or after existing bookings.

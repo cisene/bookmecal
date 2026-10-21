@@ -24,7 +24,7 @@
   "booking.slots.closed": "Đóng cửa",
   "booking.slots.freeCount": "{count} khung giờ trống",
   "booking.slots.fullyBooked": "Đã kín lịch",
-  "booking.slots.instructions": "Nhấp vào một khung giờ trống màu xanh lá để đặt lịch hẹn.",
+  "booking.slots.instructions": "Chạm vào vùng màu xanh lá để chọn giờ bắt đầu, sau đó kéo khối hoặc dùng Sớm hơn và Muộn hơn để điều chỉnh.",
   "booking.slots.loading": "Đang tải lịch trống...",
   "booking.slots.noneFound": "Không có khung giờ trống trong tuần tới.",
   "booking.slots.preferredTime": "Ngày & giờ mong muốn",
