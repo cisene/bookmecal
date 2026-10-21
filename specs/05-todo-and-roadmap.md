@@ -11,7 +11,6 @@
 - [ ] **Gap-aware starts:** Optionally prefer soft-slot starts next to existing bookings to reduce unusable gaps.
 - [ ] **Translations:** Native review of all language files; complete the 12 partial languages (they fall back to English per key).
 - [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. GDPR basics (privacy notice, retention, access and erasure). Next: turn on `admin_require_https` and HSTS on the production server; optional `fail2ban` rule for `security.log`; have the privacy notice reviewed for the actual business (it is a starting point, not legal advice); confirmation emails could link to the privacy notice.
-- [ ] **Locked reads:** `JsonStore::read()` should take a shared lock or writes should replace files atomically.
 - [ ] **Config cleanup:** Remove the unused plaintext `admin_user`/`admin_pass` from `data/config.json` (admin login uses `.htpasswd`).
 
 ---
@@ -20,6 +19,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-22** | • `JsonStore::read()` takes a shared lock: readers no longer see half-written files during an update. |
 | **2026-10-22** | • GDPR basics: privacy notice page (`privacy.php`) linked from the booking form and every public page, business name and privacy contact on the Config page, bookings deleted automatically after `booking_retention_days` (default 365), admin search by customer email with JSON export (access) and delete all (erasure), single bookings deletable. |
 | **2026-10-22** | • Input validation layer (`Input`) used by the API and every admin form: real dates and times, length limits in characters, no control characters, numeric ranges.<br>• Admin sign-in form instead of Apache Basic Auth: lockout after failed attempts (per client and per username), bcrypt hashes (old Apache hashes upgraded at sign-in), password policy, session timeouts, sign-out, sessions end when the password changes, optional HTTPS-only admin.<br>• Security event log (`src/log/security.log`, JSON lines) for API rejections, sign-ins and CSRF failures, shown on the Users page. |
 | **2026-10-21** | • Booking abuse protection: per-client rate limits, honeypot field, signed form token with minimum and maximum age, max 3 upcoming pending bookings per email, unanswered requests expire after `pending_expiry_hours` (admin setting, default 48), JSON-only booking requests with a size limit, CORS only for configured origins.<br>• Security headers on all pages and API responses (strict Content-Security-Policy, `nosniff`, frame denial, referrer and permissions policies, HSTS on HTTPS); admin pages not cached. |

@@ -153,6 +153,7 @@ bookmecal/
     ├── FormTokenTest.php
     ├── GoogleSyncTest.php
     ├── InputTest.php
+    ├── JsonStoreTest.php
     ├── LanguageFilesTest.php
     ├── LocalizationTest.php
     ├── MultiSlotEngineTest.php

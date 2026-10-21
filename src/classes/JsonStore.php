@@ -9,16 +9,24 @@ class JsonStore {
 
     /**
      * Returns the decoded array, or null when the file is missing or not a JSON object/array.
+     * Takes a shared lock, so it waits for a running update() instead of seeing a half-written file.
      */
     public static function read(string $path): ?array {
         if (!is_file($path)) {
             return null;
         }
-        $content = file_get_contents($path);
-        if ($content === false) {
+        $fp = @fopen($path, 'rb');
+        if (!$fp) {
             return null;
         }
-        return self::decode($content);
+        try {
+            flock($fp, LOCK_SH);
+            $content = stream_get_contents($fp);
+        } finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
+        return $content === false ? null : self::decode($content);
     }
 
     /**

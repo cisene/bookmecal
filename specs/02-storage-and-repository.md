@@ -21,7 +21,7 @@ The system employs a Repository pattern to cleanly separate data storage from bu
 - `src/holidays/<cc>.json`: Holidays per country, `<cc>` is a two-letter code, see [holiday.schema.json](holiday.schema.json).
 
 ## Concurrency & Thread Safety
-- `JsonStore::write()` and `update()` take an exclusive lock (`LOCK_EX`); `update()` does read-modify-write under one lock. `read()` reads without a lock (todo: shared lock or atomic replace, so a reader never sees a half-written file).
+- `JsonStore::write()` and `update()` take an exclusive lock (`LOCK_EX`); `update()` does read-modify-write under one lock. `read()` takes a shared lock (`LOCK_SH`), so it waits for a running write and never sees a half-written file (verified by `JsonStoreTest`).
 - `BookingRepository::withBookingLock()` runs "check availability, then create" under an exclusive lock on `pending/.booking.lock`, so two concurrent requests cannot take the same time.
 
 ## BookingRepository
