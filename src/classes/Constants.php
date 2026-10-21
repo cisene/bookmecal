@@ -25,7 +25,7 @@ class Constants {
       'currency' => 'EUR',
     ),
     'de' => array(
-      'date' => 'YYYY-MM-DD',
+      'date' => 'DD.MM.YYYY',
       'time' => 'HH:mm',
       'currency' => 'EUR',
     ),
