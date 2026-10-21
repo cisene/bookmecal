@@ -9,9 +9,6 @@
 #config.php
 composer.lock
 
-src/log/error.log
-src/log/access.log
-
 src/admin/.htaccess
 src/admin/.htpasswd
 
@@ -20,5 +17,3 @@ src/data/employees/
 src/data/audit.json
 
 src/log/
-src/log/access.log
-src/log/error.log
