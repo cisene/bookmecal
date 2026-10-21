@@ -1,7 +1,7 @@
 <?php
 
 class Languages {
-  private var $lang = array(
+  private const LANG = array(
     'de' => 'German',
     'el' => 'Greek',
     'en' => 'English',
@@ -17,6 +17,15 @@ class Languages {
     'vi' => 'Vietnamese',
     'zh-CN' => 'Mandarin',
   );
+
+  public function __destruct() {}
+
+  public function __construct() {}
+
+  public function ListLanguages() {
+    return self::LANG;
+  }
+
 
 }
 
