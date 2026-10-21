@@ -42,7 +42,8 @@
         </div>
         <div class="form-group">
             <label for="user-password"><?= e(__t('admin.users.password')) ?></label>
-            <input type="password" id="user-password" name="password" required autocomplete="new-password">
+            <input type="password" id="user-password" name="password" required minlength="<?= e($passwordMinLength) ?>" maxlength="72" autocomplete="new-password" aria-describedby="user-password-hint">
+            <small id="user-password-hint" class="muted"><?= e(__t('admin.users.passwordHint', ['min' => $passwordMinLength])) ?></small>
         </div>
         <button type="submit" class="btn"><?= e(__t('admin.common.save')) ?></button>
     </form>
@@ -73,6 +74,36 @@
                         <td><code><?= e($log['action'] ?? '') ?></code></td>
                         <td><?= e($log['details'] ?? '') ?></td>
                         <td class="mono"><?= e($log['ip'] ?? '') ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+</div>
+
+<div class="card">
+    <h2><?= e(__t('admin.security.title')) ?></h2>
+    <p class="muted"><?= e(__t('admin.security.intro')) ?></p>
+
+    <?php if (empty($securityEvents)): ?>
+        <p class="empty"><?= e(__t('admin.security.empty')) ?></p>
+    <?php else: ?>
+        <table>
+            <thead>
+                <tr>
+                    <th><?= e(__t('admin.audit.timestamp')) ?></th>
+                    <th><?= e(__t('admin.security.event')) ?></th>
+                    <th><?= e(__t('admin.audit.ip')) ?></th>
+                    <th><?= e(__t('admin.audit.details')) ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($securityEvents as $event): ?>
+                    <tr>
+                        <td class="mono"><?= e($event['time'] ?? '') ?></td>
+                        <td><code><?= e($event['event'] ?? '') ?></code></td>
+                        <td class="mono"><?= e($event['ip'] ?? '') ?></td>
+                        <td><?= e($event['details']) ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

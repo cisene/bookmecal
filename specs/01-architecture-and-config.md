@@ -8,9 +8,9 @@ The code is split into controllers (PHP that handles input and loads data), temp
 ## 1.1 Request flow
 - `src/index.php`: Public booking page controller, renders `templates/public/booking.php`.
 - `src/api.php`: JSON API used by the booking page (see [04-api-and-integrations.md](04-api-and-integrations.md)).
-- `src/admin/*.php`: Admin controllers. Each requires `admin/auth.php`, handles POST (CSRF-checked, Post/Redirect/Get) and renders a template in `templates/admin/` inside `templates/layout/admin.php`.
+- `src/admin/*.php`: Admin controllers. Each requires `admin/auth.php` (signed-in user required; built on `admin/session.php`), handles POST (CSRF-checked, Post/Redirect/Get) and renders a template in `templates/admin/` inside `templates/layout/admin.php`. `admin/login.php` and `admin/logout.php` handle sign-in (§1.4).
 - `src/send_reminders.php`: CLI-only cron script for 24-hour reminder emails.
-- `src/bootstrap.php`: Shared setup: loads `JsonStore`, `ResourceProvider`, `Localization`, `View`, sets the timezone and defines the helpers `e()` (HTML escaping), `request_string()` and `request_array()`.
+- `src/bootstrap.php`: Shared setup: loads `JsonStore`, `ResourceProvider`, `Localization`, `View`, `SecurityHeaders`, `Input`, sets the timezone and defines the helpers `e()` (HTML escaping), `request_string()` and `request_array()`.
 
 ## 1.2 Core Components
 - `ResourceProvider.php`: Central access to data files (`dataPath()`), settings, services, opening hours, holidays and the configured timezone. All data paths go through `dataPath()` so per-customer data folders can be added later.
@@ -19,7 +19,10 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - `Localization.php`: Language selection and translation with the global `__t()` helper.
 - `EmailNotifier.php`: Confirmation, admin alert and reminder emails (header-injection safe).
 - `SecurityHeaders.php`: HTTP security headers, sent by `bootstrap.php` for every web request (§1.5).
-- `RateLimiter.php`, `FormToken.php`: Abuse protection for the public booking API (see [04-api-and-integrations.md](04-api-and-integrations.md)).
+- `RateLimiter.php`, `FormToken.php`: Abuse protection for the public booking API (see [04-api-and-integrations.md](04-api-and-integrations.md)); `RateLimiter` also counts failed admin sign-ins.
+- `Input.php`: The input validation layer (§1.6).
+- `AdminAccounts.php`: Admin accounts in `admin/.htpasswd`: password check, hashing, password policy (§1.4).
+- `SecurityLog.php`: Security event log (§1.7).
 - `src/bootstrap.php` also defines the escaping and request helpers used everywhere.
 
 ## 1.3 Localization
@@ -31,9 +34,17 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - Dates and weekday names on the booking page are formatted by the browser (`Intl.DateTimeFormat`) using the current language.
 
 ## 1.4 Web access protection
-- `src/.htaccess`: Turns off `display_errors` and forbids `cache/`, `data/`, `log/`, `classes/`, `templates/` and `bootstrap.php`.
+- `src/.htaccess`: Turns off `display_errors` and forbids `cache/`, `data/`, `log/`, `classes/`, `templates/`, `bootstrap.php`, `admin/session.php` and any `.ht*` file.
 - Repository root `.htaccess`: Only `src/` is reachable when the repository root is the document root.
-- `src/admin/`: HTTP Basic Auth (`.htpasswd`); `auth.php` fails closed (401) when no authenticated user is present. Admin pages are sent with `Cache-Control: no-store`.
+- `src/admin/`: Sign-in form (`login.php`), checked by PHP against `admin/.htpasswd`. Apache Basic Auth is no longer used; `admin/.htaccess` only denies access to `.htpasswd`. Admin pages are sent with `Cache-Control: no-store`.
+
+### Admin sign-in
+- **Accounts:** `admin/.htpasswd` (`username:hash`, not in git), managed on the Users page. Usernames are 3–20 letters, digits or underscores. Passwords need at least 10 characters and at most 72 bytes (the bcrypt limit).
+- **Hashes:** New passwords are stored as bcrypt (`$2y$`), which Apache also reads. Existing `$apr1$` (Apache MD5) and `$5$`/`$6$` (SHA-crypt) hashes are accepted and replaced by bcrypt at the next successful sign-in. Unknown usernames are checked against a dummy hash so the response time does not reveal which accounts exist.
+- **Lockout:** Failed sign-ins are counted per client (5 per 15 minutes) and per username (10 per 15 minutes). Above either limit the form answers `429` with `Retry-After`, even for the right password, until the window has passed. A successful sign-in clears both counters.
+- **Session:** Cookie `bookmecal_admin`, path limited to the admin folder, `HttpOnly`, `SameSite=Lax` (OAuth callbacks are cross-site navigations; all changes are CSRF-checked POSTs), `Secure` on HTTPS, strict mode. Sign-in gets a new session ID and CSRF token. A session ends after 30 minutes of inactivity, after 12 hours in any case, and when its account is removed or gets a new password (the session stores a fingerprint of the password hash).
+- **Sign-out:** POST with CSRF token from the button in the admin header.
+- **HTTPS:** With `settings.json` `admin_require_https: true`, admin pages refuse plain HTTP (`403`). Off by default for local development; turn it on in production.
 
 ## 1.5 Security headers
 Sent by `SecurityHeaders::send()` from `bootstrap.php` (pages) and `api.php` (JSON):
@@ -51,3 +62,34 @@ Sent by `SecurityHeaders::send()` from `bootstrap.php` (pages) and `api.php` (JS
 `X-Powered-By` is removed. Static files get `nosniff`, `Referrer-Policy` and `Cross-Origin-Resource-Policy` from `src/.htaccess` (needs `mod_headers`).
 
 Rules that keep the CSP working: no inline `<script>` code, no `style="…"` attributes, no inline event handlers (`onclick`) in templates. Data for scripts goes in `<script type="application/json">` blocks; scripts may set `element.style` properties. The language and session cookies are `HttpOnly`, `SameSite` and `Secure` when served over HTTPS.
+
+## 1.6 Input validation
+Request values pass through `Input` (in `src/classes/Input.php`) before they are used or stored. Each method takes the trimmed string and returns the clean value or `null`:
+
+| Method | Accepts |
+| :--- | :--- |
+| `date` | `YYYY-MM-DD`, real calendar dates only |
+| `time` | `HH:MM`, 24-hour |
+| `email` | PHP's email validator, at most 254 bytes |
+| `text(value, max, multiline)` | Valid UTF-8, at most `max` characters, no control characters (C0, DEL, C1, U+2028/2029). Multiline allows line breaks and tabs and normalizes line endings to `\n`. |
+| `int(value, min, max)` | Digits with optional minus sign, in range |
+| `decimal(value, min, max)` | Up to 4 decimals, comma or point, in range |
+| `oneOf(value, allowed)` | Strict match against a list |
+| `phone` | Digits, spaces and `+ - ( )`, 3–30 characters |
+| `id(value)` | Letters (any script), digits, `_ . -`, no `..` and no slashes |
+
+Used by the API (dates, times, names, emails, service IDs) and by every admin form (services, employees, holidays, opening hours, settings). Limits: customer name 100, service name 255, SKU 64, description 2000, duration 5–720 and cleanup 0–240 minutes, price 0–1,000,000, VAT 0–100 %, employee text fields 100 and qualifications 500 characters, holiday name 100. Templates still escape all output with `e()`.
+
+## 1.7 Security event log
+`SecurityLog::record()` appends one JSON line per event to `src/log/security.log` (not in git, rotated to `security.log.1` at 1 MB). Fields: `time`, `event`, `ip`, `client` (rate-limit key) and event details. Never customer names, emails or passwords.
+
+| Event | When |
+| :--- | :--- |
+| `rate_limited` | API rate limit hit (`bucket`: `read` or `book`) |
+| `honeypot` | Booking with the hidden field filled in |
+| `form_too_fast`, `form_token_invalid` | Booking form token too young, missing or forged |
+| `pending_limit` | Pending cap per email reached |
+| `login_ok`, `login_failed`, `login_locked` | Admin sign-in (with `username`) |
+| `csrf_failed` | Admin POST without a valid CSRF token (with `page`) |
+
+The newest 100 events are shown on the admin Users page. The one-line JSON format suits `fail2ban` (match on `"event":"login_failed"` and the `ip` field) for blocking at the firewall.

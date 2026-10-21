@@ -8,14 +8,6 @@ require_once __DIR__ . '/auth.php';
 
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-/**
- * Returns the value when it is a valid HH:MM time, otherwise null.
- */
-function valid_time_or_null(string $value): ?string {
-    $parsed = DateTime::createFromFormat('H:i', $value);
-    return ($parsed && $parsed->format('H:i') === $value) ? $value : null;
-}
-
 $flash = [];
 
 if (is_post()) {
@@ -26,8 +18,8 @@ if (is_post()) {
 
     foreach (WEEKDAYS as $day) {
         $input = is_array($posted[$day] ?? null) ? $posted[$day] : [];
-        $open = valid_time_or_null(request_string($input, 'open_time'));
-        $close = valid_time_or_null(request_string($input, 'close_time'));
+        $open = Input::time(request_string($input, 'open_time'));
+        $close = Input::time(request_string($input, 'close_time'));
         $isOpen = request_string($input, 'is_open') === '1';
 
         if ($isOpen && ($open === null || $close === null || $open >= $close)) {

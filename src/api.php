@@ -11,6 +11,7 @@ require_once __DIR__ . '/classes/BookingRepository.php';
 require_once __DIR__ . '/classes/BookingService.php';
 require_once __DIR__ . '/classes/RateLimiter.php';
 require_once __DIR__ . '/classes/FormToken.php';
+require_once __DIR__ . '/classes/SecurityLog.php';
 
 /** Requests per client: [limit, window in seconds]. */
 const LIMIT_READ = [120, 300];
@@ -19,6 +20,9 @@ const LIMIT_BOOK = [10, 3600];
 const MAX_PENDING_PER_EMAIL = 3;
 /** Largest accepted booking request body in bytes. */
 const MAX_BODY_BYTES = 8192;
+/** Longest accepted customer name and service ID in characters. */
+const MAX_NAME_LENGTH = 100;
+const MAX_ID_LENGTH = 100;
 
 SecurityHeaders::send('api');
 header('Content-Type: application/json; charset=UTF-8');
@@ -34,30 +38,36 @@ function fail(int $status, string $code, string $message): never {
     respond(['success' => false, 'code' => $code, 'error' => $message], $status);
 }
 
-/**
- * Writes a security-relevant event to the PHP error log (never customer names or emails).
- */
-function security_log(string $event): void {
-    error_log('bookmecal api: ' . $event . ' from ' . RateLimiter::clientKey());
-}
-
 function enforce_limit(RateLimiter $limiter, string $bucket, array $limit): void {
     [$max, $window] = $limit;
     if (!$limiter->hit($bucket, RateLimiter::clientKey(), $max, $window)) {
-        security_log("rate limit '{$bucket}' exceeded");
+        SecurityLog::record('rate_limited', ['bucket' => $bucket]);
         header('Retry-After: ' . $window);
         fail(429, 'rate_limited', 'Too many requests. Please wait and try again.');
     }
 }
 
-function is_valid_date(string $date): bool {
-    $parsed = DateTime::createFromFormat('Y-m-d', $date);
-    return $parsed && $parsed->format('Y-m-d') === $date;
-}
+/**
+ * Validated [date, service_id, country] from the query string of the availability actions.
+ */
+function plan_query(string $defaultCountry): array {
+    $date = request_string($_GET, 'date');
+    $serviceId = request_string($_GET, 'service_id');
+    $country = ResourceProvider::sanitizeCountryCode(request_string($_GET, 'country', $defaultCountry));
 
-function is_valid_time(string $time): bool {
-    $parsed = DateTime::createFromFormat('H:i', $time);
-    return $parsed && $parsed->format('H:i') === $time;
+    if ($date === '' || $serviceId === '') {
+        fail(400, 'missing_fields', 'Missing required parameters: date and service_id.');
+    }
+    if (Input::date($date) === null) {
+        fail(400, 'invalid_date', 'Invalid date format. Use YYYY-MM-DD.');
+    }
+    if (Input::text($serviceId, MAX_ID_LENGTH) === null) {
+        fail(400, 'unknown_service', 'Unknown service ID.');
+    }
+    if ($country === null) {
+        fail(400, 'invalid_country', 'Invalid country code.');
+    }
+    return [$date, $serviceId, $country];
 }
 
 $settings = ResourceProvider::getSettings();
@@ -99,17 +109,7 @@ switch ($action) {
         break;
 
     case 'check_availability':
-        $date = request_string($_GET, 'date');
-        $serviceId = request_string($_GET, 'service_id');
-        $country = ResourceProvider::sanitizeCountryCode(request_string($_GET, 'country', $defaultCountry));
-
-        if ($date === '' || $serviceId === '') {
-            fail(400, 'missing_fields', 'Missing required parameters: date and service_id.');
-        }
-        if ($country === null) {
-            fail(400, 'invalid_country', 'Invalid country code.');
-        }
-
+        [$date, $serviceId, $country] = plan_query($defaultCountry);
         $slots = $serviceLayer->getAvailableSlots($date, $serviceId, $country);
         if ($slots === null) {
             fail(400, 'invalid_request', 'Invalid date format or unknown service ID.');
@@ -118,17 +118,7 @@ switch ($action) {
         break;
 
     case 'check_week':
-        $date = request_string($_GET, 'date');
-        $serviceId = request_string($_GET, 'service_id');
-        $country = ResourceProvider::sanitizeCountryCode(request_string($_GET, 'country', $defaultCountry));
-
-        if ($date === '' || $serviceId === '') {
-            fail(400, 'missing_fields', 'Missing required parameters: date and service_id.');
-        }
-        if ($country === null) {
-            fail(400, 'invalid_country', 'Invalid country code.');
-        }
-
+        [$date, $serviceId, $country] = plan_query($defaultCountry);
         $week = $serviceLayer->getWeekPlan($date, $serviceId, $country);
         if ($week === null) {
             fail(400, 'invalid_request', 'Invalid date format or unknown service ID.');
@@ -157,19 +147,19 @@ switch ($action) {
         // Honeypot: the "website" field is invisible to people, so only bots fill it in.
         // Answer like a success so the bot has nothing to adjust to, but save nothing.
         if (request_string($input, 'website') !== '') {
-            security_log('honeypot filled');
+            SecurityLog::record('honeypot');
             respond(['success' => true, 'booking_id' => 'book_' . bin2hex(random_bytes(6))]);
         }
         switch (FormToken::check(request_string($input, 'form_token'))) {
             case FormToken::VALID:
                 break;
             case FormToken::TOO_FAST:
-                security_log('form sent too fast');
+                SecurityLog::record('form_too_fast');
                 fail(400, 'too_fast', 'The form was sent too quickly.');
             case FormToken::EXPIRED:
                 fail(400, 'form_expired', 'The booking page has expired. Reload it and try again.');
             default:
-                security_log('invalid form token');
+                SecurityLog::record('form_token_invalid');
                 fail(400, 'invalid_request', 'Missing or invalid form token.');
         }
 
@@ -182,19 +172,19 @@ switch ($action) {
         if ($serviceId === '' || $date === '' || $time === '' || $customerName === '' || $customerEmail === '') {
             fail(400, 'missing_fields', 'Missing mandatory booking fields.');
         }
-        if (!is_valid_date($date)) {
+        if (Input::date($date) === null) {
             fail(400, 'invalid_date', 'Invalid date format. Use YYYY-MM-DD.');
         }
-        if (!is_valid_time($time)) {
+        if (Input::time($time) === null) {
             fail(400, 'invalid_time', 'Invalid time format. Use HH:MM.');
         }
-        if (strlen($customerEmail) > 254 || filter_var($customerEmail, FILTER_VALIDATE_EMAIL) === false) {
+        if (Input::email($customerEmail) === null) {
             fail(400, 'invalid_email', 'Invalid email address.');
         }
-        if (mb_strlen($customerName) > 100 || preg_match('/[\x00-\x1F\x7F]/', $customerName)) {
+        if (Input::text($customerName, MAX_NAME_LENGTH) === null) {
             fail(400, 'invalid_name', 'Invalid customer name.');
         }
-        if (strlen($serviceId) > 100 || $repository->getServiceById($serviceId) === null) {
+        if (Input::text($serviceId, MAX_ID_LENGTH) === null || $repository->getServiceById($serviceId) === null) {
             fail(400, 'unknown_service', 'Unknown service ID.');
         }
 
@@ -221,7 +211,7 @@ switch ($action) {
         });
 
         if ($bookingId === 'too_many_pending') {
-            security_log('pending limit per email reached');
+            SecurityLog::record('pending_limit');
             fail(429, 'too_many_pending', 'Too many unconfirmed bookings for this email address.');
         }
         if ($bookingId === null) {

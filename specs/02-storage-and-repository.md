@@ -11,11 +11,13 @@ The system employs a Repository pattern to cleanly separate data storage from bu
 - `booking/availability.json`: Admin slot matrix. Not used by the public booking at the moment.
 - `employees/emp_<id>.json`: One file per employee, see [employee.schema.json](employee.schema.json). Fields not known to the admin form are kept on save.
 - `config.json`: Application configuration, see [config.schema.json](config.schema.json).
-- `settings.json`: `default_country`, `timezone`, `supported_timezones`, `show_past_slots`, `pending_expiry_hours` (default 48, 0 = never; editable on the admin Config page) and `allowed_origins` (list of origins allowed to call the API cross-origin, default empty).
+- `settings.json`: `default_country`, `timezone`, `supported_timezones`, `show_past_slots`, `pending_expiry_hours` (default 48, 0 = never; editable on the admin Config page), `allowed_origins` (list of origins allowed to call the API cross-origin, default empty) and `admin_require_https` (default false; refuse admin pages over plain HTTP).
 - `secrets.json`: Generated on first use; holds the key that signs booking form tokens. Not in git.
 - `ratelimit/<sha256>.json`: Request timestamps per client and bucket (the file name is a hash, no IP addresses are stored). Files untouched for a day are swept. Not in git.
 - `credentials.json` / `tokens.json`: Google OAuth client and tokens.
-- `audit.json`: Admin audit log, capped at the latest 200 entries.
+- `audit.json`: Admin audit log (including sign-in and sign-out), capped at the latest 200 entries. Not in git.
+- `src/admin/.htpasswd`: Admin accounts (`username:bcrypt hash`). Not in git.
+- `src/log/security.log`: Security events as JSON lines, rotated at 1 MB. Not in git.
 - `src/holidays/<cc>.json`: Holidays per country, `<cc>` is a two-letter code, see [holiday.schema.json](holiday.schema.json).
 
 ## Concurrency & Thread Safety

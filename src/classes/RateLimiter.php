@@ -44,6 +44,32 @@ class RateLimiter {
     }
 
     /**
+     * Number of hits for $key in $bucket within the last $windowSeconds, without recording one.
+     * Used for lockouts that count failures only (see record()).
+     */
+    public function count(string $bucket, string $key, int $windowSeconds, ?int $now = null): int {
+        $now = $now ?? time();
+        $hits = JsonStore::read($this->path($bucket, $key))['hits'] ?? [];
+        return count(array_filter(is_array($hits) ? $hits : [], function ($t) use ($now, $windowSeconds) {
+            return is_int($t) && $t > $now - $windowSeconds;
+        }));
+    }
+
+    /**
+     * Records a hit without a limit (e.g. one failed login attempt).
+     */
+    public function record(string $bucket, string $key, int $windowSeconds, ?int $now = null): void {
+        $this->hit($bucket, $key, PHP_INT_MAX, $windowSeconds, $now);
+    }
+
+    /**
+     * Forgets all hits for $key in $bucket (e.g. after a successful login).
+     */
+    public function clear(string $bucket, string $key): void {
+        JsonStore::delete($this->path($bucket, $key));
+    }
+
+    /**
      * Key for the requesting client: the IPv4 address, or the /64 prefix of an IPv6 address
      * (one household or server usually controls a whole /64). Proxy headers are not trusted.
      */

@@ -41,14 +41,18 @@ bookmecal/
 │   │   ├── google_guide.php
 │   │   ├── holidays.php
 │   │   ├── index.php
+│   │   ├── login.php
+│   │   ├── logout.php
 │   │   ├── openhours.php
 │   │   ├── pending.php
 │   │   ├── services.php
+│   │   ├── session.php
 │   │   ├── setup_google.php
 │   │   └── users.php
 │   ├── api.php
 │   ├── bootstrap.php
 │   ├── classes
+│   │   ├── AdminAccounts.php
 │   │   ├── AvailabilityEngine.php
 │   │   ├── BookingEngine.php
 │   │   ├── BookingRepository.php
@@ -59,6 +63,7 @@ bookmecal/
 │   │   ├── EmployeeRepository.php
 │   │   ├── FormToken.php
 │   │   ├── GoogleSync.php
+│   │   ├── Input.php
 │   │   ├── JsonStore.php
 │   │   ├── Languages.php
 │   │   ├── Localization.php
@@ -66,6 +71,7 @@ bookmecal/
 │   │   ├── RateLimiter.php
 │   │   ├── ResourceProvider.php
 │   │   ├── SecurityHeaders.php
+│   │   ├── SecurityLog.php
 │   │   ├── TimeSlot.php
 │   │   └── View.php
 │   ├── css
@@ -120,6 +126,7 @@ bookmecal/
 │       │   ├── employees.php
 │       │   ├── google_guide.php
 │       │   ├── holidays.php
+│       │   ├── login.php
 │       │   ├── openhours.php
 │       │   ├── pending.php
 │       │   ├── services.php
@@ -133,6 +140,7 @@ bookmecal/
 │       └── public
 │           └── booking.php
 └── tests
+    ├── AdminAccountsTest.php
     ├── AvailabilityEngineTest.php
     ├── BookingEngineTest.php
     ├── BookingRepositoryTest.php
@@ -141,11 +149,13 @@ bookmecal/
     ├── EmailNotifierTest.php
     ├── FormTokenTest.php
     ├── GoogleSyncTest.php
+    ├── InputTest.php
     ├── LanguageFilesTest.php
     ├── LocalizationTest.php
     ├── MultiSlotEngineTest.php
     ├── RateLimiterTest.php
     ├── ResourceProviderTest.php
+    ├── SecurityLogTest.php
     └── TimeSlotTest.php
 ```
 
@@ -154,7 +164,7 @@ bookmecal/
 
 | File                                                                  | Description |
 | --------------------------------------------------------------------- | ----------- |
-| [01-architecture-and-config.md](01-architecture-and-config.md)        | Request flow, core classes, localization, web access protection |
+| [01-architecture-and-config.md](01-architecture-and-config.md)        | Request flow, core classes, localization, admin sign-in, security headers, input validation, security log |
 | [02-storage-and-repository.md](02-storage-and-repository.md)          | Data files, locking and BookingRepository |
 | [03-business-logic-and-engine.md](03-business-logic-and-engine.md)    | BookingService soft slots and other engines |
 | [04-api-and-integrations.md](04-api-and-integrations.md)              | API actions, week plan format, booking page behaviour |
@@ -188,7 +198,10 @@ bookmecal/
 | data/credentials.json                                                 | Google OAuth client credentials |
 | data/openhours.json                                                   | Opening hours per weekday, used by the booking |
 | data/services.json                                                    | Treatments keyed by SKU |
-| data/settings.json                                                    | Default country and timezones |
+| data/settings.json                                                    | Timezone, default country, pending expiry, allowed origins, HTTPS-only admin |
+| data/secrets.json                                                     | Form token signing key (generated, not in git) |
+| admin/.htpasswd                                                       | Admin accounts (not in git) |
+| log/security.log                                                      | Security events, JSON lines (not in git) |
 
 
 

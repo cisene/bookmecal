@@ -10,6 +10,10 @@ require_once dirname(__DIR__) . '/classes/EmployeeRepository.php';
 $repository = new EmployeeRepository();
 $flash = [];
 
+/** Longest accepted text field and qualification list, in characters. */
+const EMPLOYEE_TEXT_MAX = 100;
+const EMPLOYEE_QUALIFICATIONS_MAX = 500;
+
 /** Text fields of the employee form, as named in specs/employee.schema.json. */
 $textFields = ['givenName', 'familyName', 'email', 'phoneNumber', 'mobileNumber', 'jobTitle', 'organisationNumber', 'swishPaymentNumber'];
 
@@ -20,17 +24,30 @@ if (is_post()) {
 
     if ($action === 'save_employee') {
         $fields = [];
+        $invalid = [];
         foreach ($textFields as $field) {
-            $fields[$field] = request_string($_POST, $field);
+            $raw = request_string($_POST, $field);
+            $fields[$field] = $raw === '' ? '' : match ($field) {
+                'email' => Input::email($raw),
+                'phoneNumber', 'mobileNumber', 'swishPaymentNumber' => Input::phone($raw),
+                default => Input::text($raw, EMPLOYEE_TEXT_MAX),
+            };
+            if ($fields[$field] === null) {
+                $invalid[] = $field;
+            }
         }
-        $fields['qualifications'] = array_values(array_filter(array_map('trim', explode(',', request_string($_POST, 'qualifications')))));
+        $qualifications = Input::text(request_string($_POST, 'qualifications'), EMPLOYEE_QUALIFICATIONS_MAX);
+        $fields['qualifications'] = array_values(array_filter(array_map('trim', explode(',', (string)$qualifications))));
         $fields['isBookable'] = request_string($_POST, 'isBookable') === '1';
         $fields['inactive'] = request_string($_POST, 'inactive') === '1';
+        if ($qualifications === null) {
+            $invalid[] = 'qualifications';
+        }
 
-        if ($fields['givenName'] === '' && $fields['familyName'] === '') {
+        if ($invalid) {
+            $flash[] = flash_error('Invalid value in: ' . implode(', ', $invalid) . '. Emails must be valid, phone numbers may hold digits, spaces and + - ( ), text at most ' . EMPLOYEE_TEXT_MAX . ' characters.');
+        } elseif ($fields['givenName'] === '' && $fields['familyName'] === '') {
             $flash[] = flash_error('Enter a given name or a family name.');
-        } elseif ($fields['email'] !== '' && filter_var($fields['email'], FILTER_VALIDATE_EMAIL) === false) {
-            $flash[] = flash_error('Invalid email address.');
         } else {
             $employeeId = $employeeId !== '' ? $employeeId : EmployeeRepository::newId();
             if ($repository->save($employeeId, $fields, $currentAdmin)) {

@@ -49,7 +49,7 @@ For `book` additionally:
 6. **Form token:** The page embeds `formToken` (Unix time + HMAC-SHA256, key in `data/secrets.json`). Missing or forged: `400 invalid_request`; younger than 3 seconds: `400 too_fast`; older than 24 hours: `400 form_expired`.
 7. **Pending cap:** At most 3 upcoming pending bookings per email address (checked under the booking lock): `429 too_many_pending`.
 
-Rejections in steps 1–7 are written to the PHP error log as `bookmecal api: <event> from <client>`, without names or email addresses.
+Rejections in steps 2 and 5–7 are written to the security log (`src/log/security.log`, see [01-architecture-and-config.md](01-architecture-and-config.md) §1.7), without names or email addresses. All fields are validated by the `Input` layer (§1.6 there); `check_availability` and `check_week` answer `400 invalid_date` for an impossible date.
 
 ### Error codes
 `missing_fields`, `invalid_country`, `invalid_request`, `method_not_allowed`, `invalid_date`, `invalid_time`, `invalid_email`, `invalid_name`, `unknown_service`, `slot_unavailable` (409), `save_failed` (500), `invalid_action`, `origin_not_allowed` (403), `rate_limited` (429), `unsupported_media_type` (415), `payload_too_large` (413), `too_fast`, `form_expired`, `too_many_pending` (429).

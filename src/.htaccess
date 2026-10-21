@@ -18,6 +18,8 @@ RewriteBase /
 # 1. Protect internal folders: data, cache, logs, PHP classes and templates
 RewriteRule ^(.*/)?(cache|data|log|classes|templates)/.*$ - [F,L]
 RewriteRule ^bootstrap\.php$ - [F,L]
+RewriteRule ^admin/session\.php$ - [F,L]
+RewriteRule (^|/)\.ht - [F,L]
 
 # 2. Block unnecessary or risky HTTP methods
 RewriteCond %{REQUEST_METHOD} ^(CONNECT|DEBUG|DELETE|MOVE|PUT|TRACE|TRACK) [NC]

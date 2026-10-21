@@ -1,4 +1,6 @@
-AuthType Basic
-AuthName "Book Me Calendar - Restricted Admin"
-AuthUserFile /media/chrise/work/repos/github/cisene/bookmecal/src/admin/.htpasswd
-Require valid-user
+# Admin pages - Book Me Calendar
+# Sign-in is handled by PHP (login.php) against admin/.htpasswd, with lockout after failed
+# attempts. Apache Basic Auth is no longer used here; the account file must never be served.
+<Files ".htpasswd">
+    Require all denied
+</Files>

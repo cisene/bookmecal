@@ -14,12 +14,12 @@
             ] as $field => $type): ?>
                 <div class="form-group">
                     <label for="emp-<?= e($field) ?>"><?= e(__t('admin.employees.' . $field)) ?></label>
-                    <input type="<?= e($type) ?>" id="emp-<?= e($field) ?>" name="<?= e($field) ?>">
+                    <input type="<?= e($type) ?>" id="emp-<?= e($field) ?>" name="<?= e($field) ?>" maxlength="100">
                 </div>
             <?php endforeach; ?>
             <div class="form-group span-2">
                 <label for="emp-qualifications"><?= e(__t('admin.employees.qualifications')) ?></label>
-                <input type="text" id="emp-qualifications" name="qualifications">
+                <input type="text" id="emp-qualifications" name="qualifications" maxlength="500">
                 <small class="muted"><?= e(__t('admin.employees.qualificationsHint')) ?></small>
             </div>
             <div class="form-group">

@@ -9,29 +9,35 @@ require_once __DIR__ . '/auth.php';
 $servicesFile = ResourceProvider::dataPath('services.json');
 $flash = [];
 
+/** Field limits for the service form. */
+const SERVICE_LIMITS = ['name' => 255, 'sku' => 64, 'description' => 2000, 'duration' => 720, 'cleanup' => 240, 'price' => 1000000];
+
 /**
  * Validates the posted service form; returns [fields, error message or null].
  */
 function service_from_post(array $post): array {
     $fields = [
-        'name' => request_string($post, 'name'),
-        'sku' => request_string($post, 'sku'),
-        'description' => request_string($post, 'description'),
-        'duration' => (int)request_string($post, 'duration'),
-        'cleanup' => (int)request_string($post, 'cleanup', '0'),
-        'price_incl_vat' => (float)str_replace(',', '.', request_string($post, 'price_incl_vat', '0')),
-        'vat_rate' => (float)str_replace(',', '.', request_string($post, 'vat_rate', '0')),
+        'name' => Input::text(request_string($post, 'name'), SERVICE_LIMITS['name']),
+        'sku' => Input::text(request_string($post, 'sku'), SERVICE_LIMITS['sku']),
+        'description' => Input::text(request_string($post, 'description'), SERVICE_LIMITS['description'], true),
+        'duration' => Input::int(request_string($post, 'duration'), 5, SERVICE_LIMITS['duration']),
+        'cleanup' => Input::int(request_string($post, 'cleanup') ?: '0', 0, SERVICE_LIMITS['cleanup']),
+        'price_incl_vat' => Input::decimal(request_string($post, 'price_incl_vat') ?: '0', 0, SERVICE_LIMITS['price']),
+        'vat_rate' => Input::decimal(request_string($post, 'vat_rate') ?: '0', 0, 100),
         'is_active' => request_string($post, 'is_active') === '1',
     ];
 
-    if ($fields['name'] === '' || mb_strlen($fields['name']) > 255) {
-        return [$fields, 'Service name is required (max 255 characters).'];
+    if ($fields['name'] === null || $fields['name'] === '') {
+        return [$fields, 'Service name is required (max ' . SERVICE_LIMITS['name'] . ' characters, no control characters).'];
     }
-    if ($fields['duration'] < 5) {
-        return [$fields, 'Duration must be at least 5 minutes.'];
+    if ($fields['sku'] === null || $fields['description'] === null) {
+        return [$fields, 'SKU (max ' . SERVICE_LIMITS['sku'] . ') or description (max ' . SERVICE_LIMITS['description'] . ' characters) is too long or contains control characters.'];
     }
-    if ($fields['cleanup'] < 0 || $fields['price_incl_vat'] < 0 || $fields['vat_rate'] < 0 || $fields['vat_rate'] > 100) {
-        return [$fields, 'Cleanup, price and VAT rate must be zero or positive (VAT at most 100).'];
+    if ($fields['duration'] === null) {
+        return [$fields, 'Duration must be a whole number of minutes between 5 and ' . SERVICE_LIMITS['duration'] . '.'];
+    }
+    if ($fields['cleanup'] === null || $fields['price_incl_vat'] === null || $fields['vat_rate'] === null) {
+        return [$fields, 'Cleanup (0-' . SERVICE_LIMITS['cleanup'] . ' minutes), price and VAT rate (0-100) must be valid numbers.'];
     }
 
     $fields['price_excl_vat'] = round($fields['price_incl_vat'] / (1 + $fields['vat_rate'] / 100), 2);
@@ -43,7 +49,9 @@ if (is_post()) {
     $action = request_string($_POST, 'action');
     $serviceId = request_string($_POST, 'service_id');
 
-    if ($action === 'save_service') {
+    if (Input::text($serviceId, 100) === null) {
+        $flash[] = flash_error('Invalid service ID.');
+    } elseif ($action === 'save_service') {
         [$fields, $error] = service_from_post($_POST);
         if ($error !== null) {
             $flash[] = flash_error($error);

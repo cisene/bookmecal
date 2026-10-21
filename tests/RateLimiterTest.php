@@ -51,4 +51,16 @@ class RateLimiterTest extends TestCase {
         $this->assertNotSame(RateLimiter::clientKey('2001:db8:1:2::1'), RateLimiter::clientKey('2001:db8:1:3::1'));
         $this->assertSame('unknown', RateLimiter::clientKey('not an ip'));
     }
+
+    public function testCountRecordAndClearForFailureLockouts() {
+        $limiter = new RateLimiter($this->dir);
+        $this->assertSame(0, $limiter->count('login', 'a', 900, 1000));
+        for ($i = 0; $i < 7; $i++) {
+            $limiter->record('login', 'a', 900, 1000 + $i);
+        }
+        $this->assertSame(7, $limiter->count('login', 'a', 900, 1010));
+        $this->assertSame(0, $limiter->count('login', 'a', 900, 2000));
+        $limiter->clear('login', 'a');
+        $this->assertSame(0, $limiter->count('login', 'a', 900, 1010));
+    }
 }

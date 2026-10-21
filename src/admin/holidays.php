@@ -7,6 +7,7 @@
 require_once __DIR__ . '/auth.php';
 
 const HOLIDAY_COUNTRIES = ['se', 'no', 'fi', 'ee', 'lv', 'lt'];
+const HOLIDAY_TITLE_MAX = 100;
 
 $country = ResourceProvider::sanitizeCountryCode(request_string($_GET, 'country', ResourceProvider::getSettings()['default_country'] ?? 'se'));
 if (!in_array($country, HOLIDAY_COUNTRIES, true)) {
@@ -31,13 +32,14 @@ function update_holidays(string $file, string $country, callable $change): bool 
 if (is_post()) {
     require_csrf();
     $action = request_string($_POST, 'action');
-    $date = request_string($_POST, 'date');
-    $parsed = DateTime::createFromFormat('Y-m-d', $date);
+    $date = Input::date(request_string($_POST, 'date'));
+    $title = Input::text(request_string($_POST, 'title'), HOLIDAY_TITLE_MAX);
 
-    if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+    if ($date === null) {
         $flash[] = flash_error('Invalid date format. Use YYYY-MM-DD.');
+    } elseif ($action === 'add_holiday' && ($title === null || $title === '')) {
+        $flash[] = flash_error('Enter a holiday name (max ' . HOLIDAY_TITLE_MAX . ' characters).');
     } elseif ($action === 'add_holiday') {
-        $title = request_string($_POST, 'title');
         update_holidays($holidayFile, $country, function (array $holidays) use ($date, $title) {
             // Replace an existing entry for the same date instead of adding a duplicate
             $holidays = array_filter($holidays, function ($h) use ($date) {

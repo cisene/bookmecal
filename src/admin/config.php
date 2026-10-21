@@ -16,17 +16,15 @@ $flash = [];
 
 if (is_post()) {
     require_csrf();
-    $timezone = request_string($_POST, 'timezone');
-    $country = strtolower(request_string($_POST, 'default_country'));
-    $expiryHours = filter_var(request_string($_POST, 'pending_expiry_hours'), FILTER_VALIDATE_INT, [
-        'options' => ['min_range' => 0, 'max_range' => MAX_PENDING_EXPIRY_HOURS],
-    ]);
+    $timezone = Input::oneOf(request_string($_POST, 'timezone'), SUPPORTED_TIMEZONES);
+    $country = Input::oneOf(strtolower(request_string($_POST, 'default_country')), SUPPORTED_COUNTRIES);
+    $expiryHours = Input::int(request_string($_POST, 'pending_expiry_hours'), 0, MAX_PENDING_EXPIRY_HOURS);
 
-    if (!in_array($timezone, SUPPORTED_TIMEZONES, true)) {
+    if ($timezone === null) {
         $flash[] = flash_error('Selected timezone is not supported.');
-    } elseif (!in_array($country, SUPPORTED_COUNTRIES, true)) {
+    } elseif ($country === null) {
         $flash[] = flash_error('Selected country is not supported.');
-    } elseif ($expiryHours === false) {
+    } elseif ($expiryHours === null) {
         $flash[] = flash_error('Expiry must be a whole number of hours between 0 and ' . MAX_PENDING_EXPIRY_HOURS . '.');
     } else {
         $saved = JsonStore::update($settingsFile, function (array $settings) use ($timezone, $country, $expiryHours) {

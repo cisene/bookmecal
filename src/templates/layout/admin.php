@@ -1,7 +1,7 @@
 <?php
 /**
- * Admin layout. Expects: $title (translation key), $content, $flash, $currentAdmin,
- * $currentPage, $lang, $languages.
+ * Admin layout. Expects: $title (translation key), $content, $flash, $currentAdmin ('' on the login page),
+ * $csrfToken, $currentPage, $lang, $languages.
  */
 $navItems = [
     'index.php' => ['admin.nav.dashboard', ['index.php']],
@@ -28,13 +28,21 @@ $navItems = [
     <header class="admin-header">
         <div>
             <h1><?= e(__t('admin.appTitle')) ?></h1>
-            <small><?= e(__t('admin.loggedInAs')) ?> <strong><?= e($currentAdmin) ?></strong></small>
+            <?php if ($currentAdmin !== ''): ?>
+                <small><?= e(__t('admin.loggedInAs')) ?> <strong><?= e($currentAdmin) ?></strong></small>
+                <form method="post" action="logout.php" class="inline">
+                    <?php include __DIR__ . '/../partials/csrf.php'; ?>
+                    <button type="submit" class="btn btn-small btn-secondary"><?= e(__t('admin.logout')) ?></button>
+                </form>
+            <?php endif; ?>
         </div>
-        <nav class="admin-nav">
-            <?php foreach ($navItems as $href => [$labelKey, $activePages]): ?>
-                <a href="<?= e($href) ?>"<?= in_array($currentPage, $activePages, true) ? ' class="active"' : '' ?>><?= e(__t($labelKey)) ?></a>
-            <?php endforeach; ?>
-        </nav>
+        <?php if ($currentAdmin !== ''): ?>
+            <nav class="admin-nav">
+                <?php foreach ($navItems as $href => [$labelKey, $activePages]): ?>
+                    <a href="<?= e($href) ?>"<?= in_array($currentPage, $activePages, true) ? ' class="active"' : '' ?>><?= e(__t($labelKey)) ?></a>
+                <?php endforeach; ?>
+            </nav>
+        <?php endif; ?>
         <form method="get" class="lang-switch">
             <select name="lang" data-autosubmit aria-label="<?= e(__t('common.language')) ?>">
                 <?php foreach ($languages as $code => $name): ?>

@@ -9,6 +9,7 @@ require_once __DIR__ . '/classes/ResourceProvider.php';
 require_once __DIR__ . '/classes/Localization.php';
 require_once __DIR__ . '/classes/View.php';
 require_once __DIR__ . '/classes/SecurityHeaders.php';
+require_once __DIR__ . '/classes/Input.php';
 
 ResourceProvider::initTimezone();
 

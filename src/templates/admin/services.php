@@ -14,15 +14,15 @@
             </div>
             <div class="form-group">
                 <label for="srv-sku"><?= e(__t('admin.services.sku')) ?></label>
-                <input type="text" id="srv-sku" name="sku">
+                <input type="text" id="srv-sku" name="sku" maxlength="64">
             </div>
             <div class="form-group">
                 <label for="srv-duration"><?= e(__t('admin.services.duration')) ?></label>
-                <input type="number" id="srv-duration" name="duration" min="5" step="5" required>
+                <input type="number" id="srv-duration" name="duration" min="5" max="720" step="5" required>
             </div>
             <div class="form-group">
                 <label for="srv-cleanup"><?= e(__t('admin.services.cleanup')) ?></label>
-                <input type="number" id="srv-cleanup" name="cleanup" min="0" step="5" value="0">
+                <input type="number" id="srv-cleanup" name="cleanup" min="0" max="240" step="5" value="0">
             </div>
             <div class="form-group">
                 <label for="srv-price"><?= e(__t('admin.services.priceInclVat')) ?></label>
@@ -34,7 +34,7 @@
             </div>
             <div class="form-group span-2">
                 <label for="srv-description"><?= e(__t('admin.services.description')) ?></label>
-                <textarea id="srv-description" name="description" rows="3"></textarea>
+                <textarea id="srv-description" name="description" rows="3" maxlength="2000"></textarea>
             </div>
             <div class="form-group">
                 <label class="checkbox"><input type="checkbox" name="is_active" value="1" checked> <?= e(__t('admin.services.active')) ?></label>

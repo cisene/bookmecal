@@ -19,7 +19,7 @@
         </div>
         <div class="form-group">
             <label for="holiday-title"><?= e(__t('admin.holidays.name')) ?></label>
-            <input type="text" id="holiday-title" name="title" required>
+            <input type="text" id="holiday-title" name="title" required maxlength="100">
         </div>
         <button type="submit" class="btn"><?= e(__t('admin.holidays.add')) ?></button>
     </form>

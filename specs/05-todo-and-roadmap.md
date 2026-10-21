@@ -10,10 +10,9 @@
 - [ ] **Week view drag on touch devices:** Verify dragging the selection block on real phones and tablets.
 - [ ] **Gap-aware starts:** Optionally prefer soft-slot starts next to existing bookings to reduce unusable gaps.
 - [ ] **Translations:** Native review of all language files; complete the 12 partial languages (they fall back to English per key).
-- [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers. Next: one input validation layer, admin login protection (HTTPS, brute-force lockout), security event logging, GDPR (privacy notice, retention, deletion).
+- [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. Next: GDPR (privacy notice, retention, deletion); turn on `admin_require_https` and HSTS on the production server; optional `fail2ban` rule for `security.log`.
 - [ ] **Locked reads:** `JsonStore::read()` should take a shared lock or writes should replace files atomically.
 - [ ] **Config cleanup:** Remove the unused plaintext `admin_user`/`admin_pass` from `data/config.json` (admin login uses `.htpasswd`).
-- [ ] **Stop tracking runtime files:** `src/log/*.log` and `src/data/audit.json` are still in git.
 
 ---
 
@@ -21,6 +20,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-22** | • Input validation layer (`Input`) used by the API and every admin form: real dates and times, length limits in characters, no control characters, numeric ranges.<br>• Admin sign-in form instead of Apache Basic Auth: lockout after failed attempts (per client and per username), bcrypt hashes (old Apache hashes upgraded at sign-in), password policy, session timeouts, sign-out, sessions end when the password changes, optional HTTPS-only admin.<br>• Security event log (`src/log/security.log`, JSON lines) for API rejections, sign-ins and CSRF failures, shown on the Users page. |
 | **2026-10-21** | • Booking abuse protection: per-client rate limits, honeypot field, signed form token with minimum and maximum age, max 3 upcoming pending bookings per email, unanswered requests expire after `pending_expiry_hours` (admin setting, default 48), JSON-only booking requests with a size limit, CORS only for configured origins.<br>• Security headers on all pages and API responses (strict Content-Security-Policy, `nosniff`, frame denial, referrer and permissions policies, HSTS on HTTPS); admin pages not cached. |
 | **2026-10-21** | • Soft slots: treatments can start every 5 minutes (`BookingService::SLOT_STEP`) wherever treatment plus cleanup fits, instead of a fixed grid per treatment. Past times are no longer offered.<br>• New `check_week` API action and a week view on the booking page (days as columns, time downwards) with a draggable, snapping selection block, keyboard control and Earlier/Later buttons. |
 | **2026-10-21** | • Separated HTML from code: controllers plus templates in `src/templates/` rendered by `View`, CSS and JS moved to `src/css/` and `src/js/`, shared `bootstrap.php` and `JsonStore`.<br>• All UI text translatable with namespaced keys (`area.section.camelCase`); `en` and `sv` complete, other languages fall back to English per key; language switcher on public and admin pages.<br>• Employees stored per file following `employee.schema.json`; services and employees editable; dashboard shows real upcoming bookings. |
