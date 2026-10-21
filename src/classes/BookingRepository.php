@@ -99,6 +99,76 @@ class BookingRepository {
         return null;
     }
 
+    /**
+     * Statuses that keep a slot occupied. Rejected/cancelled bookings free their slot again.
+     */
+    private const BLOCKING_STATUSES = ['pending', 'approved', 'confirmed'];
+
+    /**
+     * Returns the occupied intervals for a date as [['start' => DateTime, 'end' => DateTime], ...].
+     */
+    public function getBlockingIntervals(string $dateStr): array {
+        $files = glob($this->dataDir . '/pending/booking_*.json');
+        if (!is_array($files)) {
+            return [];
+        }
+
+        $intervals = [];
+        foreach ($files as $file) {
+            $booking = $this->readJson($file);
+            if ($booking === null || ($booking['date'] ?? null) !== $dateStr) {
+                continue;
+            }
+
+            $status = $booking['status'] ?? 'pending';
+            if (!in_array($status, self::BLOCKING_STATUSES, true)) {
+                continue;
+            }
+
+            $start = DateTime::createFromFormat('Y-m-d H:i', $dateStr . ' ' . ($booking['time'] ?? ''), $this->timezone);
+            if (!$start) {
+                continue;
+            }
+
+            $end = null;
+            if (!empty($booking['end_time'])) {
+                $end = DateTime::createFromFormat('Y-m-d H:i', $dateStr . ' ' . $booking['end_time'], $this->timezone) ?: null;
+            }
+            if ($end === null) {
+                // Older records have no end_time: derive it from the booked service's duration
+                $service = isset($booking['service_id']) ? ResourceProvider::getServiceById($booking['service_id']) : null;
+                $duration = (int)($service['duration_minutes'] ?? $service['duration'] ?? 1);
+                $end = (clone $start)->modify('+' . max(1, $duration) . ' minutes');
+            }
+
+            $intervals[] = ['start' => $start, 'end' => $end];
+        }
+
+        return $intervals;
+    }
+
+    /**
+     * Runs $callback while holding an exclusive booking lock, so check-then-create cannot race.
+     */
+    public function withBookingLock(callable $callback) {
+        $pendingDir = $this->dataDir . '/pending';
+        if (!is_dir($pendingDir)) {
+            @mkdir($pendingDir, 0775, true);
+        }
+
+        $fp = @fopen($pendingDir . '/.booking.lock', 'c');
+        if (!$fp || !flock($fp, LOCK_EX)) {
+            throw new RuntimeException('Could not acquire booking lock.');
+        }
+
+        try {
+            return $callback();
+        } finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
+    }
+
     public function createPendingRequest(array $bookingData): ?string {
         $pendingDir = $this->dataDir . '/pending';
         if (!is_dir($pendingDir)) {

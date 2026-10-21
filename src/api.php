@@ -114,31 +114,47 @@ switch ($action) {
             $validationError = 'Unknown service ID.';
         }
 
-        if ($validationError === null) {
-            // The requested time must be one of the slots we actually offer for that date/service
-            $settings = ResourceProvider::getSettings();
-            $offeredSlots = $serviceLayer->getAvailableSlots($date, $serviceId, $settings['default_country'] ?? 'se');
-            if (!is_array($offeredSlots) || !in_array($time, array_column($offeredSlots, 'start_time'), true)) {
-                $validationError = 'The selected time slot is not available.';
-            }
-        }
-
         if ($validationError !== null) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => $validationError]);
             exit();
         }
 
-        $bookingData = [
-            'service_id' => $serviceId,
-            'date' => $date,
-            'time' => $time,
-            'customer_name' => $customerName,
-            'customer_email' => $customerEmail,
-            'status' => 'pending'
-        ];
+        // Check availability and save under one lock so two concurrent requests cannot take the same slot
+        $settings = ResourceProvider::getSettings();
+        $country = $settings['default_country'] ?? 'se';
+        $result = $repository->withBookingLock(function () use ($repository, $serviceLayer, $serviceId, $date, $time, $customerName, $customerEmail, $country) {
+            // The requested time must be one of the slots still offered for that date/service
+            $offeredSlots = $serviceLayer->getAvailableSlots($date, $serviceId, $country) ?? [];
+            $chosenSlot = null;
+            foreach ($offeredSlots as $slot) {
+                if ($slot['start_time'] === $time) {
+                    $chosenSlot = $slot;
+                    break;
+                }
+            }
+            if ($chosenSlot === null) {
+                return ['unavailable' => true];
+            }
 
-        $bookingId = $repository->createPendingRequest($bookingData);
+            return ['id' => $repository->createPendingRequest([
+                'service_id' => $serviceId,
+                'date' => $date,
+                'time' => $time,
+                'end_time' => $chosenSlot['end_time'],
+                'customer_name' => $customerName,
+                'customer_email' => $customerEmail,
+                'status' => 'pending'
+            ])];
+        });
+
+        if (!empty($result['unavailable'])) {
+            http_response_code(409);
+            echo json_encode(['success' => false, 'error' => 'The selected time slot is no longer available.']);
+            exit();
+        }
+
+        $bookingId = $result['id'];
         if ($bookingId === null) {
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Failed to save booking request.']);

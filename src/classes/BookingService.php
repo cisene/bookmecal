@@ -78,12 +78,22 @@ class BookingService {
             return [];
         }
 
+        $occupied = $this->repository->getBlockingIntervals($dateStr);
+
         while ($startTime < $endTime) {
             $slotEnd = clone $startTime;
             $slotEnd->modify("+{$durationMinutes} minutes");
 
             if ($slotEnd > $endTime) {
                 break;
+            }
+
+            // Skip slots overlapping an existing pending/approved booking (any service)
+            foreach ($occupied as $interval) {
+                if ($startTime < $interval['end'] && $slotEnd > $interval['start']) {
+                    $startTime = $slotEnd;
+                    continue 2;
+                }
             }
 
             $slots[] = [

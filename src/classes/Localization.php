@@ -7,8 +7,9 @@ class Localization {
     private static array $dictionaries = [];
     
     public const DEFAULT_LANG = 'en';
+    // Must match the files in src/language/ (all share one key set, enforced by LanguageFilesTest)
     public const SUPPORTED_LANGS = [
-        'en', 'sv', 'de', 'fr', 'es'
+        'en', 'sv', 'de', 'el', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'th', 'tl', 'vi', 'zh-CN'
     ];
 
     public function __construct(?string $lang = null) {
