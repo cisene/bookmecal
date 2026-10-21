@@ -27,10 +27,10 @@ Our specification treats relational schemas and their JSON data contracts as fir
 ## 3. Implementation & Automation Modules
 * **Booking page (`index.php`, `js/booking.js`):** Week view with a draggable selection block, see [04-api-and-integrations.md](04-api-and-integrations.md).
 * **API (`api.php`):** `get_services`, `check_availability`, `check_week`, `book`.
-* **Security (`admin/auth.php`, `api.php`):** HTTP Basic Auth (fail closed), CSRF tokens on all admin forms, hardened session cookies, strict input validation in the API.
+* **Security (`admin/auth.php`, `api.php`, `SecurityHeaders`, `RateLimiter`, `FormToken`):** HTTP Basic Auth (fail closed), CSRF tokens on all admin forms, hardened cookies, strict input validation in the API, rate limiting, honeypot and form token on bookings, pending cap and expiry, CORS allow-list, strict Content-Security-Policy and other security headers.
 * **Localization (`Localization.php`):** 14 languages with per-key English fallback and the `__t()` helper function (see [01-architecture-and-config.md](01-architecture-and-config.md) §1.3).
 * **Reminders (`send_reminders.php`):** CLI/cron script sending 24-hour reminder emails for approved bookings.
 * **Testing Suite (`tests/`):** PHPUnit tests, see [07-tests-and-validation.md](07-tests-and-validation.md).
 
 ### Not implemented yet
-* Installer (`install.php`), IP-based rate limiting on booking submissions, background Google Calendar sync. See [05-todo-and-roadmap.md](05-todo-and-roadmap.md).
+* Installer (`install.php`), background Google Calendar sync. See [05-todo-and-roadmap.md](05-todo-and-roadmap.md).

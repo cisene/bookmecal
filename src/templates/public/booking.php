@@ -42,6 +42,11 @@
         <input type="email" id="customerEmail" required maxlength="254" autocomplete="email">
     </div>
 
+    <div class="hp-field" aria-hidden="true">
+        <label for="contactWebsite"><?= e(__t('booking.form.honeypot')) ?></label>
+        <input type="text" id="contactWebsite" name="website" tabindex="-1" autocomplete="off">
+    </div>
+
     <button type="submit" class="btn"><?= e(__t('booking.form.submit')) ?></button>
 </form>
 

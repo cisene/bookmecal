@@ -18,8 +18,8 @@ class BookingRepository {
     private string $bookingDir;
     private DateTimeZone $timezone;
 
-    public function __construct() {
-        $this->bookingDir = ResourceProvider::dataPath('pending');
+    public function __construct(?string $bookingDir = null) {
+        $this->bookingDir = $bookingDir ?? ResourceProvider::dataPath('pending');
         $this->timezone = ResourceProvider::getTimezone();
     }
 
@@ -81,6 +81,52 @@ class BookingRepository {
         return JsonStore::update($this->bookingPath($bookingId), function (array $booking) use ($changes) {
             return array_merge($booking, $changes);
         });
+    }
+
+    /**
+     * Marks pending bookings created more than $hours ago as 'expired', which frees their time.
+     * Keeps unanswered (or spam) requests from blocking the calendar. Returns the number expired.
+     */
+    public function expireStalePending(int $hours, ?DateTimeInterface $now = null): int {
+        if ($hours <= 0) {
+            return 0;
+        }
+        $now = $now ?? new DateTimeImmutable('now', $this->timezone);
+        $cutoff = DateTimeImmutable::createFromInterface($now)->modify("-{$hours} hours");
+        $expired = 0;
+        foreach ($this->getBookings() as $id => $booking) {
+            $created = DateTimeImmutable::createFromFormat(DATE_ATOM, (string)($booking['created_at_iso'] ?? ''));
+            if (($booking['status'] ?? '') !== 'pending' || !$created || $created > $cutoff) {
+                continue;
+            }
+            // Re-check under the file lock so an approval made meanwhile is not overwritten
+            JsonStore::update($this->bookingPath($id), function (array $current) use ($now, &$expired) {
+                if (($current['status'] ?? '') === 'pending') {
+                    $current['status'] = 'expired';
+                    $current['expired_at_iso'] = $now->format(DATE_ATOM);
+                    $expired++;
+                }
+                return $current;
+            });
+        }
+        return $expired;
+    }
+
+    /**
+     * Pending bookings for an email address (case-insensitive) that have not started yet.
+     */
+    public function countUpcomingPendingFor(string $email, ?DateTimeInterface $now = null): int {
+        $now = $now ?? new DateTimeImmutable('now', $this->timezone);
+        $email = mb_strtolower($email);
+        $count = 0;
+        foreach ($this->getBookings() as $booking) {
+            $start = $this->bookingStart($booking);
+            if (($booking['status'] ?? '') === 'pending' && $start !== null && $start >= $now
+                && mb_strtolower((string)($booking['customer_email'] ?? '')) === $email) {
+                $count++;
+            }
+        }
+        return $count;
     }
 
     /**

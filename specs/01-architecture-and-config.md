@@ -18,6 +18,9 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - `View.php`: Renders plain-PHP templates from `src/templates/` with an optional layout.
 - `Localization.php`: Language selection and translation with the global `__t()` helper.
 - `EmailNotifier.php`: Confirmation, admin alert and reminder emails (header-injection safe).
+- `SecurityHeaders.php`: HTTP security headers, sent by `bootstrap.php` for every web request (§1.5).
+- `RateLimiter.php`, `FormToken.php`: Abuse protection for the public booking API (see [04-api-and-integrations.md](04-api-and-integrations.md)).
+- `src/bootstrap.php` also defines the escaping and request helpers used everywhere.
 
 ## 1.3 Localization
 - One flat JSON dictionary per language in `src/language/`, keys namespaced as `area.section.camelCase` (e.g. `admin.employees.familyName`, `booking.timeline.selected`). Placeholders use `{name}`.
@@ -30,4 +33,21 @@ The code is split into controllers (PHP that handles input and loads data), temp
 ## 1.4 Web access protection
 - `src/.htaccess`: Turns off `display_errors` and forbids `cache/`, `data/`, `log/`, `classes/`, `templates/` and `bootstrap.php`.
 - Repository root `.htaccess`: Only `src/` is reachable when the repository root is the document root.
-- `src/admin/`: HTTP Basic Auth (`.htpasswd`); `auth.php` fails closed (401) when no authenticated user is present.
+- `src/admin/`: HTTP Basic Auth (`.htpasswd`); `auth.php` fails closed (401) when no authenticated user is present. Admin pages are sent with `Cache-Control: no-store`.
+
+## 1.5 Security headers
+Sent by `SecurityHeaders::send()` from `bootstrap.php` (pages) and `api.php` (JSON):
+
+| Header | Pages | API |
+| :--- | :--- | :--- |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'` | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'` |
+| `X-Content-Type-Options` | `nosniff` | `nosniff` |
+| `X-Frame-Options` | `DENY` | `DENY` |
+| `Referrer-Policy` | `same-origin` | `same-origin` |
+| `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy` | `same-origin` | `same-origin` |
+| `Permissions-Policy` | camera, microphone, geolocation, payment, usb disabled | same |
+| `Strict-Transport-Security` | `max-age=31536000`, only when served over HTTPS | same |
+
+`X-Powered-By` is removed. Static files get `nosniff`, `Referrer-Policy` and `Cross-Origin-Resource-Policy` from `src/.htaccess` (needs `mod_headers`).
+
+Rules that keep the CSP working: no inline `<script>` code, no `style="…"` attributes, no inline event handlers (`onclick`) in templates. Data for scripts goes in `<script type="application/json">` blocks; scripts may set `element.style` properties. The language and session cookies are `HttpOnly`, `SameSite` and `Secure` when served over HTTPS.

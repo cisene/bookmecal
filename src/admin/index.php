@@ -8,6 +8,7 @@ require_once __DIR__ . '/auth.php';
 require_once dirname(__DIR__) . '/classes/BookingRepository.php';
 
 $repository = new BookingRepository();
+$repository->expireStalePending(ResourceProvider::pendingExpiryHours());
 $timezone = ResourceProvider::getTimezone();
 $today = new DateTime('today', $timezone);
 $horizon = (clone $today)->modify('+7 days');

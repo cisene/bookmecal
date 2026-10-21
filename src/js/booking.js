@@ -434,6 +434,8 @@
                 time: chosen.slot.start_time,
                 customer_name: document.getElementById('customerName').value,
                 customer_email: document.getElementById('customerEmail').value,
+                website: document.getElementById('contactWebsite').value,
+                form_token: config.formToken,
             }),
         }).then((data) => {
             if (data.success) {

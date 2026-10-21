@@ -121,4 +121,12 @@ class ResourceProvider {
     public static function isServiceActive(array $service): bool {
         return !(isset($service['is_active']) && $service['is_active'] === false);
     }
+
+    /**
+     * Hours after which an unanswered booking request expires (settings.json pending_expiry_hours,
+     * default 48). 0 means requests never expire.
+     */
+    public static function pendingExpiryHours(): int {
+        return max(0, (int)(self::getSettings()['pending_expiry_hours'] ?? 48));
+    }
 }

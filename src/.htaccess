@@ -23,16 +23,17 @@ RewriteRule ^bootstrap\.php$ - [F,L]
 RewriteCond %{REQUEST_METHOD} ^(CONNECT|DEBUG|DELETE|MOVE|PUT|TRACE|TRACK) [NC]
 RewriteRule .* - [F,L]
 
-# 3. CORS headers for API requests
-<IfModule mod_headers.h>
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+# 3. Security headers for static files (PHP pages and the API send their own via SecurityHeaders)
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js|json|png|jpe?g|gif|svg|ico|webp|woff2?)$">
+        Header set X-Content-Type-Options "nosniff"
+        Header set Referrer-Policy "same-origin"
+        Header set Cross-Origin-Resource-Policy "same-origin"
+    </FilesMatch>
 </IfModule>
 
-# Handle preflight OPTIONS requests directly
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule .* - [R=204,L]
+# No CORS here: api.php answers cross-origin requests itself, only for origins listed
+# in data/settings.json (allowed_origins)
 
 # ==========================================
 # PROJECT REWRITE RULES

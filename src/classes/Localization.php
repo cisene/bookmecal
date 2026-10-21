@@ -6,6 +6,7 @@
  */
 
 require_once __DIR__ . '/ResourceProvider.php';
+require_once __DIR__ . '/SecurityHeaders.php';
 
 class Localization {
     public const FALLBACK_LANG = 'en';
@@ -48,6 +49,7 @@ class Localization {
                     'expires' => time() + 86400 * 365,
                     'path' => '/',
                     'httponly' => true,
+                    'secure' => SecurityHeaders::isHttps(),
                     'samesite' => 'Lax',
                 ]);
             }

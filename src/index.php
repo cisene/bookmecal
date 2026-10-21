@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/classes/FormToken.php';
 
 $localization = Localization::getInstance();
 
@@ -15,6 +16,7 @@ View::render('public/booking', [
     'clientConfig' => [
         'apiUrl' => 'api.php',
         'locale' => $localization->getCurrentLang(),
+        'formToken' => FormToken::issue(),
         'country' => ResourceProvider::getSettings()['default_country'] ?? 'se',
         'texts' => $localization->exportPrefix('booking.'),
     ],

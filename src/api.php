@@ -2,31 +2,52 @@
 /**
  * src/api.php
  * JSON API: service discovery, slot availability (per day or per week) and booking requests.
+ * Public endpoint: rate limited per client, bookings need the page's form token, JSON bodies only.
  * Errors carry an English 'error' (for logs/debugging) and a stable 'code' that clients translate.
  */
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/classes/BookingRepository.php';
 require_once __DIR__ . '/classes/BookingService.php';
+require_once __DIR__ . '/classes/RateLimiter.php';
+require_once __DIR__ . '/classes/FormToken.php';
 
+/** Requests per client: [limit, window in seconds]. */
+const LIMIT_READ = [120, 300];
+const LIMIT_BOOK = [10, 3600];
+/** Upcoming pending bookings allowed per email address. */
+const MAX_PENDING_PER_EMAIL = 3;
+/** Largest accepted booking request body in bytes. */
+const MAX_BODY_BYTES = 8192;
+
+SecurityHeaders::send('api');
 header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Cache-Control: no-store');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit();
-}
-
-function respond(array $payload, int $status = 200): void {
+function respond(array $payload, int $status = 200): never {
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit();
 }
 
-function fail(int $status, string $code, string $message): void {
+function fail(int $status, string $code, string $message): never {
     respond(['success' => false, 'code' => $code, 'error' => $message], $status);
+}
+
+/**
+ * Writes a security-relevant event to the PHP error log (never customer names or emails).
+ */
+function security_log(string $event): void {
+    error_log('bookmecal api: ' . $event . ' from ' . RateLimiter::clientKey());
+}
+
+function enforce_limit(RateLimiter $limiter, string $bucket, array $limit): void {
+    [$max, $window] = $limit;
+    if (!$limiter->hit($bucket, RateLimiter::clientKey(), $max, $window)) {
+        security_log("rate limit '{$bucket}' exceeded");
+        header('Retry-After: ' . $window);
+        fail(429, 'rate_limited', 'Too many requests. Please wait and try again.');
+    }
 }
 
 function is_valid_date(string $date): bool {
@@ -39,11 +60,37 @@ function is_valid_time(string $time): bool {
     return $parsed && $parsed->format('H:i') === $time;
 }
 
+$settings = ResourceProvider::getSettings();
 $repository = new BookingRepository();
 $serviceLayer = new BookingService($repository);
-$defaultCountry = ResourceProvider::getSettings()['default_country'] ?? 'se';
+$limiter = new RateLimiter();
+$defaultCountry = $settings['default_country'] ?? 'se';
 
-switch (request_string($_GET, 'action')) {
+// Cross-origin use only from origins listed in settings.json (e.g. a future landing page)
+$origin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
+$allowedOrigins = array_filter((array)($settings['allowed_origins'] ?? []), 'is_string');
+if ($origin !== '' && in_array($origin, $allowedOrigins, true)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        header('Access-Control-Allow-Methods: GET, POST');
+        header('Access-Control-Allow-Headers: Content-Type');
+        header('Access-Control-Max-Age: 600');
+        http_response_code(204);
+        exit();
+    }
+}
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    fail(403, 'origin_not_allowed', 'Cross-origin requests are not allowed from this origin.');
+}
+
+$action = request_string($_GET, 'action');
+enforce_limit($limiter, $action === 'book' ? 'book' : 'read', $action === 'book' ? LIMIT_BOOK : LIMIT_READ);
+
+// Unanswered requests stop blocking time after pending_expiry_hours (0 disables)
+$repository->expireStalePending(ResourceProvider::pendingExpiryHours());
+
+switch ($action) {
     case 'get_services':
         $services = array_filter($repository->getServices() ?? [], function ($service) {
             return is_array($service) && ResourceProvider::isServiceActive($service);
@@ -94,9 +141,36 @@ switch (request_string($_GET, 'action')) {
             fail(405, 'method_not_allowed', 'Method not allowed. Use POST.');
         }
 
-        $input = json_decode((string)file_get_contents('php://input'), true);
+        // JSON only: a cross-site form cannot send it without a CORS preflight, which is refused above
+        if (stripos((string)($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json') !== 0) {
+            fail(415, 'unsupported_media_type', 'Send the booking as application/json.');
+        }
+        $body = (string)file_get_contents('php://input', false, null, 0, MAX_BODY_BYTES + 1);
+        if (strlen($body) > MAX_BODY_BYTES) {
+            fail(413, 'payload_too_large', 'Request body too large.');
+        }
+        $input = json_decode($body, true);
         if (!is_array($input)) {
-            $input = $_POST;
+            fail(400, 'invalid_request', 'Request body must be a JSON object.');
+        }
+
+        // Honeypot: the "website" field is invisible to people, so only bots fill it in.
+        // Answer like a success so the bot has nothing to adjust to, but save nothing.
+        if (request_string($input, 'website') !== '') {
+            security_log('honeypot filled');
+            respond(['success' => true, 'booking_id' => 'book_' . bin2hex(random_bytes(6))]);
+        }
+        switch (FormToken::check(request_string($input, 'form_token'))) {
+            case FormToken::VALID:
+                break;
+            case FormToken::TOO_FAST:
+                security_log('form sent too fast');
+                fail(400, 'too_fast', 'The form was sent too quickly.');
+            case FormToken::EXPIRED:
+                fail(400, 'form_expired', 'The booking page has expired. Reload it and try again.');
+            default:
+                security_log('invalid form token');
+                fail(400, 'invalid_request', 'Missing or invalid form token.');
         }
 
         $serviceId = request_string($input, 'service_id');
@@ -126,6 +200,9 @@ switch (request_string($_GET, 'action')) {
 
         // Check availability and save under one lock so two concurrent requests cannot take the same slot
         $bookingId = $repository->withBookingLock(function () use ($repository, $serviceLayer, $serviceId, $date, $time, $customerName, $customerEmail, $defaultCountry) {
+            if ($repository->countUpcomingPendingFor($customerEmail) >= MAX_PENDING_PER_EMAIL) {
+                return 'too_many_pending';
+            }
             foreach ($serviceLayer->getAvailableSlots($date, $serviceId, $defaultCountry) ?? [] as $slot) {
                 if ($slot['start_time'] === $time) {
                     return $repository->createPendingRequest([
@@ -143,6 +220,10 @@ switch (request_string($_GET, 'action')) {
             return null;
         });
 
+        if ($bookingId === 'too_many_pending') {
+            security_log('pending limit per email reached');
+            fail(429, 'too_many_pending', 'Too many unconfirmed bookings for this email address.');
+        }
         if ($bookingId === null) {
             fail(409, 'slot_unavailable', 'The selected time slot is no longer available.');
         }

@@ -6,11 +6,14 @@
 
 require_once dirname(__DIR__) . '/bootstrap.php';
 
+// Admin pages show customer data: never store them in browser or proxy caches
+header('Cache-Control: no-store');
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start([
         'cookie_httponly' => true,
         'cookie_samesite' => 'Strict',
-        'cookie_secure' => (($_SERVER['HTTPS'] ?? '') === 'on'),
+        'cookie_secure' => SecurityHeaders::isHttps(),
         'use_strict_mode' => true,
     ]);
 }

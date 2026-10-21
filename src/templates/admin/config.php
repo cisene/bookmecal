@@ -31,6 +31,12 @@
             </label>
         </div>
 
+        <div class="form-group">
+            <label for="cfg-expiry"><?= e(__t('admin.config.pendingExpiry')) ?></label>
+            <input type="number" id="cfg-expiry" name="pending_expiry_hours" min="0" max="<?= e($maxPendingExpiryHours) ?>" step="1" value="<?= e($pendingExpiryHours) ?>" required>
+            <small class="muted"><?= e(__t('admin.config.pendingExpiryHint')) ?></small>
+        </div>
+
         <button type="submit" class="btn"><?= e(__t('admin.common.save')) ?></button>
     </form>
 </div>

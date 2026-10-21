@@ -17,7 +17,7 @@ class LanguageFilesTest extends TestCase {
 
     /** Keys built at runtime from a prefix plus a value, listed here so they are checked too. */
     private const DYNAMIC_KEYS = [
-        'admin.status.' => ['pending', 'approved', 'confirmed', 'rejected', 'cancelled'],
+        'admin.status.' => ['pending', 'approved', 'confirmed', 'rejected', 'cancelled', 'expired'],
         'admin.pending.done.' => ['approve', 'reject'],
         'admin.pending.' => ['approve', 'reject'],
         'admin.services.done.' => ['saved', 'deleted'],
@@ -29,7 +29,7 @@ class LanguageFilesTest extends TestCase {
         'admin.nav.' => ['dashboard', 'pending', 'services', 'employees', 'hours', 'holidays', 'slots', 'config', 'users'],
         'common.weekday.' => ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
         'common.country.' => ['se', 'no', 'fi', 'ee', 'lv', 'lt'],
-        'booking.error.' => ['missingFields', 'invalidDate', 'invalidTime', 'invalidEmail', 'invalidName', 'unknownService', 'invalidRequest', 'slotUnavailable', 'saveFailed'],
+        'booking.error.' => ['missingFields', 'invalidDate', 'invalidTime', 'invalidEmail', 'invalidName', 'unknownService', 'invalidRequest', 'slotUnavailable', 'saveFailed', 'rateLimited', 'tooManyPending', 'formExpired', 'tooFast'],
     ];
 
     private static function load(string $lang): array {

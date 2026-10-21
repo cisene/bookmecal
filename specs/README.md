@@ -57,12 +57,15 @@ bookmecal/
 │   │   ├── Database.php
 │   │   ├── EmailNotifier.php
 │   │   ├── EmployeeRepository.php
+│   │   ├── FormToken.php
 │   │   ├── GoogleSync.php
 │   │   ├── JsonStore.php
 │   │   ├── Languages.php
 │   │   ├── Localization.php
 │   │   ├── MultiSlotEngine.php
+│   │   ├── RateLimiter.php
 │   │   ├── ResourceProvider.php
+│   │   ├── SecurityHeaders.php
 │   │   ├── TimeSlot.php
 │   │   └── View.php
 │   ├── css
@@ -71,7 +74,6 @@ bookmecal/
 │   │   ├── booking_modal.css
 │   │   └── calendar_style.css
 │   ├── data
-│   │   ├── audit.json
 │   │   ├── booking
 │   │   │   └── availability.json
 │   │   ├── config.json
@@ -137,10 +139,12 @@ bookmecal/
     ├── BookingServiceTest.php
     ├── DatabaseTest.php
     ├── EmailNotifierTest.php
+    ├── FormTokenTest.php
     ├── GoogleSyncTest.php
     ├── LanguageFilesTest.php
     ├── LocalizationTest.php
     ├── MultiSlotEngineTest.php
+    ├── RateLimiterTest.php
     ├── ResourceProviderTest.php
     └── TimeSlotTest.php
 ```

@@ -1,15 +1,20 @@
 <?php
 /**
  * src/bootstrap.php
- * Shared bootstrap for every entry point: class loading, timezone and small helpers.
+ * Shared bootstrap for every entry point: class loading, timezone, security headers and small helpers.
  */
 
 require_once __DIR__ . '/classes/JsonStore.php';
 require_once __DIR__ . '/classes/ResourceProvider.php';
 require_once __DIR__ . '/classes/Localization.php';
 require_once __DIR__ . '/classes/View.php';
+require_once __DIR__ . '/classes/SecurityHeaders.php';
 
 ResourceProvider::initTimezone();
+
+if (PHP_SAPI !== 'cli') {
+    SecurityHeaders::send('page');
+}
 
 /**
  * HTML-escapes a value for output in templates.

@@ -20,15 +20,19 @@ PHPUnit 12.5.39 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.5.4
 Configuration: /media/chrise/work/repos/github/cisene/bookmecal/phpunit.xml
 
-..........................................................        58 / 58 (100%)
+................................................................. 65 / 69 ( 94%)
+....                                                              69 / 69 (100%)
 
-Time: 00:00.072, Memory: 30.05 MB
+Time: 00:00.086, Memory: 30.05 MB
 
-OK (58 tests, 2346 assertions)
+OK (69 tests, 2414 assertions)
 ```
 
 ## 7.3 What the tests cover
 
 * `BookingServiceTest`: Soft slots every 5 minutes around a booking including cleanup, week plan (Monday to Sunday, closed days, busy intervals), no slots in the past, invalid input.
+* `RateLimiterTest`: Limits per client and bucket, sliding window, no IP addresses on disk, IPv6 /64 grouping.
+* `FormTokenTest`: Valid, too fast, expired, tampered, foreign key and future tokens.
+* `BookingRepositoryTest`: Includes expiry of stale pending requests and the pending count per email.
 * `LanguageFilesTest`: Key format, `en`/`sv` complete and identical, no unknown keys or broken placeholders in other languages, every key used in PHP/JS exists in `en.json`, English fallback.
 * Remaining test classes cover the repository, resource provider, localization, email notifier and the classes kept for later (`BookingEngine`, `MultiSlotEngine`, `AvailabilityEngine`, `Database`, `GoogleSync`, `TimeSlot`).

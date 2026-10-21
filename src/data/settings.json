@@ -9,5 +9,7 @@
         "Europe\/Riga",
         "Europe\/Vilnius"
     ],
-    "show_past_slots": true
+    "show_past_slots": true,
+    "pending_expiry_hours": 48,
+    "allowed_origins": []
 }
