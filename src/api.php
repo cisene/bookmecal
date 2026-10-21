@@ -97,8 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $action = request_string($_GET, 'action');
 enforce_limit($limiter, $action === 'book' ? 'book' : 'read', $action === 'book' ? LIMIT_BOOK : LIMIT_READ);
 
-// Unanswered requests stop blocking time after pending_expiry_hours (0 disables)
-$repository->expireStalePending(ResourceProvider::pendingExpiryHours());
+// Unanswered requests stop blocking time; old bookings are deleted after the retention period
+$repository->housekeeping();
 
 switch ($action) {
     case 'get_services':

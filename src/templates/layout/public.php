@@ -22,6 +22,11 @@
     </form>
 
     <?= $content ?>
+
+    <footer class="site-footer">
+        <a href="privacy.php"><?= e(__t('privacy.title')) ?></a>
+    </footer>
 </main>
+<script src="js/public.js"></script>
 </body>
 </html>

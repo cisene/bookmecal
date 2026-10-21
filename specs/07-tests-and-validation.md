@@ -20,12 +20,12 @@ PHPUnit 12.5.39 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.5.4
 Configuration: /media/chrise/work/repos/github/cisene/bookmecal/phpunit.xml
 
-................................................................. 65 / 91 ( 71%)
-..........................                                        91 / 91 (100%)
+................................................................. 65 / 93 ( 69%)
+............................                                      93 / 93 (100%)
 
-Time: 00:02.028, Memory: 30.05 MB
+Time: 00:02.061, Memory: 30.05 MB
 
-OK (91 tests, 2588 assertions)
+OK (93 tests, 2827 assertions)
 ```
 
 ## 7.3 What the tests cover
@@ -33,7 +33,7 @@ OK (91 tests, 2588 assertions)
 * `BookingServiceTest`: Soft slots every 5 minutes around a booking including cleanup, week plan (Monday to Sunday, closed days, busy intervals), no slots in the past, invalid input.
 * `RateLimiterTest`: Limits per client and bucket, sliding window, no IP addresses on disk, IPv6 /64 grouping, counting and clearing failures for the sign-in lockout.
 * `FormTokenTest`: Valid, too fast, expired, tampered, foreign key and future tokens.
-* `BookingRepositoryTest`: Includes expiry of stale pending requests and the pending count per email.
+* `BookingRepositoryTest`: Includes expiry of stale pending requests, the pending count per email, deletion after the retention period, deleting a booking and finding one customer's bookings by email.
 * `InputTest`: Real dates and times, email limits, text length in characters, control characters and broken UTF-8 rejected, multiline normalization, strict integers and decimals, phone numbers, IDs that cannot leave a directory.
 * `AdminAccountsTest`: `$apr1$` hashes match Apache's `htpasswd`, SHA-crypt and bcrypt verification, upgrade to bcrypt at sign-in, unknown users, username rules, fingerprint changes with the password, password policy.
 * `SecurityLogTest`: One JSON line per event, newest first, context values cannot break the line format.

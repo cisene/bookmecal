@@ -37,6 +37,26 @@
             <small class="muted"><?= e(__t('admin.config.pendingExpiryHint')) ?></small>
         </div>
 
+        <h3><?= e(__t('admin.config.privacyTitle')) ?></h3>
+        <p class="muted"><?= e(__t('admin.config.privacyIntro')) ?> <a href="../privacy.php" target="_blank" rel="noopener"><?= e(__t('admin.config.privacyView')) ?></a></p>
+
+        <div class="form-group">
+            <label for="cfg-business"><?= e(__t('admin.config.businessName')) ?></label>
+            <input type="text" id="cfg-business" name="business_name" maxlength="100" value="<?= e($businessName) ?>">
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-privacy-contact"><?= e(__t('admin.config.privacyContact')) ?></label>
+            <input type="email" id="cfg-privacy-contact" name="privacy_contact" maxlength="254" value="<?= e($privacyContact) ?>">
+            <small class="muted"><?= e(__t('admin.config.privacyContactHint')) ?></small>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-retention"><?= e(__t('admin.config.retentionDays')) ?></label>
+            <input type="number" id="cfg-retention" name="booking_retention_days" min="0" max="<?= e($maxRetentionDays) ?>" step="1" value="<?= e($retentionDays) ?>" required>
+            <small class="muted"><?= e(__t('admin.config.retentionDaysHint')) ?></small>
+        </div>
+
         <button type="submit" class="btn"><?= e(__t('admin.common.save')) ?></button>
     </form>
 </div>

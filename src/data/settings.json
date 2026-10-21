@@ -12,5 +12,8 @@
     "show_past_slots": true,
     "pending_expiry_hours": 48,
     "allowed_origins": [],
-    "admin_require_https": false
+    "admin_require_https": false,
+    "booking_retention_days": 365,
+    "business_name": "",
+    "privacy_contact": ""
 }

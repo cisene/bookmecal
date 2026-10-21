@@ -129,4 +129,12 @@ class ResourceProvider {
     public static function pendingExpiryHours(): int {
         return max(0, (int)(self::getSettings()['pending_expiry_hours'] ?? 48));
     }
+
+    /**
+     * Days after the appointment date after which a booking is deleted (settings.json
+     * booking_retention_days, default 365). 0 means bookings are kept until deleted by hand.
+     */
+    public static function bookingRetentionDays(): int {
+        return max(0, (int)(self::getSettings()['booking_retention_days'] ?? 365));
+    }
 }

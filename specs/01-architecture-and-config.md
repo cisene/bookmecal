@@ -7,6 +7,7 @@ The code is split into controllers (PHP that handles input and loads data), temp
 
 ## 1.1 Request flow
 - `src/index.php`: Public booking page controller, renders `templates/public/booking.php`.
+- `src/privacy.php`: Public privacy notice, renders `templates/public/privacy.php` (§1.8). Public pages share `templates/layout/public.php` (language switcher, footer link to the privacy notice, `js/public.js`).
 - `src/api.php`: JSON API used by the booking page (see [04-api-and-integrations.md](04-api-and-integrations.md)).
 - `src/admin/*.php`: Admin controllers. Each requires `admin/auth.php` (signed-in user required; built on `admin/session.php`), handles POST (CSRF-checked, Post/Redirect/Get) and renders a template in `templates/admin/` inside `templates/layout/admin.php`. `admin/login.php` and `admin/logout.php` handle sign-in (§1.4).
 - `src/send_reminders.php`: CLI-only cron script for 24-hour reminder emails.
@@ -93,3 +94,11 @@ Used by the API (dates, times, names, emails, service IDs) and by every admin fo
 | `csrf_failed` | Admin POST without a valid CSRF token (with `page`) |
 
 The newest 100 events are shown on the admin Users page. The one-line JSON format suits `fail2ban` (match on `"event":"login_failed"` and the `ip` field) for blocking at the firewall.
+
+## 1.8 Personal data (GDPR)
+The booking stores the customer's name, email address, chosen treatment and time, language and request time. Nothing else about customers is collected; there are no tracking cookies (the only public cookie remembers the language).
+
+- **Information:** The booking form says the name and email are only used for the booking and links to the privacy notice (`privacy.php`, also linked from every public page footer). The notice covers controller and contact, data, purpose and legal basis (GDPR 6.1 b; the security log 6.1 f), retention, sharing, cookies and the customer's rights. Business name and contact email come from `settings.json` `business_name` and `privacy_contact` (admin Config page); without them the notice uses neutral wording. Texts: `privacy.*` keys (en and sv complete).
+- **Retention:** Bookings are deleted automatically `booking_retention_days` days after the appointment date (default 365, 0 = keep, admin Config page). `BookingRepository::housekeeping()` runs the purge together with the pending expiry on every API request and on the admin dashboard and bookings pages.
+- **Access and erasure:** On the admin bookings page, a search by email lists one customer's bookings (case-insensitive). From there the admin can download them as JSON (right of access) or delete them all (right to erasure); single bookings can be deleted from any list. Bulk deletion only works with an email filter. Exports and deletions are recorded in the audit log without the email address.
+- **Other personal data:** The admin audit log keeps admin usernames and IP addresses (newest 200 entries). The security log keeps IP addresses of rejected requests and sign-ins and rotates at 1 MB. Rate-limit files contain only hashes.

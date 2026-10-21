@@ -99,7 +99,8 @@ bookmecal/
 │   ├── index.php
 │   ├── js
 │   │   ├── admin.js
-│   │   └── booking.js
+│   │   ├── booking.js
+│   │   └── public.js
 │   ├── language
 │   │   ├── de.json
 │   │   ├── el.json
@@ -117,6 +118,7 @@ bookmecal/
 │   │   └── zh-CN.json
 │   ├── locale
 │   │   └── se.json
+│   ├── privacy.php
 │   ├── send_reminders.php
 │   └── templates
 │       ├── admin
@@ -138,7 +140,8 @@ bookmecal/
 │       ├── partials
 │       │   └── csrf.php
 │       └── public
-│           └── booking.php
+│           ├── booking.php
+│           └── privacy.php
 └── tests
     ├── AdminAccountsTest.php
     ├── AvailabilityEngineTest.php
@@ -164,7 +167,7 @@ bookmecal/
 
 | File                                                                  | Description |
 | --------------------------------------------------------------------- | ----------- |
-| [01-architecture-and-config.md](01-architecture-and-config.md)        | Request flow, core classes, localization, admin sign-in, security headers, input validation, security log |
+| [01-architecture-and-config.md](01-architecture-and-config.md)        | Request flow, core classes, localization, admin sign-in, security headers, input validation, security log, personal data |
 | [02-storage-and-repository.md](02-storage-and-repository.md)          | Data files, locking and BookingRepository |
 | [03-business-logic-and-engine.md](03-business-logic-and-engine.md)    | BookingService soft slots and other engines |
 | [04-api-and-integrations.md](04-api-and-integrations.md)              | API actions, week plan format, booking page behaviour |
@@ -198,7 +201,7 @@ bookmecal/
 | data/credentials.json                                                 | Google OAuth client credentials |
 | data/openhours.json                                                   | Opening hours per weekday, used by the booking |
 | data/services.json                                                    | Treatments keyed by SKU |
-| data/settings.json                                                    | Timezone, default country, pending expiry, allowed origins, HTTPS-only admin |
+| data/settings.json                                                    | Timezone, default country, pending expiry, allowed origins, HTTPS-only admin, retention, business name and privacy contact |
 | data/secrets.json                                                     | Form token signing key (generated, not in git) |
 | admin/.htpasswd                                                       | Admin accounts (not in git) |
 | log/security.log                                                      | Security events, JSON lines (not in git) |

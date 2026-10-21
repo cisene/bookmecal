@@ -81,4 +81,41 @@ class BookingRepositoryTest extends TestCase {
             $this->removeDir($dir);
         }
     }
+
+    public function testPurgeDeletesOnlyBookingsPastTheRetentionPeriod() {
+        $now = new DateTimeImmutable('2099-06-30T12:00:00+02:00');
+        [$repository, $dir] = $this->tempRepository([
+            ['id' => 'book_a1', 'status' => 'approved', 'date' => '2099-05-30', 'time' => '10:00'],
+            ['id' => 'book_b2', 'status' => 'approved', 'date' => '2099-05-31', 'time' => '10:00'],
+            ['id' => 'book_c3', 'status' => 'pending', 'date' => '2099-07-01', 'time' => '10:00'],
+            ['id' => 'book_d4', 'status' => 'rejected', 'date' => 'garbage', 'time' => '10:00'],
+        ]);
+        try {
+            $this->assertSame(0, $repository->purgeEndedBefore(0, $now), '0 days keeps everything');
+            $this->assertSame(1, $repository->purgeEndedBefore(30, $now));
+            $remaining = array_keys($repository->getBookings());
+            sort($remaining);
+            $this->assertSame(['book_b2', 'book_c3', 'book_d4'], $remaining, 'records without a valid date are left alone');
+            $this->assertFalse(is_file($dir . '/booking_book_a1.json'));
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testDeleteBookingAndFindByEmail() {
+        [$repository, $dir] = $this->tempRepository([
+            ['id' => 'book_a1', 'status' => 'approved', 'date' => '2099-01-12', 'time' => '10:00', 'customer_email' => 'Anna@Example.se'],
+            ['id' => 'book_b2', 'status' => 'pending', 'date' => '2099-01-13', 'time' => '10:00', 'customer_email' => 'anna@example.se'],
+            ['id' => 'book_c3', 'status' => 'pending', 'date' => '2099-01-14', 'time' => '10:00', 'customer_email' => 'bo@example.se'],
+        ]);
+        try {
+            $this->assertSame(['book_a1', 'book_b2'], array_keys($repository->getBookingsFor(' anna@example.SE ')));
+            $this->assertTrue($repository->deleteBooking('book_a1'));
+            $this->assertFalse($repository->deleteBooking('book_a1'), 'already gone');
+            $this->assertFalse($repository->deleteBooking('../settings'), 'invalid IDs are refused');
+            $this->assertSame(['book_b2'], array_keys($repository->getBookingsFor('anna@example.se')));
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
 }

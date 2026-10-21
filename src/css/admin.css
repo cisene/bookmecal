@@ -115,3 +115,4 @@ td.actions { white-space: nowrap; }
     .form-grid .span-2 { grid-column: auto; }
 }
 .login-card { max-width: 420px; margin: 40px auto; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 15px; }

@@ -93,3 +93,9 @@ select, input { width: 100%; padding: 10px 12px; border: 1px solid var(--border)
     .selection-text { order: -1; flex-basis: 100%; }
 }
 
+
+/* Privacy notice and footer */
+.privacy-notice { font-size: 0.85rem; color: var(--muted); margin: 0 0 15px; }
+.site-footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid var(--border); text-align: center; font-size: 0.85rem; }
+.privacy h1 { text-align: left; }
+.privacy p { line-height: 1.55; }

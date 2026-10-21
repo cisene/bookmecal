@@ -47,6 +47,8 @@
         <input type="text" id="contactWebsite" name="website" tabindex="-1" autocomplete="off">
     </div>
 
+    <p class="privacy-notice"><?= e(__t('booking.form.privacyNotice')) ?> <a href="privacy.php"><?= e(__t('booking.form.privacyLink')) ?></a></p>
+
     <button type="submit" class="btn"><?= e(__t('booking.form.submit')) ?></button>
 </form>
 

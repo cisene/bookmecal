@@ -40,7 +40,7 @@ Checked in this order for every request:
 
 1. **CORS:** No `Access-Control-*` headers unless the request's `Origin` is listed in `settings.json` `allowed_origins`. Preflight (`OPTIONS`) from other origins gets `403 origin_not_allowed`.
 2. **Rate limits per client** (IPv4 address, or IPv6 /64 prefix; proxy headers are not trusted): read actions 120 requests per 5 minutes, `book` 10 attempts per hour (failed attempts count too). Over the limit: `429 rate_limited` with `Retry-After`.
-3. **Expiry:** Pending bookings older than `pending_expiry_hours` are expired before availability is computed.
+3. **Housekeeping:** Pending bookings older than `pending_expiry_hours` are expired and bookings older than `booking_retention_days` are deleted before availability is computed.
 
 For `book` additionally:
 
@@ -59,7 +59,7 @@ Rejections in steps 2 and 5–7 are written to the security log (`src/log/securi
 2. The week view shows one column per day with time running downwards: green = bookable (from the first to the last free start of a run, until that treatment would end), striped = booked, grey = passed, hatched narrow column = closed. White open time is too short for the chosen treatment.
 3. A block as long as the treatment marks the selected time. It is placed by tapping a green area (centred on the tap, snapped to the nearest free start), dragged (also across days), moved with the arrow keys (up/down: previous/next start, left/right: same time on another day), or stepped with the Earlier/Later buttons.
 4. Previous/next buttons and a date field move between weeks; weeks before the current one are not reachable.
-5. Name and email are entered and the request is sent with `book`, together with the page's form token and the (empty) honeypot field.
+5. Name and email are entered and the request is sent with `book`, together with the page's form token and the (empty) honeypot field. A short notice above the button links to the privacy notice (`privacy.php`).
 
 ## Integrations
 - Google Calendar: OAuth enrollment wizard in `admin/setup_google.php` (with `state` parameter). Calendar sync is not active yet.

@@ -458,7 +458,6 @@
     earlierBtn.addEventListener('click', () => stepSelection(-1));
     laterBtn.addEventListener('click', () => stepSelection(1));
     bookingForm.addEventListener('submit', submitBooking);
-    document.querySelectorAll('[data-autosubmit]').forEach((el) => el.addEventListener('change', () => el.form.submit()));
 
     updateWeekNav();
     loadServices();

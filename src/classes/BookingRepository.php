@@ -113,6 +113,52 @@ class BookingRepository {
     }
 
     /**
+     * Deletes bookings whose appointment date is more than $days days ago (data minimisation).
+     * Returns the number deleted. $days <= 0 keeps everything.
+     */
+    public function purgeEndedBefore(int $days, ?DateTimeInterface $now = null): int {
+        if ($days <= 0) {
+            return 0;
+        }
+        $now = $now ?? new DateTimeImmutable('now', $this->timezone);
+        $cutoff = DateTimeImmutable::createFromInterface($now)->setTimezone($this->timezone)->modify("-{$days} days")->format('Y-m-d');
+        $deleted = 0;
+        foreach ($this->getBookings() as $id => $booking) {
+            $date = (string)($booking['date'] ?? '');
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) && $date < $cutoff && $this->deleteBooking($id)) {
+                $deleted++;
+            }
+        }
+        return $deleted;
+    }
+
+    /**
+     * Routine upkeep before bookings are read: expires unanswered requests and deletes
+     * bookings past the retention period, as configured in settings.json.
+     */
+    public function housekeeping(): void {
+        $this->expireStalePending(ResourceProvider::pendingExpiryHours());
+        $this->purgeEndedBefore(ResourceProvider::bookingRetentionDays());
+    }
+
+    /**
+     * Permanently removes one booking file. Returns false for unknown or invalid IDs.
+     */
+    public function deleteBooking(string $bookingId): bool {
+        return self::isValidId($bookingId) && JsonStore::delete($this->bookingPath($bookingId));
+    }
+
+    /**
+     * Bookings for an email address (case-insensitive), keyed by ID, sorted by date.
+     */
+    public function getBookingsFor(string $email): array {
+        $email = mb_strtolower(trim($email));
+        return array_filter($this->getBookings(), function (array $booking) use ($email) {
+            return mb_strtolower((string)($booking['customer_email'] ?? '')) === $email;
+        });
+    }
+
+    /**
      * Pending bookings for an email address (case-insensitive) that have not started yet.
      */
     public function countUpcomingPendingFor(string $email, ?DateTimeInterface $now = null): int {

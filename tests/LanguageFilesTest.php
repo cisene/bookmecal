@@ -18,7 +18,7 @@ class LanguageFilesTest extends TestCase {
     /** Keys built at runtime from a prefix plus a value, listed here so they are checked too. */
     private const DYNAMIC_KEYS = [
         'admin.status.' => ['pending', 'approved', 'confirmed', 'rejected', 'cancelled', 'expired'],
-        'admin.pending.done.' => ['approve', 'reject'],
+        'admin.pending.done.' => ['approve', 'reject', 'delete'],
         'admin.pending.' => ['approve', 'reject'],
         'admin.login.' => ['expired', 'signedOut'],
         'admin.services.done.' => ['saved', 'deleted'],
@@ -64,7 +64,7 @@ class LanguageFilesTest extends TestCase {
             if (!in_array($file->getExtension(), ['php', 'js'], true)) {
                 continue;
             }
-            preg_match_all("/'((?:admin|booking|common|email|meta)\.[a-zA-Z0-9.]*[a-zA-Z0-9])'/", file_get_contents($file->getPathname()), $m);
+            preg_match_all("/'((?:admin|booking|common|email|meta|privacy)\.[a-zA-Z0-9.]*[a-zA-Z0-9])'/", file_get_contents($file->getPathname()), $m);
             foreach ($m[1] as $key) {
                 $keys[$key] = $file->getFilename();
             }
