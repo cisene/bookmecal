@@ -1,29 +1,31 @@
 <?php
-// Localization.php - Multi-language translation class with JSON dictionary support
+/**
+ * src/classes/Localization.php
+ * JSON dictionary translations (src/language/{lang}.json) with namespaced keys,
+ * per-key fallback to English and the global __t() helper.
+ */
+
+require_once __DIR__ . '/ResourceProvider.php';
 
 class Localization {
-    private static ?Localization $instance = null;
-    private string $currentLang;
-    private static array $dictionaries = [];
-    
-    public const DEFAULT_LANG = 'en';
-    // Must match the files in src/language/ (all share one key set, enforced by LanguageFilesTest)
+    public const FALLBACK_LANG = 'en';
+
+    // Must match the files in src/language/ (enforced by LanguageFilesTest)
     public const SUPPORTED_LANGS = [
         'en', 'sv', 'de', 'el', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'th', 'tl', 'vi', 'zh-CN'
     ];
 
+    private const COOKIE = 'app_lang';
+    private const LANGUAGE_DIR = __DIR__ . '/../language';
+
+    private static ?Localization $instance = null;
+    private static array $dictionaries = [];
+    private string $currentLang;
+
     public function __construct(?string $lang = null) {
-        if (session_status() === PHP_SESSION_NONE && !headers_sent() && PHP_SAPI !== 'cli') {
-            session_start();
-        }
-        $this->currentLang = ($lang !== null && in_array($lang, self::SUPPORTED_LANGS, true))
-            ? $lang
-            : $this->determineLanguage();
+        $this->currentLang = self::isSupported($lang) ? $lang : $this->determineLanguage();
     }
 
-    /**
-     * Singleton instance accessor.
-     */
     public static function getInstance(): self {
         if (self::$instance === null) {
             self::$instance = new self();
@@ -31,85 +33,87 @@ class Localization {
         return self::$instance;
     }
 
+    public static function isSupported(?string $lang): bool {
+        return is_string($lang) && in_array($lang, self::SUPPORTED_LANGS, true);
+    }
+
+    /**
+     * Order: ?lang= (remembered in a cookie), cookie, configured app language, English.
+     */
     private function determineLanguage(): string {
-        // 1. Check GET parameter (e.g. ?lang=sv)
-        if (isset($_GET['lang']) && in_array($_GET['lang'], self::SUPPORTED_LANGS, true)) {
-            $lang = $_GET['lang'];
-            
+        $requested = $_GET['lang'] ?? null;
+        if (self::isSupported($requested)) {
             if (!headers_sent()) {
-                setcookie('app_lang', $lang, [
-                    'expires'  => time() + (86400 * 30),
-                    'path'     => '/',
+                setcookie(self::COOKIE, $requested, [
+                    'expires' => time() + 86400 * 365,
+                    'path' => '/',
                     'httponly' => true,
-                    'samesite' => 'Lax'
+                    'samesite' => 'Lax',
                 ]);
             }
-            $_SESSION['app_lang'] = $lang;
-
-            return $lang;
+            return $requested;
         }
 
-        // 2. Check Cookie
-        if (isset($_COOKIE['app_lang']) && in_array($_COOKIE['app_lang'], self::SUPPORTED_LANGS, true)) {
-            return $_COOKIE['app_lang'];
+        $cookie = $_COOKIE[self::COOKIE] ?? null;
+        if (self::isSupported($cookie)) {
+            return $cookie;
         }
 
-        // 3. Check Session
-        if (isset($_SESSION['app_lang']) && in_array($_SESSION['app_lang'], self::SUPPORTED_LANGS, true)) {
-            return $_SESSION['app_lang'];
-        }
-
-        // 4. Fallback to default
-        return self::DEFAULT_LANG;
+        $configured = ResourceProvider::getConfig()['app']['language'] ?? null;
+        return self::isSupported($configured) ? $configured : self::FALLBACK_LANG;
     }
 
     public function getCurrentLang(): string {
         return $this->currentLang;
     }
 
-    /**
-     * Loads the language JSON dictionary into memory with static caching.
-     */
     public function loadDictionary(string $lang): array {
-        // Only whitelisted codes may reach the filesystem path
-        if (!in_array($lang, self::SUPPORTED_LANGS, true)) {
-            $lang = self::DEFAULT_LANG;
+        if (!self::isSupported($lang)) {
+            $lang = self::FALLBACK_LANG;
         }
         if (!isset(self::$dictionaries[$lang])) {
-            $filePath = dirname(__DIR__) . "/language/{$lang}.json";
-            if (file_exists($filePath)) {
-                $jsonContent = file_get_contents($filePath);
-                self::$dictionaries[$lang] = json_decode($jsonContent, true) ?? [];
-            } else {
-                // Fallback to default language dictionary if requested file is missing
-                $fallbackPath = dirname(__DIR__) . "/language/" . self::DEFAULT_LANG . ".json";
-                self::$dictionaries[$lang] = file_exists($fallbackPath) 
-                    ? (json_decode(file_get_contents($fallbackPath), true) ?? [])
-                    : [];
-            }
+            self::$dictionaries[$lang] = JsonStore::read(self::LANGUAGE_DIR . "/{$lang}.json") ?? [];
         }
-
         return self::$dictionaries[$lang];
     }
 
     /**
-     * Translates a key with optional dynamic placeholders (e.g., {name}).
+     * Translates $key, falling back to English and finally to the key itself.
+     * Placeholders are written as {name} in the dictionary.
      */
     public function translate(string $key, array $placeholders = [], ?string $langOverride = null): string {
-        $lang = $langOverride ?? $this->currentLang;
-        $dictionary = $this->loadDictionary($lang);
+        $translation = $this->loadDictionary($langOverride ?? $this->currentLang)[$key]
+            ?? $this->loadDictionary(self::FALLBACK_LANG)[$key]
+            ?? $key;
 
-        $translation = $dictionary[$key] ?? $key;
-
-        foreach ($placeholders as $placeholderKey => $value) {
-            $translation = str_replace("{{$placeholderKey}}", (string)$value, $translation);
+        foreach ($placeholders as $name => $value) {
+            $translation = str_replace('{' . $name . '}', (string)$value, $translation);
         }
-
         return $translation;
+    }
+
+    /**
+     * All translations whose key starts with $prefix (for handing to JavaScript).
+     */
+    public function exportPrefix(string $prefix): array {
+        $merged = $this->loadDictionary($this->currentLang) + $this->loadDictionary(self::FALLBACK_LANG);
+        return array_filter($merged, function ($key) use ($prefix) {
+            return strncmp($key, $prefix, strlen($prefix)) === 0;
+        }, ARRAY_FILTER_USE_KEY);
+    }
+
+    /**
+     * Language code => native language name, for language switchers.
+     */
+    public function availableLanguages(): array {
+        $languages = [];
+        foreach (self::SUPPORTED_LANGS as $lang) {
+            $languages[$lang] = $this->loadDictionary($lang)['meta.nativeName'] ?? $lang;
+        }
+        return $languages;
     }
 }
 
-// --- BACKWARD-COMPATIBLE GLOBAL HELPER ---
 if (!function_exists('__t')) {
     function __t(string $key, array $placeholders = [], ?string $langOverride = null): string {
         return Localization::getInstance()->translate($key, $placeholders, $langOverride);

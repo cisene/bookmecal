@@ -1,0 +1,24 @@
+# Repo-root .htaccess - Book Me Calendar
+# Only takes effect when the web server's document root is the repository folder.
+# The application lives in src/; everything else (.git/, specs/, tests/, phpunit.xml,
+# README.md, ...) must never be served.
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Requests into src/ pass through; src/.htaccess applies its own rules there
+    RewriteRule ^src(/|$) - [L]
+
+    # Bare site root goes to the app
+    RewriteRule ^$ src/ [R=302,L]
+
+    # Everything else is forbidden
+    RewriteRule ^ - [F]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    # Without mod_rewrite: answer 404 for anything outside src/
+    RedirectMatch 404 ^/(?!src(/|$))
+</IfModule>

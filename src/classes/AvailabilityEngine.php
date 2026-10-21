@@ -23,7 +23,7 @@ class AvailabilityEngine {
             if (!$service) {
                 return []; // Unknown service: never invent a default duration for it
             }
-            $duration = (int)($service['duration_minutes'] ?? $service['duration'] ?? 45);
+            $duration = (int)($service['duration'] ?? 45);
             $cleanup = (int)($service['cleanup'] ?? 15);
         }
 

@@ -1,47 +1,57 @@
 <?php
 /**
  * src/classes/ResourceProvider.php
- * Transparent abstraction layer for data resources without hardcoded assumptions or fallback defaults.
+ * Read access to the JSON data resources. All data paths are resolved through dataPath(),
+ * so the storage location can later be switched per customer in one place.
  */
 
+require_once __DIR__ . '/JsonStore.php';
+
 class ResourceProvider {
-    
-    public static function initTimezone() {
-        $settings = self::getSettings();
-        $tz = $settings['timezone'] ?? null;
-        if ($tz && function_exists('date_default_timezone_set')) {
-            @date_default_timezone_set($tz);
-        }
-        return $tz;
+    private const DATA_DIR = __DIR__ . '/../data';
+    private const HOLIDAY_DIR = __DIR__ . '/../holidays';
+
+    /**
+     * Absolute path of a file or folder inside the data directory.
+     */
+    public static function dataPath(string $relative = ''): string {
+        return rtrim(self::DATA_DIR . '/' . ltrim($relative, '/'), '/');
     }
 
-    private static function readJsonFile($filePath) {
-        if (!file_exists($filePath)) {
-            return null;
+    public static function initTimezone(): ?string {
+        $tz = self::getSettings()['timezone'] ?? null;
+        if (is_string($tz) && in_array($tz, timezone_identifiers_list(), true)) {
+            date_default_timezone_set($tz);
+            return $tz;
         }
-
-        $content = file_get_contents($filePath);
-        if ($content === false) {
-            return null;
-        }
-        
-        if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
-            $content = substr($content, 3);
-        }
-
-        $decoded = json_decode($content, true);
-        return is_array($decoded) ? $decoded : null;
+        return null;
     }
 
-    public static function getSettings() {
-        $filePath = dirname(__DIR__) . '/data/settings.json';
-        return self::readJsonFile($filePath);
+    public static function getTimezone(): DateTimeZone {
+        $tz = self::getSettings()['timezone'] ?? null;
+        return new DateTimeZone(is_string($tz) && in_array($tz, timezone_identifiers_list(), true) ? $tz : 'Europe/Stockholm');
+    }
+
+    public static function getSettings(): ?array {
+        return JsonStore::read(self::dataPath('settings.json'));
+    }
+
+    public static function getConfig(): ?array {
+        return JsonStore::read(self::dataPath('config.json'));
+    }
+
+    public static function getServices(): ?array {
+        return JsonStore::read(self::dataPath('services.json'));
+    }
+
+    public static function getOpenHours(): ?array {
+        return JsonStore::read(self::dataPath('openhours.json'));
     }
 
     /**
      * Normalizes a country code; returns null unless it is exactly two letters (blocks path traversal).
      */
-    public static function sanitizeCountryCode($countryCode) {
+    public static function sanitizeCountryCode($countryCode): ?string {
         if (!is_string($countryCode)) {
             return null;
         }
@@ -49,49 +59,66 @@ class ResourceProvider {
         return preg_match('/^[a-z]{2}$/', $countryCode) ? $countryCode : null;
     }
 
-    public static function getHolidays($countryCode) {
+    public static function holidayPath(string $countryCode): ?string {
         $countryCode = self::sanitizeCountryCode($countryCode);
-        if ($countryCode === null) {
+        return $countryCode === null ? null : self::HOLIDAY_DIR . "/{$countryCode}.json";
+    }
+
+    public static function getHolidays($countryCode): ?array {
+        $path = is_string($countryCode) ? self::holidayPath($countryCode) : null;
+        if ($path === null) {
             return null;
         }
-        $filePath = dirname(__DIR__) . "/holidays/{$countryCode}.json";
-        $data = self::readJsonFile($filePath);
-        return $data['holidays'] ?? null;
+        $holidays = JsonStore::read($path)['holidays'] ?? null;
+        return is_array($holidays) ? $holidays : null;
     }
 
-    public static function getServices() {
-        $filePath = dirname(__DIR__) . '/data/services.json';
-        return self::readJsonFile($filePath);
-    }
-
-    public static function getServiceById($serviceId) {
+    /**
+     * Finds a service by its storage key, SKU or id field.
+     */
+    public static function getServiceById($serviceId): ?array {
         $services = self::getServices();
         if (!$services) {
             return null;
         }
-        $serviceId = trim(urldecode((string)$serviceId));
-        
-        if (isset($services[$serviceId])) {
+        $serviceId = trim((string)$serviceId);
+        if ($serviceId === '') {
+            return null;
+        }
+
+        if (isset($services[$serviceId]) && is_array($services[$serviceId])) {
             return $services[$serviceId];
         }
 
-        foreach ($services as $key => $service) {
-            $decodedKey = trim(urldecode((string)$key));
-            if ($decodedKey === $serviceId || (string)$key === (string)$serviceId) {
-                return $service;
+        foreach ($services as $service) {
+            if (!is_array($service)) {
+                continue;
             }
-            
-            $currentSku = isset($service['sku']) ? trim(urldecode((string)$service['sku'])) : null;
-            $currentId = isset($service['id']) ? trim((string)$service['id']) : null;
-            
-            if (($currentSku !== null && $currentSku === $serviceId) ||
-                ($currentId !== null && $currentId === $serviceId)) {
+            if ((isset($service['sku']) && (string)$service['sku'] === $serviceId) ||
+                (isset($service['id']) && (string)$service['id'] === $serviceId)) {
                 return $service;
             }
         }
-        
+
         return null;
     }
-}
 
-ResourceProvider::initTimezone();
+    /**
+     * Treatment length; 'duration' is always in minutes.
+     */
+    public static function serviceDuration(array $service): ?int {
+        $raw = $service['duration'] ?? null;
+        return ($raw !== null && (int)$raw > 0) ? (int)$raw : null;
+    }
+
+    /**
+     * Buffer after a treatment in minutes.
+     */
+    public static function serviceCleanup(array $service): int {
+        return max(0, (int)($service['cleanup'] ?? 0));
+    }
+
+    public static function isServiceActive(array $service): bool {
+        return !(isset($service['is_active']) && $service['is_active'] === false);
+    }
+}

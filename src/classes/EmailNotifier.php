@@ -1,5 +1,10 @@
 <?php
-// EmailNotifier.php - Handles email notifications for booking confirmations and admin alerts
+/**
+ * src/classes/EmailNotifier.php
+ * Plain-text notification emails. All texts come from the language files (email.* keys).
+ */
+
+require_once __DIR__ . '/Localization.php';
 
 class EmailNotifier {
     private array $smtpConfig;
@@ -9,59 +14,60 @@ class EmailNotifier {
     }
 
     /**
-     * Sends a booking confirmation email to the client.
+     * Confirmation to the customer that their request was received.
      */
-    public function sendBookingConfirmation(string $toEmail, string $clientName, string $start, string $end): bool {
-        $subject = 'Booking Request Confirmation - Book Me Calendar';
-        $message = "Hello {$clientName},\n\n"
-            . "We have received your booking request for the following time slot:\n"
-            . "Start: {$start}\n"
-            . "End: {$end}\n\n"
-            . "Your request is currently pending review. We will notify you once it has been approved.\n\n"
-            . "Best regards,\nBook Me Calendar Team";
-
-        return $this->sendMail($toEmail, $subject, $message);
+    public function sendBookingConfirmation(string $toEmail, string $clientName, string $start, string $end, ?string $lang = null): bool {
+        $vars = ['name' => $clientName, 'start' => $start, 'end' => $end];
+        return $this->send(
+            $toEmail,
+            __t('email.confirmation.subject', $vars, $lang),
+            __t('email.confirmation.body', $vars, $lang)
+        );
     }
 
     /**
-     * Sends a notification alert to the administrator about a new booking request.
+     * Alert to the administrator about a new booking request.
      */
-    public function sendAdminAlert(string $adminEmail, string $clientName, string $clientEmail, string $start, string $end): bool {
-        $subject = 'New Booking Request - Book Me Calendar';
-        $message = "A new booking request has been submitted:\n\n"
-            . "Client: {$clientName} ({$clientEmail})\n"
-            . "Start: {$start}\n"
-            . "End: {$end}\n\n"
-            . "Please log in to the system to review, approve, or reject this request.";
-
-        return $this->sendMail($adminEmail, $subject, $message);
+    public function sendAdminAlert(string $adminEmail, string $serviceName, string $clientName, string $clientEmail, string $time, ?string $lang = null): bool {
+        $vars = ['service' => $serviceName, 'name' => $clientName, 'email' => $clientEmail, 'phone' => '-', 'time' => $time];
+        return $this->send(
+            $adminEmail,
+            __t('email.admin.newBooking.subject', $vars, $lang),
+            __t('email.admin.newBooking.body', $vars, $lang)
+        );
     }
 
     /**
-     * Core mail dispatch helper supporting native mail or custom headers.
+     * Reminder sent the day before an approved appointment.
      */
-    private function sendMail(string $to, string $subject, string $body): bool {
+    public function sendReminder(string $toEmail, string $clientName, string $serviceName, string $time, string $price, string $currency, ?string $lang = null): bool {
+        $vars = ['name' => $clientName, 'service' => $serviceName, 'time' => $time, 'price' => $price, 'currency' => $currency];
+        $body = __t('email.reminder.heading', $vars, $lang) . "\n\n"
+            . __t('email.reminder.intro', $vars, $lang) . "\n\n"
+            . __t('email.reminder.policyNotice', $vars, $lang);
+        return $this->send($toEmail, __t('email.reminder.subject', $vars, $lang), $body);
+    }
+
+    /**
+     * Sends one plain-text mail. Rejects malformed addresses and strips CR/LF from header
+     * values so user-supplied data cannot inject extra mail headers.
+     */
+    public function send(string $to, string $subject, string $body): bool {
         $fromEmail = $this->smtpConfig['from_email'] ?? 'noreply@example.com';
         $fromName = $this->smtpConfig['from_name'] ?? 'Book Me Calendar';
 
-        // Refuse CR/LF and malformed addresses so user-supplied values cannot inject extra mail headers
         if (filter_var($to, FILTER_VALIDATE_EMAIL) === false || filter_var($fromEmail, FILTER_VALIDATE_EMAIL) === false) {
             return false;
         }
         $subject = str_replace(["\r", "\n"], ' ', $subject);
         $fromName = str_replace(["\r", "\n", '<', '>'], ' ', (string)$fromName);
-        
-        $headers = "MIME-Version: 1.0\r\n";
-        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-        $headers .= "From: {$fromName} <{$fromEmail}>\r\n";
-        $headers .= "Reply-To: {$fromEmail}\r\n";
 
-        // If SMTP is disabled in config, fallback to PHP's native mail function
-        if (empty($this->smtpConfig['enabled'])) {
-            return @mail($to, $subject, $body, $headers);
-        }
+        $headers = "MIME-Version: 1.0\r\n"
+            . "Content-Type: text/plain; charset=UTF-8\r\n"
+            . "From: {$fromName} <{$fromEmail}>\r\n"
+            . "Reply-To: {$fromEmail}\r\n";
 
-        // When SMTP is enabled, mail() can be configured via php.ini or an SMTP transport wrapper.
-        return @mail($to, $subject, $body, $headers);
+        // SMTP transport is configured through php.ini (sendmail_path / SMTP) for now
+        return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
     }
 }

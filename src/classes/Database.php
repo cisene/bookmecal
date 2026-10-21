@@ -4,8 +4,8 @@ class Database {
     private static ?PDO $connection = null;
 
     /**
-     * Skapar eller återanvänder en existerande PDO-anslutning baserat på konfiguration.
-     * Stöder MySQL, SQLite och PostgreSQL.
+     * Creates or reuses a PDO connection based on the given configuration.
+     * Supports MySQL, SQLite and PostgreSQL.
      */
 
     public function __destruct() {}
@@ -16,7 +16,7 @@ class Database {
             return self::$connection;
         }
 
-        // Om ingen konfiguration skickas med, försök ladda från config.php om den finns
+        // Without a configuration, try loading it from config.php if present
         if (empty($config)) {
             $configFile = __DIR__ . '/config.php';
             if (file_exists($configFile)) {
@@ -40,7 +40,7 @@ class Database {
                         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     ]);
-                    // Aktivera främmande nycklar för SQLite
+                    // Enable foreign keys for SQLite
                     $pdo->exec('PRAGMA foreign_keys = ON;');
                     break;
 
@@ -83,24 +83,24 @@ class Database {
 
         } catch (PDOException $e) {
             error_log("Database Connection Error: " . $e->getMessage());
-            throw new RuntimeException("Kunde inte ansluta till databasen. Kontrollera konfigurationen.");
+            throw new RuntimeException("Could not connect to the database. Check the configuration.");
         }
     }
 
     /**
-     * Tillåter att manuellt sätta PDO-instans (t.ex. vid enhetstester/mocking).
+     * Sets the PDO instance manually (e.g. for unit tests/mocking).
      */
     public static function setConnection(PDO $pdo): void {
         self::$connection = $pdo;
     }
 
     /**
-     * Stänger anslutningen (användbart vid tester eller långkörande skript).
+     * Closes the connection (useful in tests or long-running scripts).
      */
     public static function disconnect(): void {
         self::$connection = null;
     }
 }
 
-// Bakåtkompatibel $pdo för skript som kräver db.php direkt
+// Backward-compatible $pdo for scripts that include db.php directly
 $pdo = Database::getConnection();

@@ -1,0 +1,41 @@
+/**
+ * src/js/admin.js
+ * Small behaviours for the admin pages, wired through data attributes:
+ *   data-confirm="text"    on a form: ask before submitting
+ *   data-autosubmit        on a select: submit its form on change
+ *   data-edit-form="id"    on a button: copy data-values (JSON) into that form's fields
+ */
+(function () {
+    'use strict';
+
+    document.querySelectorAll('form[data-confirm]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (!window.confirm(form.dataset.confirm)) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-autosubmit]').forEach((el) => {
+        el.addEventListener('change', () => el.form.submit());
+    });
+
+    document.querySelectorAll('[data-edit-form]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const form = document.getElementById(button.dataset.editForm);
+            const values = JSON.parse(button.dataset.values || '{}');
+            Object.entries(values).forEach(([name, value]) => {
+                const field = form.elements.namedItem(name);
+                if (!field) {
+                    return;
+                }
+                if (field.type === 'checkbox') {
+                    field.checked = Boolean(value);
+                } else {
+                    field.value = value === null ? '' : value;
+                }
+            });
+            form.scrollIntoView({ behavior: 'smooth' });
+        });
+    });
+})();

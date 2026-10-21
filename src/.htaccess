@@ -15,8 +15,9 @@ Options -MultiViews +FollowSymLinks
 RewriteEngine On
 RewriteBase /
 
-# 1. Protect sensitive folders (cache/ and data/) using RewriteRule instead of RedirectMatch
-RewriteRule ^(.*/)?(cache|data)/.*$ - [F,L]
+# 1. Protect internal folders: data, cache, logs, PHP classes and templates
+RewriteRule ^(.*/)?(cache|data|log|classes|templates)/.*$ - [F,L]
+RewriteRule ^bootstrap\.php$ - [F,L]
 
 # 2. Block unnecessary or risky HTTP methods
 RewriteCond %{REQUEST_METHOD} ^(CONNECT|DEBUG|DELETE|MOVE|PUT|TRACE|TRACK) [NC]

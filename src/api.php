@@ -1,175 +1,138 @@
 <?php
 /**
  * src/api.php
- * Central REST API endpoint handling service discovery, slot availability, and booking requests.
+ * JSON API: service discovery, slot availability and booking requests.
+ * Errors carry an English 'error' (for logs/debugging) and a stable 'code' that clients translate.
  */
+
+require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/classes/BookingRepository.php';
+require_once __DIR__ . '/classes/BookingService.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+    http_response_code(204);
     exit();
 }
 
-require_once __DIR__ . '/classes/ResourceProvider.php';
-require_once __DIR__ . '/classes/BookingRepository.php';
-require_once __DIR__ . '/classes/BookingService.php';
-
-ResourceProvider::initTimezone();
-
-/**
- * Returns a trimmed string parameter, or '' when missing or not a scalar string (e.g. ?x[]=1).
- */
-function input_string(array $source, string $key): string {
-    return (isset($source[$key]) && is_string($source[$key])) ? trim($source[$key]) : '';
+function respond(array $payload, int $status = 200): void {
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit();
 }
 
-$action = input_string($_GET, 'action');
-$repository = new BookingRepository();
-$serviceLayer = new BookingService();
+function fail(int $status, string $code, string $message): void {
+    respond(['success' => false, 'code' => $code, 'error' => $message], $status);
+}
 
-switch ($action) {
+function is_valid_date(string $date): bool {
+    $parsed = DateTime::createFromFormat('Y-m-d', $date);
+    return $parsed && $parsed->format('Y-m-d') === $date;
+}
+
+function is_valid_time(string $time): bool {
+    $parsed = DateTime::createFromFormat('H:i', $time);
+    return $parsed && $parsed->format('H:i') === $time;
+}
+
+$repository = new BookingRepository();
+$serviceLayer = new BookingService($repository);
+$defaultCountry = ResourceProvider::getSettings()['default_country'] ?? 'se';
+
+switch (request_string($_GET, 'action')) {
     case 'get_services':
-        $services = $repository->getServices() ?? [];
-        // Hide inactive services from the public booking form
-        $services = array_filter($services, function ($srv) {
-            return is_array($srv) && !(isset($srv['is_active']) && $srv['is_active'] === false);
+        $services = array_filter($repository->getServices() ?? [], function ($service) {
+            return is_array($service) && ResourceProvider::isServiceActive($service);
         });
-        echo json_encode([
-            'success' => true,
-            'data' => $services
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        respond(['success' => true, 'data' => $services]);
         break;
 
     case 'check_availability':
-        $date = input_string($_GET, 'date');
-        $serviceId = input_string($_GET, 'service_id');
-        $country = ResourceProvider::sanitizeCountryCode(input_string($_GET, 'country') ?: 'se');
+        $date = request_string($_GET, 'date');
+        $serviceId = request_string($_GET, 'service_id');
+        $country = ResourceProvider::sanitizeCountryCode(request_string($_GET, 'country', $defaultCountry));
 
-        if ($country === null) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Invalid country code.']);
-            exit();
+        if ($date === '' || $serviceId === '') {
+            fail(400, 'missing_fields', 'Missing required parameters: date and service_id.');
         }
-
-        if (empty($date) || empty($serviceId)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Missing required parameters: date and service_id.']);
-            exit();
+        if ($country === null) {
+            fail(400, 'invalid_country', 'Invalid country code.');
         }
 
         $slots = $serviceLayer->getAvailableSlots($date, $serviceId, $country);
         if ($slots === null) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Invalid date format or unknown service ID.']);
-            exit();
+            fail(400, 'invalid_request', 'Invalid date format or unknown service ID.');
         }
-
-        echo json_encode([
-            'success' => true,
-            'date' => $date,
-            'slots' => $slots
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        respond(['success' => true, 'date' => $date, 'slots' => $slots]);
         break;
 
     case 'book':
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            echo json_encode(['success' => false, 'error' => 'Method not allowed. Use POST.']);
-            exit();
+            fail(405, 'method_not_allowed', 'Method not allowed. Use POST.');
         }
 
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = json_decode((string)file_get_contents('php://input'), true);
         if (!is_array($input)) {
             $input = $_POST;
         }
 
-        $serviceId = input_string($input, 'service_id');
-        $date = input_string($input, 'date');
-        $time = input_string($input, 'time');
-        $customerName = input_string($input, 'customer_name');
-        $customerEmail = input_string($input, 'customer_email');
+        $serviceId = request_string($input, 'service_id');
+        $date = request_string($input, 'date');
+        $time = request_string($input, 'time');
+        $customerName = request_string($input, 'customer_name');
+        $customerEmail = request_string($input, 'customer_email');
 
-        if (empty($serviceId) || empty($date) || empty($time) || empty($customerName) || empty($customerEmail)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Missing mandatory booking fields.']);
-            exit();
+        if ($serviceId === '' || $date === '' || $time === '' || $customerName === '' || $customerEmail === '') {
+            fail(400, 'missing_fields', 'Missing mandatory booking fields.');
         }
-
-        $parsedDate = DateTime::createFromFormat('Y-m-d', $date);
-        $parsedTime = DateTime::createFromFormat('H:i', $time);
-        $validationError = null;
-        if (!$parsedDate || $parsedDate->format('Y-m-d') !== $date) {
-            $validationError = 'Invalid date format. Use YYYY-MM-DD.';
-        } elseif (!$parsedTime || $parsedTime->format('H:i') !== $time) {
-            $validationError = 'Invalid time format. Use HH:MM.';
-        } elseif (filter_var($customerEmail, FILTER_VALIDATE_EMAIL) === false || strlen($customerEmail) > 254) {
-            $validationError = 'Invalid email address.';
-        } elseif (mb_strlen($customerName) > 100 || preg_match('/[\x00-\x1F\x7F]/', $customerName)) {
-            $validationError = 'Invalid customer name.';
-        } elseif (strlen($serviceId) > 100 || $repository->getServiceById($serviceId) === null) {
-            $validationError = 'Unknown service ID.';
+        if (!is_valid_date($date)) {
+            fail(400, 'invalid_date', 'Invalid date format. Use YYYY-MM-DD.');
         }
-
-        if ($validationError !== null) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => $validationError]);
-            exit();
+        if (!is_valid_time($time)) {
+            fail(400, 'invalid_time', 'Invalid time format. Use HH:MM.');
+        }
+        if (strlen($customerEmail) > 254 || filter_var($customerEmail, FILTER_VALIDATE_EMAIL) === false) {
+            fail(400, 'invalid_email', 'Invalid email address.');
+        }
+        if (mb_strlen($customerName) > 100 || preg_match('/[\x00-\x1F\x7F]/', $customerName)) {
+            fail(400, 'invalid_name', 'Invalid customer name.');
+        }
+        if (strlen($serviceId) > 100 || $repository->getServiceById($serviceId) === null) {
+            fail(400, 'unknown_service', 'Unknown service ID.');
         }
 
         // Check availability and save under one lock so two concurrent requests cannot take the same slot
-        $settings = ResourceProvider::getSettings();
-        $country = $settings['default_country'] ?? 'se';
-        $result = $repository->withBookingLock(function () use ($repository, $serviceLayer, $serviceId, $date, $time, $customerName, $customerEmail, $country) {
-            // The requested time must be one of the slots still offered for that date/service
-            $offeredSlots = $serviceLayer->getAvailableSlots($date, $serviceId, $country) ?? [];
-            $chosenSlot = null;
-            foreach ($offeredSlots as $slot) {
+        $bookingId = $repository->withBookingLock(function () use ($repository, $serviceLayer, $serviceId, $date, $time, $customerName, $customerEmail, $defaultCountry) {
+            foreach ($serviceLayer->getAvailableSlots($date, $serviceId, $defaultCountry) ?? [] as $slot) {
                 if ($slot['start_time'] === $time) {
-                    $chosenSlot = $slot;
-                    break;
+                    return $repository->createPendingRequest([
+                        'service_id' => $serviceId,
+                        'date' => $date,
+                        'time' => $time,
+                        'end_time' => $slot['end_time'],
+                        'customer_name' => $customerName,
+                        'customer_email' => $customerEmail,
+                        'language' => Localization::getInstance()->getCurrentLang(),
+                        'status' => 'pending',
+                    ]) ?? false;
                 }
             }
-            if ($chosenSlot === null) {
-                return ['unavailable' => true];
-            }
-
-            return ['id' => $repository->createPendingRequest([
-                'service_id' => $serviceId,
-                'date' => $date,
-                'time' => $time,
-                'end_time' => $chosenSlot['end_time'],
-                'customer_name' => $customerName,
-                'customer_email' => $customerEmail,
-                'status' => 'pending'
-            ])];
+            return null;
         });
 
-        if (!empty($result['unavailable'])) {
-            http_response_code(409);
-            echo json_encode(['success' => false, 'error' => 'The selected time slot is no longer available.']);
-            exit();
-        }
-
-        $bookingId = $result['id'];
         if ($bookingId === null) {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Failed to save booking request.']);
-            exit();
+            fail(409, 'slot_unavailable', 'The selected time slot is no longer available.');
         }
-
-        echo json_encode([
-            'success' => true,
-            'booking_id' => $bookingId,
-            'message' => 'Booking request submitted successfully and is pending approval.'
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        if ($bookingId === false) {
+            fail(500, 'save_failed', 'Failed to save booking request.');
+        }
+        respond(['success' => true, 'booking_id' => $bookingId]);
         break;
 
     default:
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Invalid or unspecified API action.']);
-        break;
+        fail(400, 'invalid_action', 'Invalid or unspecified API action.');
 }

@@ -1,8 +1,8 @@
 <?php
 /**
  * src/classes/BookingService.php
- * Business logic layer for availability calculations, slot generation, 
- * and validation adhering to strict null fallbacks and 24-hour time standards.
+ * Business logic for slot generation: opening hours, holidays, service duration and
+ * cleanup buffer, minus slots already taken by pending/approved bookings.
  */
 
 require_once __DIR__ . '/BookingRepository.php';
@@ -12,100 +12,76 @@ class BookingService {
     private BookingRepository $repository;
     private DateTimeZone $timezone;
 
-    public function __construct() {
-        $this->repository = new BookingRepository();
-        $settings = ResourceProvider::getSettings();
-        $tzString = ($settings && isset($settings['timezone'])) ? $settings['timezone'] : 'Europe/Stockholm';
-        $this->timezone = new DateTimeZone($tzString);
+    public function __construct(?BookingRepository $repository = null) {
+        $this->repository = $repository ?? new BookingRepository();
+        $this->timezone = ResourceProvider::getTimezone();
     }
 
     /**
-     * Calculates available time slots for a specific date and service.
-     * Returns NULL if parameters are invalid, or an array of slots (empty if closed/holiday).
+     * Available slots for a date and service. Returns null when the date is invalid or the
+     * service is unknown/inactive/without duration; an empty array when closed or fully booked.
      */
     public function getAvailableSlots(string $dateStr, string $serviceId, string $countryCode = 'se'): ?array {
-        // Validate strict ISO date format (YYYY-MM-DD)
-        $d = DateTime::createFromFormat('Y-m-d', $dateStr);
-        if (!$d || $d->format('Y-m-d') !== $dateStr) {
+        $date = DateTime::createFromFormat('Y-m-d', $dateStr);
+        if (!$date || $date->format('Y-m-d') !== $dateStr) {
             return null;
         }
 
-        // Check regional holiday status
+        $service = $this->repository->getServiceById($serviceId);
+        if ($service === null || !ResourceProvider::isServiceActive($service)) {
+            return null;
+        }
+        $duration = ResourceProvider::serviceDuration($service);
+        if ($duration === null) {
+            return null;
+        }
+        $blockMinutes = $duration + ResourceProvider::serviceCleanup($service);
+
         if ($this->repository->isHoliday($dateStr, $countryCode)) {
             return [];
         }
 
-        // Get operating hours for the specific day of the week
-        $dayOfWeek = strtolower($d->format('l'));
-        $hours = $this->repository->getOperatingHours($dayOfWeek);
-
-        // Strict null fallback: if opening hours are unconfigured or explicitly closed
-        if ($hours === null || empty($hours['is_open'])) {
+        $hours = $this->repository->getOperatingHours(strtolower($date->format('l')));
+        if ($hours === null || empty($hours['is_open']) || empty($hours['open_time']) || empty($hours['close_time'])) {
             return [];
         }
 
-        $openTimeStr = $hours['open_time'] ?? null;
-        $closeTimeStr = $hours['close_time'] ?? null;
-
-        if ($openTimeStr === null || $closeTimeStr === null) {
-            return [];
-        }
-
-        // Retrieve service details
-        $service = $this->repository->getServiceById($serviceId);
-        if ($service === null) {
-            return null;
-        }
-
-        // Inactive services are not bookable
-        if (isset($service['is_active']) && $service['is_active'] === false) {
-            return null;
-        }
-
-        // Older records use 'duration_minutes', records from the current services schema use 'duration'
-        $durationRaw = $service['duration_minutes'] ?? $service['duration'] ?? null;
-        $durationMinutes = $durationRaw !== null ? (int)$durationRaw : null;
-        if ($durationMinutes === null || $durationMinutes <= 0) {
-            return null; // No valid duration assumed
-        }
-
-        // Generate 24-hour time slots
-        $slots = [];
-        $startTime = DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} {$openTimeStr}", $this->timezone);
-        $endTime = DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} {$closeTimeStr}", $this->timezone);
-
-        if (!$startTime || !$endTime) {
+        $current = DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} {$hours['open_time']}", $this->timezone);
+        $closing = DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} {$hours['close_time']}", $this->timezone);
+        if (!$current || !$closing) {
             return [];
         }
 
         $occupied = $this->repository->getBlockingIntervals($dateStr);
+        $slots = [];
 
-        while ($startTime < $endTime) {
-            $slotEnd = clone $startTime;
-            $slotEnd->modify("+{$durationMinutes} minutes");
-
-            if ($slotEnd > $endTime) {
+        while (true) {
+            $treatmentEnd = (clone $current)->modify("+{$duration} minutes");
+            $blockEnd = (clone $current)->modify("+{$blockMinutes} minutes");
+            if ($treatmentEnd > $closing) {
                 break;
             }
 
-            // Skip slots overlapping an existing pending/approved booking (any service)
-            foreach ($occupied as $interval) {
-                if ($startTime < $interval['end'] && $slotEnd > $interval['start']) {
-                    $startTime = $slotEnd;
-                    continue 2;
-                }
+            if (!$this->overlaps($current, $blockEnd, $occupied)) {
+                $slots[] = [
+                    'start_time' => $current->format('H:i'),
+                    'end_time' => $treatmentEnd->format('H:i'),
+                    'start_iso' => $current->format(DATE_ATOM),
+                    'end_iso' => $treatmentEnd->format(DATE_ATOM),
+                ];
             }
-
-            $slots[] = [
-                'start_time' => $startTime->format('H:i'),
-                'end_time' => $slotEnd->format('H:i'),
-                'start_iso' => $startTime->format('Y-m-d\TH:i:sP'),
-                'end_iso' => $slotEnd->format('Y-m-d\TH:i:sP')
-            ];
-
-            $startTime = $slotEnd;
+            $current = $blockEnd;
         }
 
         return $slots;
+    }
+
+    private function overlaps(DateTime $start, DateTime $end, array $intervals): bool {
+        foreach ($intervals as $interval) {
+            if ($start < $interval['end'] && $end > $interval['start']) {
+                return true;
+            }
+        }
+        return false;
     }
 }
