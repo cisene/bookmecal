@@ -31,7 +31,16 @@ $errorMsg = '';
 
 // Handle Google OAuth Callback in Step 2 if 'code' parameter is returned from Google
 if ($step === 2 && isset($_GET['code'])) {
-    $authCode = $_GET['code'];
+    $authCode = is_string($_GET['code']) ? $_GET['code'] : '';
+    $returnedState = isset($_GET['state']) && is_string($_GET['state']) ? $_GET['state'] : '';
+    $expectedState = isset($_SESSION['google_oauth_state']) ? $_SESSION['google_oauth_state'] : '';
+    unset($_SESSION['google_oauth_state']);
+}
+
+// Reject callbacks that were not initiated from this session (OAuth login-CSRF protection)
+if ($step === 2 && isset($_GET['code']) && ($expectedState === '' || $authCode === '' || !hash_equals($expectedState, $returnedState))) {
+    $errorMsg = 'OAuth state mismatch. Please start the authorization again.';
+} elseif ($step === 2 && isset($_GET['code'])) {
     $clientId = isset($config['calendar']['client_id']) ? trim($config['calendar']['client_id']) : '';
     $clientSecret = isset($config['calendar']['client_secret']) ? trim($config['calendar']['client_secret']) : '';
     $redirectUri = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[PHP_SELF]?step=2";
@@ -54,6 +63,9 @@ if ($step === 2 && isset($_GET['code'])) {
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/x-www-form-urlencoded'));
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -72,6 +84,7 @@ if ($step === 2 && isset($_GET['code'])) {
             $tokens['updated_by'] = $currentAdmin;
 
             $fp = @fopen($tokensFile, 'c+b');
+            @chmod($tokensFile, 0600);
             if ($fp && @flock($fp, LOCK_EX)) {
                 ftruncate($fp, 0);
                 rewind($fp);
@@ -100,14 +113,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($config['calendar'])) { $config['calendar'] = array(); }
 
     if ($step === 1) {
-        $ownerName = trim(isset($_POST['owner_name']) ? $_POST['owner_name'] : '');
-        $notificationEmail = trim(isset($_POST['notification_email']) ? $_POST['notification_email'] : '');
-        $clientId = trim(isset($_POST['client_id']) ? $_POST['client_id'] : '');
-        $clientSecret = trim(isset($_POST['client_secret']) ? $_POST['client_secret'] : '');
-        $calendarId = trim(isset($_POST['calendar_id']) ? $_POST['calendar_id'] : 'primary');
+        $ownerName = is_string($_POST['owner_name'] ?? null) ? trim($_POST['owner_name']) : '';
+        $notificationEmail = is_string($_POST['notification_email'] ?? null) ? trim($_POST['notification_email']) : '';
+        $clientId = is_string($_POST['client_id'] ?? null) ? trim($_POST['client_id']) : '';
+        $clientSecret = is_string($_POST['client_secret'] ?? null) ? trim($_POST['client_secret']) : '';
+        $calendarId = is_string($_POST['calendar_id'] ?? null) ? trim($_POST['calendar_id']) : 'primary';
 
         if (empty($clientId)) {
             $errorMsg = 'Client ID is required.';
+        } elseif ($notificationEmail !== '' && filter_var($notificationEmail, FILTER_VALIDATE_EMAIL) === false) {
+            $errorMsg = 'Notification email is not a valid address.';
         } else {
             $config['calendar']['owner_name'] = $ownerName;
             $config['calendar']['notification_email'] = $notificationEmail;
@@ -131,7 +146,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     } elseif ($step === 3) {
-        $config['calendar']['cache_refresh_interval'] = isset($_POST['cache_refresh_interval']) ? (int)$_POST['cache_refresh_interval'] : 3600;
+        $interval = isset($_POST['cache_refresh_interval']) && is_string($_POST['cache_refresh_interval']) ? (int)$_POST['cache_refresh_interval'] : 3600;
+        $config['calendar']['cache_refresh_interval'] = max(60, $interval);
         
         $fp = @fopen($configFile, 'c+b');
         if ($fp && @flock($fp, LOCK_EX)) {
@@ -187,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <?php if (!empty($successMsg)): ?>
-            <div class="alert"><?php echo $successMsg; ?></div>
+            <div class="alert"><?php echo htmlspecialchars($successMsg); ?></div>
             <p><a href="config.php" class="btn">Return to Configuration</a></p>
         <?php else: ?>
 
@@ -215,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="form-group">
                         <label>Google OAuth Client Secret</label>
-                        <input type="password" name="client_secret" value="<?php echo htmlspecialchars(isset($config['calendar']['client_secret']) ? $config['calendar']['client_secret'] : ''); ?>" placeholder="Client secret string" required>
+                        <input type="password" name="client_secret" value="" autocomplete="off" placeholder="<?php echo !empty($config['calendar']['client_secret']) ? 'Stored - leave blank to keep current secret' : 'Client secret string'; ?>" <?php echo empty($config['calendar']['client_secret']) ? 'required' : ''; ?>>
                     </div>
                     <div class="form-group">
                         <label>Google Calendar ID</label>
@@ -237,7 +253,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo '<div class="error">Error: Client ID is missing. Please return to Step 1 and enter your Google OAuth Client ID.</div>';
                     echo '<p><a href="setup_google.php?step=1" class="btn btn-secondary">&larr; Back to Step 1</a></p>';
                 } else {
+                    $_SESSION['google_oauth_state'] = bin2hex(random_bytes(16));
                     $googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth?" . http_build_query(array(
+                        'state' => $_SESSION['google_oauth_state'],
                         'client_id' => $clientId,
                         'redirect_uri' => $redirectUri,
                         'response_type' => 'code',

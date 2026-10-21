@@ -20,7 +20,14 @@ require_once __DIR__ . '/classes/BookingService.php';
 
 ResourceProvider::initTimezone();
 
-$action = isset($_GET['action']) ? trim($_GET['action']) : '';
+/**
+ * Returns a trimmed string parameter, or '' when missing or not a scalar string (e.g. ?x[]=1).
+ */
+function input_string(array $source, string $key): string {
+    return (isset($source[$key]) && is_string($source[$key])) ? trim($source[$key]) : '';
+}
+
+$action = input_string($_GET, 'action');
 $repository = new BookingRepository();
 $serviceLayer = new BookingService();
 
@@ -34,9 +41,15 @@ switch ($action) {
         break;
 
     case 'check_availability':
-        $date = isset($_GET['date']) ? trim($_GET['date']) : '';
-        $serviceId = isset($_GET['service_id']) ? trim($_GET['service_id']) : '';
-        $country = isset($_GET['country']) ? trim($_GET['country']) : 'se';
+        $date = input_string($_GET, 'date');
+        $serviceId = input_string($_GET, 'service_id');
+        $country = ResourceProvider::sanitizeCountryCode(input_string($_GET, 'country') ?: 'se');
+
+        if ($country === null) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid country code.']);
+            exit();
+        }
 
         if (empty($date) || empty($serviceId)) {
             http_response_code(400);
@@ -70,15 +83,36 @@ switch ($action) {
             $input = $_POST;
         }
 
-        $serviceId = isset($input['service_id']) ? trim($input['service_id']) : '';
-        $date = isset($input['date']) ? trim($input['date']) : '';
-        $time = isset($input['time']) ? trim($input['time']) : '';
-        $customerName = isset($input['customer_name']) ? trim($input['customer_name']) : '';
-        $customerEmail = isset($input['customer_email']) ? trim($input['customer_email']) : '';
+        $serviceId = input_string($input, 'service_id');
+        $date = input_string($input, 'date');
+        $time = input_string($input, 'time');
+        $customerName = input_string($input, 'customer_name');
+        $customerEmail = input_string($input, 'customer_email');
 
         if (empty($serviceId) || empty($date) || empty($time) || empty($customerName) || empty($customerEmail)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Missing mandatory booking fields.']);
+            exit();
+        }
+
+        $parsedDate = DateTime::createFromFormat('Y-m-d', $date);
+        $parsedTime = DateTime::createFromFormat('H:i', $time);
+        $validationError = null;
+        if (!$parsedDate || $parsedDate->format('Y-m-d') !== $date) {
+            $validationError = 'Invalid date format. Use YYYY-MM-DD.';
+        } elseif (!$parsedTime || $parsedTime->format('H:i') !== $time) {
+            $validationError = 'Invalid time format. Use HH:MM.';
+        } elseif (filter_var($customerEmail, FILTER_VALIDATE_EMAIL) === false || strlen($customerEmail) > 254) {
+            $validationError = 'Invalid email address.';
+        } elseif (mb_strlen($customerName) > 100 || preg_match('/[\x00-\x1F\x7F]/', $customerName)) {
+            $validationError = 'Invalid customer name.';
+        } elseif (strlen($serviceId) > 100 || $repository->getServiceById($serviceId) === null) {
+            $validationError = 'Unknown service ID.';
+        }
+
+        if ($validationError !== null) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $validationError]);
             exit();
         }
 

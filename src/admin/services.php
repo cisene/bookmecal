@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $fp = @fopen($servicesFile, 'c+b');
-            if (!$fp \vert{}\vert{} !@flock($fp, LOCK_EX)) {
+            if (!$fp || !@flock($fp, LOCK_EX)) {
                 throw new Exception('Failed to acquire file lock for services.json.');
             }
 

@@ -30,12 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit('CSRF verification failed.');
     }
 
-    $timezone = trim($_POST['timezone'] ?? 'Europe/Stockholm');
-    $defaultCountry = trim($_POST['default_country'] ?? 'se');
+    $timezone = is_string($_POST['timezone'] ?? null) ? trim($_POST['timezone']) : 'Europe/Stockholm';
+    $defaultCountry = is_string($_POST['default_country'] ?? null) ? strtolower(trim($_POST['default_country'])) : 'se';
     $showPastSlots = isset($_POST['show_past_slots']) ? true : false;
 
-    if (!in_array($timezone, $defaultSettings['supported_timezones'])) {
+    if (!in_array($timezone, $defaultSettings['supported_timezones'], true)) {
         $errorMsg = 'Selected timezone is not supported.';
+    } elseif (!preg_match('/^[a-z]{2}$/', $defaultCountry)) {
+        $errorMsg = 'Default country must be a two-letter code.';
     } else {
         $newSettings = $defaultSettings;
         $newSettings['timezone'] = $timezone;

@@ -10,7 +10,11 @@ ResourceProvider::initTimezone();
 $settings = ResourceProvider::getSettings();
 $defaultCountry = $settings['default_country'] ?? 'se';
 
-$country = isset($_GET['country']) ? strtolower(trim($_GET['country'])) : $defaultCountry;
+$allowedCountries = ['se', 'no', 'fi', 'ee', 'lv', 'lt'];
+$country = ResourceProvider::sanitizeCountryCode($_GET['country'] ?? $defaultCountry);
+if (!in_array($country, $allowedCountries, true)) {
+    $country = 'se';
+}
 $holidaysFile = dirname(__DIR__) . "/holidays/{$country}.json";
 $successMessage = '';
 $errorMessage = '';

@@ -13,11 +13,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit('CSRF verification failed.');
     }
 
-    $action = isset($_POST['action']) ? $_POST['action'] : '';
-    $targetId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    $action = isset($_POST['action']) && is_string($_POST['action']) ? $_POST['action'] : '';
+    $targetId = isset($_POST['id']) && is_string($_POST['id']) ? $_POST['id'] : '';
+
+    // Booking IDs come from uniqid('book_'); anything else could escape the pending directory
+    $isValidId = preg_match('/^book_[0-9a-f]+$/', $targetId) === 1;
+    $isValidAction = in_array($action, ['approve', 'reject'], true);
     $targetFile = $pendingDir . '/booking_' . $targetId . '.json';
 
-    if (file_exists($targetFile)) {
+    if ($isValidId && $isValidAction && file_exists($targetFile)) {
         $fp = fopen($targetFile, 'c+b');
         if ($fp && flock($fp, LOCK_EX)) {
             $content = stream_get_contents($fp);
@@ -77,21 +81,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (!is_array($booking)) continue;
                 ?>
                     <tr>
-                        <td><?php echo isset($booking['id']) ? (int)$booking['id'] : 0; ?></td>
-                        <td><?php echo htmlspecialchars(isset($booking['client_name']) ? $booking['client_name'] : ''); ?></td>
-                        <td><?php echo htmlspecialchars(isset($booking['client_email']) ? $booking['client_email'] : ''); ?></td>
-                        <td><?php echo htmlspecialchars(isset($booking['start_datetime']) ? $booking['start_datetime'] : ''); ?></td>
+                        <td><?php echo htmlspecialchars(isset($booking['id']) ? (string)$booking['id'] : ''); ?></td>
+                        <td><?php echo htmlspecialchars($booking['customer_name'] ?? $booking['client_name'] ?? ''); ?></td>
+                        <td><?php echo htmlspecialchars($booking['customer_email'] ?? $booking['client_email'] ?? ''); ?></td>
+                        <td><?php echo htmlspecialchars($booking['start_datetime'] ?? trim(($booking['date'] ?? '') . ' ' . ($booking['time'] ?? ''))); ?></td>
                         <td><?php echo htmlspecialchars(isset($booking['status']) ? $booking['status'] : 'pending'); ?></td>
                         <td>
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                                <input type="hidden" name="id" value="<?php echo isset($booking['id']) ? (int)$booking['id'] : 0; ?>">
+                                <input type="hidden" name="id" value="<?php echo htmlspecialchars(isset($booking['id']) ? (string)$booking['id'] : ''); ?>">
                                 <input type="hidden" name="action" value="approve">
                                 <button type="submit" class="btn btn-success">Approve</button>
                             </form>
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                                <input type="hidden" name="id" value="<?php echo isset($booking['id']) ? (int)$booking['id'] : 0; ?>">
+                                <input type="hidden" name="id" value="<?php echo htmlspecialchars(isset($booking['id']) ? (string)$booking['id'] : ''); ?>">
                                 <input type="hidden" name="action" value="reject">
                                 <button type="submit" class="btn btn-danger">Reject</button>
                             </form>

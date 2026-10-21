@@ -43,6 +43,13 @@ class EmailNotifier {
     private function sendMail(string $to, string $subject, string $body): bool {
         $fromEmail = $this->smtpConfig['from_email'] ?? 'noreply@example.com';
         $fromName = $this->smtpConfig['from_name'] ?? 'Book Me Calendar';
+
+        // Refuse CR/LF and malformed addresses so user-supplied values cannot inject extra mail headers
+        if (filter_var($to, FILTER_VALIDATE_EMAIL) === false || filter_var($fromEmail, FILTER_VALIDATE_EMAIL) === false) {
+            return false;
+        }
+        $subject = str_replace(["\r", "\n"], ' ', $subject);
+        $fromName = str_replace(["\r", "\n", '<', '>'], ' ', (string)$fromName);
         
         $headers = "MIME-Version: 1.0\r\n";
         $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";

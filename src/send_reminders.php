@@ -46,7 +46,8 @@ foreach ($files as $file) {
     $status = $booking['status'] ?? null;
     $reminderSent = $booking['reminder_sent'] ?? false;
 
-    if ($status !== 'confirmed' || $reminderSent || $date === null || $time === null) {
+    // pending.php marks accepted bookings as 'approved'; 'confirmed' kept for older records
+    if (!in_array($status, ['approved', 'confirmed'], true) || $reminderSent || $date === null || $time === null) {
         continue;
     }
 
@@ -63,7 +64,9 @@ foreach ($files as $file) {
         $customerEmail = $booking['customer_email'] ?? null;
         $customerName = $booking['customer_name'] ?? null;
 
-        if ($customerEmail) {
+        // Validate before handing to mail(): blocks header injection via a crafted recipient
+        if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) !== false) {
+            $customerName = str_replace(["\r", "\n"], ' ', (string)$customerName);
             $subject = "Reminder: Your upcoming appointment on {$date} at {$time}";
             $message = "Hello {$customerName},\n\nThis is a friendly reminder of your upcoming booking on {$date} at {$time}.\n\nBest regards,\nVenue Administration";
             $headers = "From: noreply@" . ($_SERVER['SERVER_NAME'] ?? 'localhost');

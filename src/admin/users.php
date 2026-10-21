@@ -14,11 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit('CSRF verification failed.');
     }
 
-    $action = isset($_POST['action']) ? $_POST['action'] : '';
+    $action = isset($_POST['action']) && is_string($_POST['action']) ? $_POST['action'] : '';
 
     if ($action === 'save_user') {
-        $username = trim(isset($_POST['username']) ? $_POST['username'] : '');
-        $password = isset($_POST['password']) ? $_POST['password'] : '';
+        $username = isset($_POST['username']) && is_string($_POST['username']) ? trim($_POST['username']) : '';
+        $password = isset($_POST['password']) && is_string($_POST['password']) ? $_POST['password'] : '';
 
         // Validate username using native functions to avoid PCRE/JIT issues
         $cleanUserForCheck = str_replace('_', '', $username);
@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $content .= $u . ':' . $h . "\n";
             }
 
-            if (file_put_contents($htpasswdFile, $content) !== false) {
+            if (file_put_contents($htpasswdFile, $content, LOCK_EX) !== false) {
                 $msg = 'User "' . htmlspecialchars($username) . '" saved successfully.';
                 log_audit_action($currentAdmin, 'USER_MODIFY', 'Added or updated credentials for user: ' . $username);
             } else {
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif ($action === 'delete_user') {
-        $username = trim(isset($_POST['username']) ? $_POST['username'] : '');
+        $username = isset($_POST['username']) && is_string($_POST['username']) ? trim($_POST['username']) : '';
         if ($username === $currentAdmin) {
             $error = 'You cannot delete your own active account while logged in.';
         } elseif (!empty($username) && file_exists($htpasswdFile)) {
@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
-            if ($found && file_put_contents($htpasswdFile, $content)) {
+            if ($found && file_put_contents($htpasswdFile, $content, LOCK_EX) !== false) {
                 $msg = 'User "' . htmlspecialchars($username) . '" removed successfully.';
                 log_audit_action($currentAdmin, 'USER_DELETE', 'Removed user: ' . $username);
             }

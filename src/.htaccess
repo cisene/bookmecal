@@ -1,6 +1,7 @@
 # Root .htaccess - Book Me Calendar
-php_flag display_startup_errors on
-php_flag display_errors on
+# Never print errors to visitors (leaks paths/config); they still go to the error log
+php_flag display_startup_errors off
+php_flag display_errors off
 php_flag log_errors on
 php_value error_reporting 2047
 

@@ -38,8 +38,22 @@ class ResourceProvider {
         return self::readJsonFile($filePath);
     }
 
-    public static function getHolidays($countryCode) {
+    /**
+     * Normalizes a country code; returns null unless it is exactly two letters (blocks path traversal).
+     */
+    public static function sanitizeCountryCode($countryCode) {
+        if (!is_string($countryCode)) {
+            return null;
+        }
         $countryCode = strtolower(trim($countryCode));
+        return preg_match('/^[a-z]{2}$/', $countryCode) ? $countryCode : null;
+    }
+
+    public static function getHolidays($countryCode) {
+        $countryCode = self::sanitizeCountryCode($countryCode);
+        if ($countryCode === null) {
+            return null;
+        }
         $filePath = dirname(__DIR__) . "/holidays/{$countryCode}.json";
         $data = self::readJsonFile($filePath);
         return $data['holidays'] ?? null;
