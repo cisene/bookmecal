@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const [id, srv] of Object.entries(data.data)) {
                     const opt = document.createElement('option');
                     opt.value = id;
-                    opt.textContent = `${srv.name} (${srv.duration_minutes || 'N/A'} mins)`;
+                    opt.textContent = `${srv.name} (${srv.duration_minutes || srv.duration || 'N/A'} mins)`;
                     serviceSelect.appendChild(opt);
                 }
             }
@@ -112,12 +112,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!selectedServiceId || !selectedDate) return;
 
         slotsContainer.innerHTML = 'Loading available slots...';
-        fetch(`api.php?action=check_availability&service_id=${encodeURIComponent(selectedServiceId)}&date=${encodeURIComponent(selectedDate)}&country=<?php echo $defaultCountry; ?>`)
+        fetch(`api.php?action=check_availability&service_id=${encodeURIComponent(selectedServiceId)}&date=${encodeURIComponent(selectedDate)}&country=${encodeURIComponent(<?php echo json_encode((string)$defaultCountry, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>)}`)
             .then(res => res.json())
             .then(data => {
                 slotsContainer.innerHTML = '';
                 if (!data.success) {
-                    slotsContainer.innerHTML = `<span style="color:red;">${data.error}</span>`;
+                    const errSpan = document.createElement('span');
+                    errSpan.style.color = 'red';
+                    errSpan.textContent = data.error;
+                    slotsContainer.appendChild(errSpan);
                     return;
                 }
 

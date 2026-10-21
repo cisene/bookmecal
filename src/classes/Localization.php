@@ -11,11 +11,13 @@ class Localization {
         'en', 'sv', 'de', 'fr', 'es'
     ];
 
-    public function __construct() {
-        if (session_status() === PHP_SESSION_NONE) {
+    public function __construct(?string $lang = null) {
+        if (session_status() === PHP_SESSION_NONE && !headers_sent() && PHP_SAPI !== 'cli') {
             session_start();
         }
-        $this->currentLang = $this->determineLanguage();
+        $this->currentLang = ($lang !== null && in_array($lang, self::SUPPORTED_LANGS, true))
+            ? $lang
+            : $this->determineLanguage();
     }
 
     /**
@@ -68,16 +70,20 @@ class Localization {
      * Loads the language JSON dictionary into memory with static caching.
      */
     public function loadDictionary(string $lang): array {
+        // Only whitelisted codes may reach the filesystem path
+        if (!in_array($lang, self::SUPPORTED_LANGS, true)) {
+            $lang = self::DEFAULT_LANG;
+        }
         if (!isset(self::$dictionaries[$lang])) {
-            $filePath = __DIR__ . "/language/{$lang}.json";
+            $filePath = dirname(__DIR__) . "/language/{$lang}.json";
             if (file_exists($filePath)) {
                 $jsonContent = file_get_contents($filePath);
                 self::$dictionaries[$lang] = json_decode($jsonContent, true) ?? [];
             } else {
                 // Fallback to default language dictionary if requested file is missing
-                $fallbackPath = __DIR__ . "/language/" . self::DEFAULT_LANG . ".json";
+                $fallbackPath = dirname(__DIR__) . "/language/" . self::DEFAULT_LANG . ".json";
                 self::$dictionaries[$lang] = file_exists($fallbackPath) 
-                    ? json_decode(file_get_contents($fallbackPath), true) 
+                    ? (json_decode(file_get_contents($fallbackPath), true) ?? [])
                     : [];
             }
         }
@@ -95,7 +101,7 @@ class Localization {
         $translation = $dictionary[$key] ?? $key;
 
         foreach ($placeholders as $placeholderKey => $value) {
-            $translation = str_replace("{{$placeholderKey}}", $value, $translation);
+            $translation = str_replace("{{$placeholderKey}}", (string)$value, $translation);
         }
 
         return $translation;

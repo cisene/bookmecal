@@ -33,10 +33,14 @@ $serviceLayer = new BookingService();
 
 switch ($action) {
     case 'get_services':
-        $services = $repository->getServices();
+        $services = $repository->getServices() ?? [];
+        // Hide inactive services from the public booking form
+        $services = array_filter($services, function ($srv) {
+            return is_array($srv) && !(isset($srv['is_active']) && $srv['is_active'] === false);
+        });
         echo json_encode([
             'success' => true,
-            'data' => $services !== null ? $services : []
+            'data' => $services
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         break;
 
@@ -108,6 +112,15 @@ switch ($action) {
             $validationError = 'Invalid customer name.';
         } elseif (strlen($serviceId) > 100 || $repository->getServiceById($serviceId) === null) {
             $validationError = 'Unknown service ID.';
+        }
+
+        if ($validationError === null) {
+            // The requested time must be one of the slots we actually offer for that date/service
+            $settings = ResourceProvider::getSettings();
+            $offeredSlots = $serviceLayer->getAvailableSlots($date, $serviceId, $settings['default_country'] ?? 'se');
+            if (!is_array($offeredSlots) || !in_array($time, array_column($offeredSlots, 'start_time'), true)) {
+                $validationError = 'The selected time slot is not available.';
+            }
         }
 
         if ($validationError !== null) {

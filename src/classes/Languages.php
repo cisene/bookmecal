@@ -10,7 +10,7 @@ class Languages {
     'it' => 'Italian',
     'ja' => 'Japanese',
     'ko' => 'Korean',
-    'pt' => 'Portugese',
+    'pt' => 'Portuguese',
     'sv' => 'Swedish',
     'th' => 'Thai',
     'tl' => 'Tagalog',

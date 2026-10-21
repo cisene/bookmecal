@@ -50,7 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!is_array($services)) {$services = [];
             }
 
-            $services[$serviceId] = [
+            // Merge so fields this form does not edit (cleanup, VAT prices, is_active, ...) survive a save
+            $services[$serviceId] = array_merge(is_array($services[$serviceId] ?? null) ? $services[$serviceId] : [], [
                 'id' => $serviceId,
                 'name' => $name !== '' ?$name : null,
                 'sku' => $sku !== '' ?$sku : null,
@@ -58,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'price' => $price,
                 'description' => $description !== '' ?$description : null,
                 'updated_at' => (new DateTime('now'))->format('Y-m-d\TH:i:sP')
-            ];
+            ]);
 
             $jsonEncoded = json_encode($services, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             

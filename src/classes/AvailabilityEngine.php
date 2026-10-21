@@ -20,13 +20,20 @@ class AvailabilityEngine {
 
         if (!empty($serviceId)) {
             $service = ResourceProvider::getServiceById($serviceId);
-            if ($service) {
-                $duration = (int)($service['duration'] ?? 45);
-                $cleanup = (int)($service['cleanup'] ?? 15);
+            if (!$service) {
+                return []; // Unknown service: never invent a default duration for it
             }
+            $duration = (int)($service['duration_minutes'] ?? $service['duration'] ?? 45);
+            $cleanup = (int)($service['cleanup'] ?? 15);
         }
 
         $totalBlock = $duration + $cleanup;
+
+        // $date ends up in a cache file name, so it must be a real Y-m-d date
+        $parsed = DateTime::createFromFormat('Y-m-d', (string)$date);
+        if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+            return [];
+        }
 
         if ($this->isHoliday($date)) {
             return []; 
@@ -70,7 +77,7 @@ class AvailabilityEngine {
     }
 
     private function isHoliday($date) {
-        $holidays = ResourceProvider::getHolidays($this->countryCode);
+        $holidays = ResourceProvider::getHolidays($this->countryCode) ?? [];
         foreach ($holidays as $holiday) {
             if (isset($holiday['date']) && $holiday['date'] === $date) {
                 return true;
@@ -81,7 +88,7 @@ class AvailabilityEngine {
 
     private function getDayConfigForDate($date) {
         $dayOfWeek = strtolower(date('l', strtotime($date)));
-        $availabilityFile = __DIR__ . '/data/booking/availability.json';
+        $availabilityFile = dirname(__DIR__) . '/data/booking/availability.json';
         
         if (file_exists($availabilityFile)) {
             $data = json_decode(file_get_contents($availabilityFile), true);
@@ -94,7 +101,7 @@ class AvailabilityEngine {
     }
 
     private function getBookedIntervals($date) {
-        $cacheFile = __DIR__ . "/cache/gcal_events_{$date}.json";
+        $cacheFile = dirname(__DIR__) . "/cache/gcal_events_{$date}.json";
         if (file_exists($cacheFile)) {
             $events = json_decode(file_get_contents($cacheFile), true);
             if (is_array($events)) {

@@ -57,7 +57,14 @@ class BookingService {
             return null;
         }
 
-        $durationMinutes = isset($service['duration_minutes']) ? (int)$service['duration_minutes'] : null;
+        // Inactive services are not bookable
+        if (isset($service['is_active']) && $service['is_active'] === false) {
+            return null;
+        }
+
+        // Older records use 'duration_minutes', records from the current services schema use 'duration'
+        $durationRaw = $service['duration_minutes'] ?? $service['duration'] ?? null;
+        $durationMinutes = $durationRaw !== null ? (int)$durationRaw : null;
         if ($durationMinutes === null || $durationMinutes <= 0) {
             return null; // No valid duration assumed
         }
