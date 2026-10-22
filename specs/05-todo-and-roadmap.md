@@ -11,7 +11,6 @@
 - [ ] **Gap-aware starts:** Optionally prefer soft-slot starts next to existing bookings to reduce unusable gaps.
 - [ ] **Translations:** Native review of all language files; complete the 12 partial languages (they fall back to English per key).
 - [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. GDPR basics (privacy notice, retention, access and erasure). Next: turn on `admin_require_https` and HSTS on the production server; optional `fail2ban` rule for `security.log`; have the privacy notice reviewed for the actual business (it is a starting point, not legal advice); confirmation emails could link to the privacy notice.
-- [ ] **Config cleanup:** Remove the unused plaintext `admin_user`/`admin_pass` from `data/config.json` (admin login uses `.htpasswd`).
 
 ---
 

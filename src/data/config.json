@@ -7,8 +7,6 @@
         "date_format": "Y-m-d",
         "time_format": "H:i",
         "slot_duration": 45,
-        "admin_user": "admin",
-        "admin_pass": "secret123",
         "last_modified_by": "admin"
     },
     "storage": {
