@@ -6,6 +6,12 @@ A zero-database dependency, file-based PHP booking system featuring multi-user a
 
 ```text
 bookmecal/
+├── deploy
+│   ├── cron
+│   │   └── bookmecal
+│   └── fail2ban
+│       ├── bookmecal.conf
+│       └── bookmecal.local
 ├── phpunit.xml
 ├── README.md
 ├── specs
@@ -16,6 +22,7 @@ bookmecal/
 │   ├── 05-todo-and-roadmap.md
 │   ├── 06-master-specification-index.md
 │   ├── 07-tests-and-validation.md
+│   ├── 08-deployment.md
 │   ├── availability_logic_appendix.md
 │   ├── booking_request.schema.json
 │   ├── config.schema.json
@@ -182,10 +189,11 @@ bookmecal/
 | [01-architecture-and-config.md](01-architecture-and-config.md)        | Request flow, core classes, localization, admin sign-in, security headers, input validation, security log, personal data |
 | [02-storage-and-repository.md](02-storage-and-repository.md)          | Data files, locking and BookingRepository |
 | [03-business-logic-and-engine.md](03-business-logic-and-engine.md)    | BookingService soft slots and other engines |
-| [04-api-and-integrations.md](04-api-and-integrations.md)              | API actions, week plan format, booking page behaviour, calendar feed |
+| [04-api-and-integrations.md](04-api-and-integrations.md)              | API actions, week plan format, booking page behaviour, booking emails, customer cancellation, calendar feed |
 | [05-todo-and-roadmap.md](05-todo-and-roadmap.md)                      | Todo list and revision history |
 | [06-master-specification-index.md](06-master-specification-index.md)  | Overview of all specifications |
 | [07-tests-and-validation.md](07-tests-and-validation.md)              | Date formats and unit test status |
+| [08-deployment.md](08-deployment.md)                                  | Server setup for the trial: permissions, HTTPS, email, cron, fail2ban, backups, updates |
 | [availability_logic_appendix.md](availability_logic_appendix.md)      | Availability pipeline (holidays, opening hours, bookings) |
 | [schemas_appendix.md](schemas_appendix.md)                            | Holiday and locale schemas |
 | [README.md](README.md)                                                | This file |

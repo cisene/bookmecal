@@ -1,3 +1,20 @@
+<?php if (!empty($setupProblems)): ?>
+<div class="card setup-check">
+    <h2><?= e(__t('admin.setup.title')) ?></h2>
+    <p class="muted"><?= e(__t('admin.setup.intro')) ?></p>
+    <ul>
+        <?php foreach ($setupProblems as $problem): ?>
+            <li>
+                <?= e(__t('admin.setup.' . $problem['key'])) ?>
+                <?php if ($problem['page'] !== null): ?>
+                    <a href="<?= e($problem['page']) ?>"><?= e(__t('admin.setup.fix')) ?></a>
+                <?php endif; ?>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+
 <div class="card">
     <h2><?= e(__t('admin.dashboard.title')) ?></h2>
     <p class="muted"><?= e(__t('admin.dashboard.timezone', ['timezone' => $timezone])) ?></p>

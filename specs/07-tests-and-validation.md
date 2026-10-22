@@ -20,12 +20,12 @@ PHPUnit 12.5.39 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.5.4
 Configuration: /media/chrise/work/repos/github/cisene/bookmecal/phpunit.xml
 
-...............................................................  63 / 120 ( 52%)
-.........................................................       120 / 120 (100%)
+...............................................................  63 / 124 ( 50%)
+.............................................................   124 / 124 (100%)
 
-Time: 00:02.209, Memory: 30.05 MB
+Time: 00:02.211, Memory: 30.05 MB
 
-OK (120 tests, 3097 assertions)
+OK (124 tests, 3157 assertions)
 ```
 
 ## 7.3 What the tests cover
@@ -39,6 +39,7 @@ OK (120 tests, 3097 assertions)
 * `AdminAccountsTest`: `$apr1$` hashes match Apache's `htpasswd`, SHA-crypt and bcrypt verification, upgrade to bcrypt at sign-in, unknown users, username rules, fingerprint changes with the password, password policy.
 * `EmailNotifierTest`: Nothing sent while email is off, bad addresses rejected, header values cannot add headers, receipt in the booking's language with the privacy link, approval as multipart with the `.ics` attachment, rejection without, admin alert and alert address.
 * `BookingEmailsTest`: Receipt plus alert on a request (alert in the admin language, links from `public_url`), no alert without an address, the approval's `.ics` holds the booking, nothing sent while off, `public_url` validation, cancellation link in receipt, approval and reminder (not in rejection or admin alerts), cancellation alert.
+* `SetupCheckTest`: A fresh install lists every item, a ready setup none; email details only checked while email is on; inactive treatments and closed days do not count.
 * `CancelLinkTest`: Token tied to booking and key, strict format, link only with a site address.
 * `SecretsTest`: Keys created once and kept, separate per name, too-short keys replaced, other entries kept.
 * `CalendarFeedTest`: Feed off without a token, renewing invalidates the old link and keeps other secrets, only blocking statuses included with UTC times and DST, old and malformed bookings left out, escaping keeps customer text from adding properties, line folding at 75 octets without splitting UTF-8 characters, single-event file for the customer without contact details.

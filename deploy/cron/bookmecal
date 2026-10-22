@@ -1,0 +1,5 @@
+# Book Me Calendar cron jobs. Copy to /etc/cron.d/bookmecal and adjust the path and user.
+# Runs as the web server user so the booking files stay writable for PHP.
+#
+# Reminder emails for approved bookings starting within the next 24 hours (each booking once).
+*/30 * * * * www-data /usr/bin/php /var/www/bookmecal/src/send_reminders.php > /dev/null 2>&1

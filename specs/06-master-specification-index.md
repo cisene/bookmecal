@@ -34,7 +34,9 @@ Our specification treats relational schemas and their JSON data contracts as fir
 * **Personal data (`privacy.php`, `admin/pending.php`, `BookingRepository`):** Privacy notice, automatic deletion after the retention period, export and deletion of one customer's bookings (see [01-architecture-and-config.md](01-architecture-and-config.md) §1.8).
 * **Localization (`Localization.php`):** 14 languages with per-key English fallback and the `__t()` helper function (see [01-architecture-and-config.md](01-architecture-and-config.md) §1.3).
 * **Reminders (`send_reminders.php`):** CLI/cron script sending 24-hour reminder emails for approved bookings.
+* **Setup checklist (`SetupCheck`):** The admin dashboard lists what is still missing before customers can book (treatments, opening hours, business name, email, site address, HTTPS).
 * **Testing Suite (`tests/`):** PHPUnit tests, see [07-tests-and-validation.md](07-tests-and-validation.md).
+* **Deployment (`deploy/`):** Server setup for the trial, cron job and `fail2ban` filter, see [08-deployment.md](08-deployment.md).
 
 ### Not implemented yet
 * Installer (`install.php`), background Google Calendar sync. See [05-todo-and-roadmap.md](05-todo-and-roadmap.md).

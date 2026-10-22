@@ -27,6 +27,7 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - `Input.php`: The input validation layer (§1.6).
 - `AdminAccounts.php`: Admin accounts in `admin/.htpasswd`: password check, hashing, password policy (§1.4).
 - `SecurityLog.php`: Security event log (§1.7).
+- `SetupCheck.php`: The dashboard's list of missing setup items.
 - `CancelLink.php`: Per-booking cancellation token (HMAC of the booking ID) and link.
 - `Secrets.php`: Signing keys in `data/secrets.json` (`form_secret`, `cancel_secret`), created on first use.
 - `CalendarFeed.php`: Feed token in `data/secrets.json` and the iCalendar output of `calendar.php`.

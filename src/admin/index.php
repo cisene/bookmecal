@@ -1,11 +1,13 @@
 <?php
 /**
  * src/admin/index.php
- * Dashboard: upcoming pending and approved bookings for the next 7 days, grouped by date.
+ * Dashboard: setup items still open (SetupCheck) and upcoming pending and approved bookings for
+ * the next 7 days, grouped by date.
  */
 
 require_once __DIR__ . '/auth.php';
 require_once dirname(__DIR__) . '/classes/BookingRepository.php';
+require_once dirname(__DIR__) . '/classes/SetupCheck.php';
 
 $repository = new BookingRepository();
 $repository->housekeeping();
@@ -24,8 +26,17 @@ foreach ($repository->getBookings() as $booking) {
     $days[$start->format('Y-m-d')][] = $booking + ['service_name' => $service['name'] ?? ($booking['service_id'] ?? '')];
 }
 
+$setupProblems = SetupCheck::problems(
+    ResourceProvider::getSettings() ?? [],
+    ResourceProvider::getConfig() ?? [],
+    ResourceProvider::getServices() ?? [],
+    ResourceProvider::getOpenHours() ?? [],
+    SecurityHeaders::isHttps()
+);
+
 render_admin('dashboard', [
     'title' => 'admin.dashboard.title',
+    'setupProblems' => $setupProblems,
     'days' => $days,
     'timezone' => $timezone->getName(),
 ]);

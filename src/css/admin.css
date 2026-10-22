@@ -7,6 +7,7 @@
     --success-dark: #15803d;
     --danger: #dc2626;
     --danger-dark: #b91c1c;
+    --warning: #d97706;
     --secondary: #64748b;
     --bg: #f4f7f6;
     --card-bg: #ffffff;
@@ -117,3 +118,6 @@ td.actions { white-space: nowrap; }
 .login-card { max-width: 420px; margin: 40px auto; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 15px; }
 input.feed-url { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; }
+.setup-check { border-left: 4px solid var(--warning); }
+.setup-check ul { margin: 0; padding-left: 20px; }
+.setup-check li { margin: 6px 0; }

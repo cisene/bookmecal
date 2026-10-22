@@ -1,0 +1,17 @@
+# fail2ban jail for Book Me Calendar.
+# Copy to /etc/fail2ban/jail.d/bookmecal.local, set logpath to the real install,
+# then: sudo fail2ban-client reload && sudo fail2ban-client status bookmecal
+#
+# The application already locks sign-in after 5 failures per client and rate limits the API;
+# this jail blocks clients that keep going at the firewall, so they stop costing PHP time.
+
+[bookmecal]
+enabled  = true
+filter   = bookmecal
+logpath  = /var/www/bookmecal/src/log/security.log
+backend  = auto
+port     = http,https
+# 10 matching events within 10 minutes -> blocked for 1 hour
+maxretry = 10
+findtime = 10m
+bantime  = 1h

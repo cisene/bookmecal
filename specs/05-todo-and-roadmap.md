@@ -5,13 +5,14 @@
 - [ ] **Calendar Feeds:** Read-only subscription feed and `.ics` file in the approval email done. Customer cancellation link done.
 - [ ] **Advanced Google Calendar API:** Add two-way synchronization for adding and removing calendar events via the Google Calendar API.
 - [ ] **Bulk & Direct SMTP Messaging:** Booking emails done (receipt, admin alert, approval, rejection). Next: real SMTP (authenticated, e.g. with PHPMailer) instead of PHP `mail()`, and messages to a single customer, group, or all customers.
+- [ ] **Data files out of git:** `config.json`, `settings.json`, `services.json`, `openhours.json`, `credentials.json` and `booking/availability.json` are tracked with development values, so the server is updated with `rsync` instead of `git pull` (see [08-deployment.md](08-deployment.md) §8.9). Ship `*.example.json` files and create the real ones on install.
 - [ ] **Email delivery on the server:** Set up SPF/DKIM for the sender domain and test that mails are not taken for spam before the trial.
 - [ ] **SMS Reminders:** Implement SMS reminder notifications 1–2 days ahead of appointments.
 - [ ] **One availability source:** The admin slot matrix (`data/booking/availability.json`) is not used by the public booking, which uses opening hours (`data/openhours.json`). Merge or remove one of them.
 - [ ] **Week view drag on touch devices:** Verify dragging the selection block on real phones and tablets.
 - [ ] **Gap-aware starts:** Optionally prefer soft-slot starts next to existing bookings to reduce unusable gaps.
 - [ ] **Translations:** Native review of all language files; complete the 12 partial languages (they fall back to English per key).
-- [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. GDPR basics (privacy notice, retention, access and erasure). Next: turn on `admin_require_https` and HSTS on the production server; optional `fail2ban` rule for `security.log`; have the privacy notice reviewed for the actual business (it is a starting point, not legal advice); confirmation emails could link to the privacy notice; optional `fail2ban` match on `feed_token_invalid`.
+- [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. GDPR basics (privacy notice, retention, access and erasure). Next: turn on `admin_require_https` on the production server ([08-deployment.md](08-deployment.md)); install the `fail2ban` filter from `deploy/fail2ban/`; have the privacy notice reviewed for the actual business (it is a starting point, not legal advice); customer emails link to the privacy notice when `public_url` is set.
 
 ---
 
@@ -19,6 +20,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-22** | • Setup checklist on the admin dashboard ("Before customers book").<br>• Deployment guide ([08-deployment.md](08-deployment.md)) with a cron file and a `fail2ban` filter and jail in `deploy/`. |
 | **2026-10-22** | • Customer cancellation: secret link in the receipt, approval and reminder emails opens `cancel.php`, which cancels after a button press until `cancel_cutoff_hours` (default 24, Config page) before the appointment; the business gets an alert. Signing keys moved to a shared `Secrets` class.<br>• Removed unused email keys (`email.confirmation.*`, `email.admin.newBooking.*`, `email.admin.cancellation.*`, `email.reminder.cancellationLink`). |
 | **2026-10-22** | • Booking emails: receipt to the customer and alert to the business on a new request, confirmation with an `.ics` calendar file on approval, decline on rejection. Email on/off, sender, alert address and site address (`public_url`, for links) on the admin Config page; the bookings page says whether the customer was emailed.<br>• Translation placeholders are filled in one pass. |
 | **2026-10-22** | • Calendar subscription feed (`calendar.php`, iCalendar): approved bookings and, as tentative, unanswered requests, for Apple, Google or Outlook calendars. Secret link turned on, renewed and turned off on the admin Config page; wrong tokens logged; privacy notice mentions the calendar provider while the feed is on.<br>• Removed the unused `admin_user`/`admin_pass` from `data/config.json`. |
