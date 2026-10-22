@@ -3,10 +3,12 @@
  * src/admin/config.php
  * System settings (data/settings.json): timezone, default country, past-slot visibility,
  * how long unanswered booking requests keep their time, and the privacy settings
- * (business name and contact for the privacy notice, how long bookings are kept).
+ * (business name and contact for the privacy notice, how long bookings are kept),
+ * and the calendar subscription link (CalendarFeed).
  */
 
 require_once __DIR__ . '/auth.php';
+require_once dirname(__DIR__) . '/classes/CalendarFeed.php';
 
 const SUPPORTED_TIMEZONES = ['Europe/Stockholm', 'Europe/Oslo', 'Europe/Helsinki', 'Europe/Tallinn', 'Europe/Riga', 'Europe/Vilnius'];
 const SUPPORTED_COUNTRIES = ['se', 'no', 'fi', 'ee', 'lv', 'lt'];
@@ -15,9 +17,24 @@ const MAX_RETENTION_DAYS = 3650;
 const MAX_BUSINESS_NAME = 100;
 
 $settingsFile = ResourceProvider::dataPath('settings.json');
+$feed = new CalendarFeed();
 $flash = [];
 
-if (is_post()) {
+if (is_post() && request_string($_POST, 'feed_action') !== '') {
+    require_csrf();
+    $feedAction = Input::oneOf(request_string($_POST, 'feed_action'), ['renew', 'disable']);
+    if ($feedAction === 'renew' && $feed->renewToken() !== null) {
+        log_audit_action($currentAdmin, 'FEED_RENEW', 'Created a new calendar subscription link');
+        header('Location: config.php?done=feedRenewed#calendar-feed');
+        exit;
+    }
+    if ($feedAction === 'disable' && $feed->disable()) {
+        log_audit_action($currentAdmin, 'FEED_DISABLE', 'Turned the calendar subscription off');
+        header('Location: config.php?done=feedDisabled#calendar-feed');
+        exit;
+    }
+    $flash[] = flash_error($feedAction === null ? 'Unknown calendar action.' : 'Could not write secrets.json. Check file permissions.');
+} elseif (is_post()) {
     require_csrf();
     $timezone = Input::oneOf(request_string($_POST, 'timezone'), SUPPORTED_TIMEZONES);
     $country = Input::oneOf(strtolower(request_string($_POST, 'default_country')), SUPPORTED_COUNTRIES);
@@ -61,8 +78,18 @@ if (is_post()) {
     }
 }
 
-if (request_string($_GET, 'done') === 'saved') {
-    $flash[] = flash_success('admin.config.done.saved');
+$done = Input::oneOf(request_string($_GET, 'done'), ['saved', 'feedRenewed', 'feedDisabled']);
+if ($done !== null) {
+    $flash[] = flash_success('admin.config.done.' . $done);
+}
+
+// Subscription link shown to the admin; calendar.php lives one level above admin/
+$feedToken = $feed->token();
+$feedUrl = null;
+if ($feedToken !== null) {
+    $basePath = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/admin/config.php')), '/');
+    $feedUrl = (SecurityHeaders::isHttps() ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
+        . $basePath . '/calendar.php?token=' . $feedToken;
 }
 
 $settings = ResourceProvider::getSettings() ?? [];
@@ -81,4 +108,7 @@ render_admin('config', [
     'maxRetentionDays' => MAX_RETENTION_DAYS,
     'businessName' => (string)($settings['business_name'] ?? ''),
     'privacyContact' => (string)($settings['privacy_contact'] ?? ''),
+    'feedUrl' => $feedUrl,
+    'feedWebcalUrl' => $feedUrl === null ? null : preg_replace('#^https?://#', 'webcal://', $feedUrl),
+    'feedPastDays' => CalendarFeed::PAST_DAYS,
 ]);

@@ -2,7 +2,7 @@
 
 ## Active Todo List & Roadmap
 
-- [ ] **Calendar Feeds:** Implement read-only Apple Calendar and Google Calendar feed integrations (`ics` export/sync).
+- [ ] **Calendar Feeds:** Read-only subscription feed done (`calendar.php`). Next: an `.ics` file for the customer ("add to my calendar") with the confirmation email.
 - [ ] **Advanced Google Calendar API:** Add two-way synchronization for adding and removing calendar events via the Google Calendar API.
 - [ ] **Bulk & Direct SMTP Messaging:** Complete SMTP integration for sending targeted emails to a single customer, group, or all customers.
 - [ ] **SMS Reminders:** Implement SMS reminder notifications 1–2 days ahead of appointments.
@@ -10,7 +10,7 @@
 - [ ] **Week view drag on touch devices:** Verify dragging the selection block on real phones and tablets.
 - [ ] **Gap-aware starts:** Optionally prefer soft-slot starts next to existing bookings to reduce unusable gaps.
 - [ ] **Translations:** Native review of all language files; complete the 12 partial languages (they fall back to English per key).
-- [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. GDPR basics (privacy notice, retention, access and erasure). Next: turn on `admin_require_https` and HSTS on the production server; optional `fail2ban` rule for `security.log`; have the privacy notice reviewed for the actual business (it is a starting point, not legal advice); confirmation emails could link to the privacy notice.
+- [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. GDPR basics (privacy notice, retention, access and erasure). Next: turn on `admin_require_https` and HSTS on the production server; optional `fail2ban` rule for `security.log`; have the privacy notice reviewed for the actual business (it is a starting point, not legal advice); confirmation emails could link to the privacy notice; optional `fail2ban` match on `feed_token_invalid`.
 
 ---
 
@@ -18,6 +18,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-22** | • Calendar subscription feed (`calendar.php`, iCalendar): approved bookings and, as tentative, unanswered requests, for Apple, Google or Outlook calendars. Secret link turned on, renewed and turned off on the admin Config page; wrong tokens logged; privacy notice mentions the calendar provider while the feed is on.<br>• Removed the unused `admin_user`/`admin_pass` from `data/config.json`. |
 | **2026-10-22** | • `JsonStore::read()` takes a shared lock: readers no longer see half-written files during an update. |
 | **2026-10-22** | • GDPR basics: privacy notice page (`privacy.php`) linked from the booking form and every public page, business name and privacy contact on the Config page, bookings deleted automatically after `booking_retention_days` (default 365), admin search by customer email with JSON export (access) and delete all (erasure), single bookings deletable. |
 | **2026-10-22** | • Input validation layer (`Input`) used by the API and every admin form: real dates and times, length limits in characters, no control characters, numeric ranges.<br>• Admin sign-in form instead of Apache Basic Auth: lockout after failed attempts (per client and per username), bcrypt hashes (old Apache hashes upgraded at sign-in), password policy, session timeouts, sign-out, sessions end when the password changes, optional HTTPS-only admin.<br>• Security event log (`src/log/security.log`, JSON lines) for API rejections, sign-ins and CSRF failures, shown on the Users page. |

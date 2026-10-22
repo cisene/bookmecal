@@ -45,7 +45,7 @@ RewriteRule .* - [F,L]
 RewriteRule ^api/?$ api.php [L,QSA]
 
 # Calendar Feed Well-known standard route
-RewriteRule ^\.well-known/calendar/?$ api.php?action=feed [L,QSA]
+RewriteRule ^\.well-known/calendar/?$ calendar.php [L,QSA]
 
 # Home page -> index.php
 RewriteRule ^$ index.php [L]

@@ -61,6 +61,35 @@
     </form>
 </div>
 
+<div class="card" id="calendar-feed">
+    <h2><?= e(__t('admin.config.feedTitle')) ?></h2>
+    <p><?= e(__t('admin.config.feedIntro', ['days' => $feedPastDays])) ?></p>
+    <?php if ($feedUrl !== null): ?>
+        <div class="form-group">
+            <label for="cfg-feed-url"><?= e(__t('admin.config.feedUrl')) ?></label>
+            <input type="text" id="cfg-feed-url" class="feed-url" value="<?= e($feedUrl) ?>" readonly data-select-all>
+            <small class="muted"><?= e(__t('admin.config.feedWarning')) ?></small>
+        </div>
+        <div class="toolbar">
+            <a href="<?= e($feedWebcalUrl) ?>" class="btn"><?= e(__t('admin.config.feedSubscribe')) ?></a>
+            <form method="post" class="inline" data-confirm="<?= e(__t('admin.config.feedConfirmRenew')) ?>">
+                <?php include __DIR__ . '/../partials/csrf.php'; ?>
+                <button type="submit" name="feed_action" value="renew" class="btn btn-secondary"><?= e(__t('admin.config.feedRenew')) ?></button>
+            </form>
+            <form method="post" class="inline" data-confirm="<?= e(__t('admin.config.feedConfirmDisable')) ?>">
+                <?php include __DIR__ . '/../partials/csrf.php'; ?>
+                <button type="submit" name="feed_action" value="disable" class="btn btn-danger"><?= e(__t('admin.config.feedDisable')) ?></button>
+            </form>
+        </div>
+    <?php else: ?>
+        <p class="muted"><?= e(__t('admin.config.feedOff')) ?></p>
+        <form method="post">
+            <?php include __DIR__ . '/../partials/csrf.php'; ?>
+            <button type="submit" name="feed_action" value="renew" class="btn"><?= e(__t('admin.config.feedEnable')) ?></button>
+        </form>
+    <?php endif; ?>
+</div>
+
 <div class="card">
     <h2><?= e(__t('admin.config.googleTitle')) ?></h2>
     <p><?= e(__t('admin.config.googleIntro')) ?></p>

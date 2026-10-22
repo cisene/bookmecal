@@ -26,7 +26,7 @@
     <p><?= e($retentionDays > 0 ? __t('privacy.retention.body', ['days' => $retentionDays]) : __t('privacy.retention.untilDeleted')) ?></p>
 
     <h2><?= e(__t('privacy.sharing.heading')) ?></h2>
-    <p><?= e(__t('privacy.sharing.body')) ?></p>
+    <p><?= e(__t('privacy.sharing.body')) ?><?php if ($calendarFeed): ?> <?= e(__t('privacy.sharing.calendar')) ?><?php endif; ?></p>
 
     <h2><?= e(__t('privacy.security.heading')) ?></h2>
     <p><?= e(__t('privacy.security.body')) ?></p>

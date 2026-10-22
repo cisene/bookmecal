@@ -116,3 +116,4 @@ td.actions { white-space: nowrap; }
 }
 .login-card { max-width: 420px; margin: 40px auto; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 15px; }
+input.feed-url { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; }

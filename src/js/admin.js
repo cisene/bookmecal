@@ -4,6 +4,7 @@
  *   data-confirm="text"    on a form: ask before submitting
  *   data-autosubmit        on a select: submit its form on change
  *   data-edit-form="id"    on a button: copy data-values (JSON) into that form's fields
+ *   data-select-all        on a read-only input: select the whole value on focus (easy copying)
  */
 (function () {
     'use strict';
@@ -14,6 +15,10 @@
                 event.preventDefault();
             }
         });
+    });
+
+    document.querySelectorAll('[data-select-all]').forEach((input) => {
+        input.addEventListener('focus', () => input.select());
     });
 
     document.querySelectorAll('[data-autosubmit]').forEach((el) => {

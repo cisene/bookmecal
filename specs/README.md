@@ -51,12 +51,14 @@ bookmecal/
 │   │   └── users.php
 │   ├── api.php
 │   ├── bootstrap.php
+│   ├── calendar.php
 │   ├── classes
 │   │   ├── AdminAccounts.php
 │   │   ├── AvailabilityEngine.php
 │   │   ├── BookingEngine.php
 │   │   ├── BookingRepository.php
 │   │   ├── BookingService.php
+│   │   ├── CalendarFeed.php
 │   │   ├── Constants.php
 │   │   ├── Database.php
 │   │   ├── EmailNotifier.php
@@ -148,6 +150,7 @@ bookmecal/
     ├── BookingEngineTest.php
     ├── BookingRepositoryTest.php
     ├── BookingServiceTest.php
+    ├── CalendarFeedTest.php
     ├── DatabaseTest.php
     ├── EmailNotifierTest.php
     ├── FormTokenTest.php
@@ -171,7 +174,7 @@ bookmecal/
 | [01-architecture-and-config.md](01-architecture-and-config.md)        | Request flow, core classes, localization, admin sign-in, security headers, input validation, security log, personal data |
 | [02-storage-and-repository.md](02-storage-and-repository.md)          | Data files, locking and BookingRepository |
 | [03-business-logic-and-engine.md](03-business-logic-and-engine.md)    | BookingService soft slots and other engines |
-| [04-api-and-integrations.md](04-api-and-integrations.md)              | API actions, week plan format, booking page behaviour |
+| [04-api-and-integrations.md](04-api-and-integrations.md)              | API actions, week plan format, booking page behaviour, calendar feed |
 | [05-todo-and-roadmap.md](05-todo-and-roadmap.md)                      | Todo list and revision history |
 | [06-master-specification-index.md](06-master-specification-index.md)  | Overview of all specifications |
 | [07-tests-and-validation.md](07-tests-and-validation.md)              | Date formats and unit test status |

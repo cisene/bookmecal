@@ -12,7 +12,7 @@ The system employs a Repository pattern to cleanly separate data storage from bu
 - `employees/emp_<id>.json`: One file per employee, see [employee.schema.json](employee.schema.json). Fields not known to the admin form are kept on save.
 - `config.json`: Application configuration, see [config.schema.json](config.schema.json).
 - `settings.json`: `default_country`, `timezone`, `supported_timezones`, `show_past_slots`, `pending_expiry_hours` (default 48, 0 = never; editable on the admin Config page), `allowed_origins` (list of origins allowed to call the API cross-origin, default empty) `admin_require_https` (default false; refuse admin pages over plain HTTP), `booking_retention_days` (default 365, 0 = keep; bookings are deleted that many days after the appointment), `business_name` and `privacy_contact` (shown in the privacy notice).
-- `secrets.json`: Generated on first use; holds the key that signs booking form tokens. Not in git.
+- `secrets.json`: Generated on first use; holds the key that signs booking form tokens (`form_secret`) and, while the calendar feed is on, its token (`calendar_feed_token`). Not in git.
 - `ratelimit/<sha256>.json`: Request timestamps per client and bucket (the file name is a hash, no IP addresses are stored). Files untouched for a day are swept. Not in git.
 - `credentials.json` / `tokens.json`: Google OAuth client and tokens.
 - `audit.json`: Admin audit log (including sign-in and sign-out), capped at the latest 200 entries. Not in git.

@@ -61,6 +61,14 @@ Rejections in steps 2 and 5–7 are written to the security log (`src/log/securi
 4. Previous/next buttons and a date field move between weeks; weeks before the current one are not reachable.
 5. Name and email are entered and the request is sent with `book`, together with the page's form token and the (empty) honeypot field. A short notice above the button links to the privacy notice (`privacy.php`).
 
+## Calendar feed (`src/calendar.php`)
+Read-only iCalendar (RFC 5545) subscription for the business's own calendar app: `calendar.php?token=<64 hex>` (also `/.well-known/calendar?token=...`). Turned on, renewed and turned off on the admin Config page; the page shows the link and a `webcal://` button. The token is kept in `data/secrets.json` (`calendar_feed_token`); without one the feed is off.
+
+- **Contents:** `pending` bookings as `STATUS:TENTATIVE` (summary starts with `? `), `approved` and `confirmed` as `STATUS:CONFIRMED`. Other statuses are left out, so rejected and expired requests disappear from the calendar. Bookings that ended more than 30 days ago (`CalendarFeed::PAST_DAYS`) are left out.
+- **Events:** `UID` is `<booking id>@bookmecal`; start and end in UTC (no `VTIMEZONE` needed); end is the treatment end without cleanup (one hour if missing). `SUMMARY` is `<service> – <customer name>`, `DESCRIPTION` holds name, email and phone. Text is escaped and control characters dropped, so customer input cannot add properties; long lines are folded at 75 octets without splitting UTF-8 characters.
+- **Protection:** Token compared in constant time; wrong or missing token: `404`, logged as `feed_token_invalid`. Rate limit 30 requests per 5 minutes per client (`429` with `Retry-After`). `Cache-Control: no-store`, API security headers. Runs the same housekeeping (expiry, retention) as the API.
+- Calendar apps are asked to refresh every 15 minutes (`REFRESH-INTERVAL`, `X-PUBLISHED-TTL`); Google Calendar decides on its own and can take hours.
+
 ## Integrations
 - Google Calendar: OAuth enrollment wizard in `admin/setup_google.php` (with `state` parameter). Calendar sync is not active yet.
 - Email: `EmailNotifier` (PHP `mail()`), texts from the `email.*` language keys in the booking's language.

@@ -6,6 +6,7 @@
  */
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/classes/CalendarFeed.php';
 
 $localization = Localization::getInstance();
 $settings = ResourceProvider::getSettings() ?? [];
@@ -18,4 +19,6 @@ View::render('public/privacy', [
     'business' => $businessName !== '' ? $businessName : __t('privacy.businessFallback'),
     'contact' => Input::email($contact),
     'retentionDays' => ResourceProvider::bookingRetentionDays(),
+    // With the calendar subscription on, the calendar provider keeps a copy of the bookings
+    'calendarFeed' => (new CalendarFeed())->token() !== null,
 ], 'public');

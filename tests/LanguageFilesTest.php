@@ -21,6 +21,7 @@ class LanguageFilesTest extends TestCase {
         'admin.pending.done.' => ['approve', 'reject', 'delete'],
         'admin.pending.' => ['approve', 'reject'],
         'admin.login.' => ['expired', 'signedOut'],
+        'admin.config.done.' => ['saved', 'feedRenewed', 'feedDisabled'],
         'admin.services.done.' => ['saved', 'deleted'],
         'admin.employees.done.' => ['saved', 'deleted'],
         'admin.holidays.done.' => ['added', 'deleted'],
