@@ -12,6 +12,12 @@ class BookingRepository {
     /** Statuses that keep a slot occupied. Rejected/cancelled bookings free their slot again. */
     public const BLOCKING_STATUSES = ['pending', 'approved', 'confirmed'];
 
+    /** Results of cancelBooking() / cancelState(). */
+    public const CANCEL_OK = 'cancelled';
+    public const CANCEL_INACTIVE = 'inactive';
+    public const CANCEL_TOO_LATE = 'too_late';
+    public const CANCEL_NOT_FOUND = 'not_found';
+
     /** Booking IDs come from uniqid('book_'); anything else could escape the bookings directory. */
     private const ID_PATTERN = '/^book_[0-9a-f]+$/';
 
@@ -146,6 +152,44 @@ class BookingRepository {
      */
     public function deleteBooking(string $bookingId): bool {
         return self::isValidId($bookingId) && JsonStore::delete($this->bookingPath($bookingId));
+    }
+
+    /**
+     * Customer cancellation: sets a pending or approved booking to 'cancelled' if it starts more than
+     * $cutoffHours from $now. Checked under the file lock. Returns one of the CANCEL_* constants.
+     */
+    public function cancelBooking(string $bookingId, int $cutoffHours, ?DateTimeInterface $now = null): string {
+        if (!self::isValidId($bookingId) || !is_file($this->bookingPath($bookingId))) {
+            return self::CANCEL_NOT_FOUND;
+        }
+        $now = DateTimeImmutable::createFromInterface($now ?? new DateTimeImmutable('now', $this->timezone));
+        $result = self::CANCEL_NOT_FOUND;
+        JsonStore::update($this->bookingPath($bookingId), function (array $booking) use ($cutoffHours, $now, &$result) {
+            $result = $this->cancelState($booking, $cutoffHours, $now);
+            if ($result === self::CANCEL_OK) {
+                $booking['status'] = 'cancelled';
+                $booking['cancelled_at_iso'] = $now->format(DATE_ATOM);
+                $booking['cancelled_by'] = 'customer';
+            }
+            return $booking;
+        });
+        return $result;
+    }
+
+    /**
+     * Whether a booking can be cancelled by the customer now: CANCEL_OK, CANCEL_INACTIVE
+     * (already cancelled, rejected, expired) or CANCEL_TOO_LATE.
+     */
+    public function cancelState(array $booking, int $cutoffHours, ?DateTimeInterface $now = null): string {
+        if (!in_array($booking['status'] ?? '', self::BLOCKING_STATUSES, true)) {
+            return self::CANCEL_INACTIVE;
+        }
+        $start = $this->bookingStart($booking);
+        $now = DateTimeImmutable::createFromInterface($now ?? new DateTimeImmutable('now', $this->timezone));
+        if ($start === null || $now->modify('+' . max(0, $cutoffHours) . ' hours') >= $start) {
+            return self::CANCEL_TOO_LATE;
+        }
+        return self::CANCEL_OK;
     }
 
     /**

@@ -99,3 +99,9 @@ select, input { width: 100%; padding: 10px 12px; border: 1px solid var(--border)
 .site-footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid var(--border); text-align: center; font-size: 0.85rem; }
 .privacy h1 { text-align: left; }
 .privacy p { line-height: 1.55; }
+
+/* Cancellation page */
+.btn-danger { background: #dc2626; }
+.btn-danger:hover { background: #b91c1c; }
+.cancel h1 { text-align: left; }
+.cancel-booking { font-weight: 600; font-size: 1.05rem; }

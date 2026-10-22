@@ -16,6 +16,7 @@ const SUPPORTED_TIMEZONES = ['Europe/Stockholm', 'Europe/Oslo', 'Europe/Helsinki
 const SUPPORTED_COUNTRIES = ['se', 'no', 'fi', 'ee', 'lv', 'lt'];
 const MAX_PENDING_EXPIRY_HOURS = 720;
 const MAX_RETENTION_DAYS = 3650;
+const MAX_CANCEL_CUTOFF_HOURS = 720;
 const MAX_BUSINESS_NAME = 100;
 const MAX_SENDER_NAME = 100;
 
@@ -44,6 +45,7 @@ if (is_post() && request_string($_POST, 'feed_action') !== '') {
     $country = Input::oneOf(strtolower(request_string($_POST, 'default_country')), SUPPORTED_COUNTRIES);
     $expiryHours = Input::int(request_string($_POST, 'pending_expiry_hours'), 0, MAX_PENDING_EXPIRY_HOURS);
     $retentionDays = Input::int(request_string($_POST, 'booking_retention_days'), 0, MAX_RETENTION_DAYS);
+    $cancelCutoff = Input::int(request_string($_POST, 'cancel_cutoff_hours'), 0, MAX_CANCEL_CUTOFF_HOURS);
     $businessName = Input::text(request_string($_POST, 'business_name'), MAX_BUSINESS_NAME);
     $privacyContact = request_string($_POST, 'privacy_contact');
     $privacyContact = $privacyContact === '' ? '' : Input::email($privacyContact);
@@ -61,6 +63,8 @@ if (is_post() && request_string($_POST, 'feed_action') !== '') {
         $flash[] = flash_error('Selected country is not supported.');
     } elseif ($expiryHours === null) {
         $flash[] = flash_error('Expiry must be a whole number of hours between 0 and ' . MAX_PENDING_EXPIRY_HOURS . '.');
+    } elseif ($cancelCutoff === null) {
+        $flash[] = flash_error('The cancellation limit must be a whole number of hours between 0 and ' . MAX_CANCEL_CUTOFF_HOURS . '.');
     } elseif ($retentionDays === null) {
         $flash[] = flash_error('Retention must be a whole number of days between 0 and ' . MAX_RETENTION_DAYS . '.');
     } elseif ($businessName === null) {
@@ -76,13 +80,14 @@ if (is_post() && request_string($_POST, 'feed_action') !== '') {
     } elseif ($publicUrl === null) {
         $flash[] = flash_error('The booking site address must start with http:// or https:// and have no query or fragment.');
     } else {
-        $saved = JsonStore::update($settingsFile, function (array $settings) use ($timezone, $country, $expiryHours, $retentionDays, $businessName, $privacyContact, $publicUrl) {
+        $saved = JsonStore::update($settingsFile, function (array $settings) use ($timezone, $country, $expiryHours, $retentionDays, $businessName, $privacyContact, $publicUrl, $cancelCutoff) {
             return array_merge($settings, [
                 'timezone' => $timezone,
                 'default_country' => $country,
                 'supported_timezones' => SUPPORTED_TIMEZONES,
                 'show_past_slots' => request_string($_POST, 'show_past_slots') === '1',
                 'pending_expiry_hours' => $expiryHours,
+                'cancel_cutoff_hours' => $cancelCutoff,
                 'booking_retention_days' => $retentionDays,
                 'business_name' => $businessName,
                 'privacy_contact' => $privacyContact,
@@ -134,6 +139,8 @@ render_admin('config', [
     'showPastSlots' => !empty($settings['show_past_slots']),
     'pendingExpiryHours' => ResourceProvider::pendingExpiryHours(),
     'maxPendingExpiryHours' => MAX_PENDING_EXPIRY_HOURS,
+    'cancelCutoffHours' => ResourceProvider::cancelCutoffHours(),
+    'maxCancelCutoffHours' => MAX_CANCEL_CUTOFF_HOURS,
     'retentionDays' => ResourceProvider::bookingRetentionDays(),
     'maxRetentionDays' => MAX_RETENTION_DAYS,
     'businessName' => (string)($settings['business_name'] ?? ''),

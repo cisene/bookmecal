@@ -2,12 +2,14 @@
 /**
  * src/classes/BookingEmails.php
  * The emails around one booking: receipt to the customer and alert to the business when a request
- * arrives, and the answer (with an .ics file on approval) when the admin decides.
+ * arrives, the answer (with an .ics file on approval) when the admin decides, the reminder, and an
+ * alert to the business when the customer cancels. Customer emails carry the cancellation link.
  * Builds the text variables from the booking, services and settings; EmailNotifier sends.
  */
 
 require_once __DIR__ . '/EmailNotifier.php';
 require_once __DIR__ . '/CalendarFeed.php';
+require_once __DIR__ . '/CancelLink.php';
 require_once __DIR__ . '/ResourceProvider.php';
 
 class BookingEmails {
@@ -31,16 +33,27 @@ class BookingEmails {
      * Returns whether the customer receipt was sent.
      */
     public function requestReceived(array $booking): bool {
-        $vars = $this->vars($booking);
         $notify = $this->notifier->notificationEmail();
         if ($notify !== null) {
-            $adminVars = $vars + ['email' => (string)($booking['customer_email'] ?? '')];
-            if (($vars['siteUrl'] ?? '') !== '') {
-                $adminVars['adminUrl'] = $vars['siteUrl'] . 'admin/pending.php';
-            }
-            $this->notifier->sendAdminAlert($notify, $adminVars, $this->adminLang);
+            $this->notifier->sendAdminAlert($notify, $this->adminVars($booking), $this->adminLang);
         }
-        return $this->notifier->sendBookingReceived((string)($booking['customer_email'] ?? ''), $vars, $this->lang($booking));
+        return $this->notifier->sendBookingReceived((string)($booking['customer_email'] ?? ''), $this->vars($booking), $this->lang($booking));
+    }
+
+    /**
+     * The customer cancelled with their link: alert to the business (if an address is set).
+     */
+    public function cancelledByCustomer(array $booking): bool {
+        $notify = $this->notifier->notificationEmail();
+        return $notify !== null && $this->notifier->sendAdminCancelled($notify, $this->adminVars($booking), $this->adminLang);
+    }
+
+    /**
+     * Reminder before an approved appointment. $price and $currency as shown to the customer.
+     */
+    public function reminder(array $booking, string $price, string $currency): bool {
+        return $this->notifier->sendReminder((string)($booking['customer_email'] ?? ''),
+            $this->vars($booking) + ['price' => $price, 'currency' => $currency], $this->lang($booking));
     }
 
     /**
@@ -48,6 +61,9 @@ class BookingEmails {
      */
     public function decided(array $booking, bool $approved): bool {
         $vars = $this->vars($booking);
+        if (!$approved) {
+            unset($vars['cancelUrl']); // nothing left to cancel
+        }
         $ics = $approved
             ? CalendarFeed::single($booking, $vars['service'] . ' – ' . $vars['business'], ResourceProvider::getTimezone())
             : null;
@@ -90,7 +106,20 @@ class BookingEmails {
             'business' => $business !== '' ? $business : 'Book Me Calendar',
             'siteUrl' => $siteUrl,
             'privacyUrl' => $siteUrl !== '' ? $siteUrl . 'privacy.php' : '',
+            'cancelUrl' => CancelLink::url($siteUrl, $booking),
+            'hours' => ResourceProvider::cancelCutoffHours(),
         ];
+    }
+
+    /** Variables for alerts to the business: the customer's email and a link to the bookings page. */
+    private function adminVars(array $booking): array {
+        $vars = $this->vars($booking);
+        unset($vars['cancelUrl'], $vars['privacyUrl']);
+        $vars['email'] = (string)($booking['customer_email'] ?? '');
+        if ($vars['siteUrl'] !== '') {
+            $vars['adminUrl'] = $vars['siteUrl'] . 'admin/pending.php';
+        }
+        return $vars;
     }
 
     private function lang(array $booking): ?string {

@@ -7,9 +7,18 @@
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../src/classes/BookingEmails.php';
+require_once __DIR__ . '/../src/classes/CancelLink.php';
 
 class BookingEmailsTest extends TestCase {
     private array $sent = [];
+
+    protected function setUp(): void {
+        CancelLink::setKey(str_repeat('c', 64));
+    }
+
+    protected function tearDown(): void {
+        CancelLink::setKey(null);
+    }
 
     private function emails(array $smtp = [], array $settings = []): BookingEmails {
         $this->sent = [];
@@ -77,5 +86,36 @@ class BookingEmailsTest extends TestCase {
         $this->assertSame('https://example.se/boka/', BookingEmails::siteUrl(['public_url' => 'https://example.se/boka/']));
         $this->assertSame('', BookingEmails::siteUrl(['public_url' => 'nope']));
         $this->assertSame('', BookingEmails::siteUrl([]));
+    }
+
+    public function testCustomerEmailsCarryTheCancelLink() {
+        $emails = $this->emails(['notification_email' => 'owner@example.com'], ['public_url' => 'https://example.se/']);
+        $link = 'https://example.se/cancel.php?id=book_abc1&token=' . CancelLink::token('book_abc1') . '&lang=sv';
+
+        $emails->requestReceived(self::booking());
+        $this->assertStringNotContainsString('cancel.php', $this->sent[0]['body'], 'not in the admin alert');
+        $this->assertStringContainsString($link, $this->sent[1]['body']);
+
+        $this->sent = [];
+        $emails->decided(self::booking(), true);
+        $this->assertStringContainsString($link, $this->sent[0]['body']);
+        $this->sent = [];
+        $emails->decided(self::booking(), false);
+        $this->assertStringNotContainsString('cancel.php', $this->sent[0]['body']);
+
+        $this->sent = [];
+        $emails->reminder(self::booking() + ['status' => 'approved'], '800', 'SEK');
+        $this->assertStringContainsString($link, $this->sent[0]['body']);
+        $this->assertStringContainsString('2026-11-03 10:00', $this->sent[0]['body']);
+        $this->assertStringContainsString('800 SEK', $this->sent[0]['body']);
+    }
+
+    public function testCancellationAlertGoesToTheBusiness() {
+        $this->assertFalse($this->emails()->cancelledByCustomer(self::booking()));
+        $this->assertSame([], $this->sent);
+
+        $this->assertTrue($this->emails(['notification_email' => 'owner@example.com'])->cancelledByCustomer(self::booking()));
+        $this->assertSame('owner@example.com', $this->sent[0]['to']);
+        $this->assertStringContainsString('Bo Ek <bo@example.com>', $this->sent[0]['body']);
     }
 }

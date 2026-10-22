@@ -11,11 +11,11 @@ if (PHP_SAPI !== 'cli') {
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/classes/BookingRepository.php';
-require_once __DIR__ . '/classes/EmailNotifier.php';
+require_once __DIR__ . '/classes/BookingEmails.php';
 require_once __DIR__ . '/classes/Constants.php';
 
 $repository = new BookingRepository();
-$notifier = new EmailNotifier(ResourceProvider::getConfig() ?? []);
+$emails = new BookingEmails();
 $country = ResourceProvider::getSettings()['default_country'] ?? 'se';
 $currency = (new Constants())->getLocaleForCountry($country)['currency'] ?? '';
 
@@ -34,15 +34,7 @@ foreach ($repository->getBookings() as $id => $booking) {
     }
 
     $service = ResourceProvider::getServiceById((string)($booking['service_id'] ?? '')) ?? [];
-    $ok = $notifier->sendReminder(
-        (string)($booking['customer_email'] ?? ''),
-        str_replace(["\r", "\n"], ' ', (string)($booking['customer_name'] ?? '')),
-        (string)($service['name'] ?? ''),
-        $start->format('Y-m-d H:i'),
-        (string)($service['price_incl_vat'] ?? $service['price'] ?? ''),
-        $currency,
-        $booking['language'] ?? null
-    );
+    $ok = $emails->reminder($booking, (string)($service['price_incl_vat'] ?? $service['price'] ?? ''), $currency);
 
     if ($ok) {
         $repository->updateBooking($id, ['reminder_sent' => true]);

@@ -65,14 +65,27 @@ class EmailNotifier {
     }
 
     /**
-     * Reminder sent the day before an approved appointment.
+     * Alert to the business that a customer cancelled online.
+     * $vars: name, email, service, date, time, end; optional adminUrl.
      */
-    public function sendReminder(string $toEmail, string $clientName, string $serviceName, string $time, string $price, string $currency, ?string $lang = null): bool {
-        $vars = ['name' => $clientName, 'service' => $serviceName, 'time' => $time, 'price' => $price, 'currency' => $currency];
-        $body = __t('email.reminder.heading', $vars, $lang) . "\n\n"
+    public function sendAdminCancelled(string $adminEmail, array $vars, ?string $lang = null): bool {
+        $body = __t('email.admin.cancelled.body', $vars, $lang);
+        if (!empty($vars['adminUrl'])) {
+            $body .= "\n\n" . __t('email.admin.cancelled.link', $vars, $lang);
+        }
+        return $this->send($adminEmail, __t('email.admin.cancelled.subject', $vars, $lang), $body);
+    }
+
+    /**
+     * Reminder sent the day before an approved appointment.
+     * $vars: name, service, date, time, end, price, currency, business; optional cancelUrl, privacyUrl.
+     */
+    public function sendReminder(string $toEmail, array $vars, ?string $lang = null): bool {
+        $vars['time'] = trim(($vars['date'] ?? '') . ' ' . ($vars['time'] ?? ''));
+        $text = __t('email.reminder.heading', $vars, $lang) . "\n\n"
             . __t('email.reminder.intro', $vars, $lang) . "\n\n"
             . __t('email.reminder.policyNotice', $vars, $lang);
-        return $this->send($toEmail, __t('email.reminder.subject', $vars, $lang), $body);
+        return $this->send($toEmail, __t('email.reminder.subject', $vars, $lang), $this->withLinks($text, $vars, $lang));
     }
 
     /**
@@ -116,9 +129,16 @@ class EmailNotifier {
         return ($this->transport)($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
     }
 
-    /** A customer email body, with the privacy notice link added when a URL is known. */
+    /** A customer email body with the links (see withLinks()). */
     private function body(string $key, array $vars, ?string $lang): string {
-        $body = __t($key, $vars, $lang);
+        return $this->withLinks(__t($key, $vars, $lang), $vars, $lang);
+    }
+
+    /** Adds the cancellation link and the privacy notice link when their URLs are known. */
+    private function withLinks(string $body, array $vars, ?string $lang): string {
+        if (!empty($vars['cancelUrl'])) {
+            $body .= "\n\n" . __t('email.cancelLink', $vars, $lang);
+        }
         if (!empty($vars['privacyUrl'])) {
             $body .= "\n\n" . __t('email.privacyLink', $vars, $lang);
         }

@@ -1,6 +1,7 @@
 <?php
 /**
- * Public layout. Expects: $content, $lang, $languages.
+ * Public layout. Expects: $content, $lang, $languages; optional $keepQuery (name => value) that the
+ * language switch sends along, for pages that need their query string (e.g. cancel.php).
  */
 ?>
 <!DOCTYPE html>
@@ -14,6 +15,9 @@
 <body>
 <main class="container">
     <form method="get" class="lang-switch">
+        <?php foreach ($keepQuery ?? [] as $name => $value): ?>
+            <input type="hidden" name="<?= e($name) ?>" value="<?= e($value) ?>">
+        <?php endforeach; ?>
         <select name="lang" data-autosubmit aria-label="<?= e(__t('common.language')) ?>">
             <?php foreach ($languages as $code => $name): ?>
                 <option value="<?= e($code) ?>"<?= $code === $lang ? ' selected' : '' ?>><?= e($name) ?></option>

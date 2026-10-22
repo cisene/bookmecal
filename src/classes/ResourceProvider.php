@@ -137,4 +137,12 @@ class ResourceProvider {
     public static function bookingRetentionDays(): int {
         return max(0, (int)(self::getSettings()['booking_retention_days'] ?? 365));
     }
+
+    /**
+     * Customers can cancel online until this many hours before the appointment (settings.json
+     * cancel_cutoff_hours, default 24). 0 allows cancelling until the start.
+     */
+    public static function cancelCutoffHours(): int {
+        return max(0, (int)(self::getSettings()['cancel_cutoff_hours'] ?? 24));
+    }
 }

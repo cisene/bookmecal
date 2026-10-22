@@ -61,6 +61,14 @@ Rejections in steps 2 and 5–7 are written to the security log (`src/log/securi
 4. Previous/next buttons and a date field move between weeks; weeks before the current one are not reachable.
 5. Name and email are entered and the request is sent with `book`, together with the page's form token and the (empty) honeypot field. A short notice above the button links to the privacy notice (`privacy.php`).
 
+## Customer cancellation (`src/cancel.php`)
+`cancel.php?id=<booking id>&token=<32 hex>&lang=<booking language>`, sent in the customer emails when `public_url` is set. The token is the first 32 hex characters of HMAC-SHA256(`cancel|<id>`) with `cancel_secret` from `data/secrets.json` (`CancelLink`), so nothing is stored per booking and older bookings get links too.
+
+1. GET shows the booking (service, date, time) and a button. Only the POST cancels, so mail scanners and link previews cannot cancel.
+2. Allowed for `pending`, `approved` and `confirmed` bookings that start more than `cancel_cutoff_hours` from now (default 24, admin Config page). Later: "contact us" with `privacy_contact` or the sender address. Checked again under the booking's file lock (`BookingRepository::cancelBooking()`).
+3. The booking gets `status: cancelled`, `cancelled_at_iso`, `cancelled_by: customer`; the time is free again and the booking leaves the calendar feed. The business gets an alert email.
+4. Unknown booking or wrong token: `404`, logged as `cancel_token_invalid`. Rate limit 30 requests per 5 minutes per client. `Cache-Control: no-store`, `X-Robots-Tag: noindex`. The language switch keeps `id` and `token` (layout `$keepQuery`).
+
 ## Calendar feed (`src/calendar.php`)
 Read-only iCalendar (RFC 5545) subscription for the business's own calendar app: `calendar.php?token=<64 hex>` (also `/.well-known/calendar?token=...`). Turned on, renewed and turned off on the admin Config page; the page shows the link and a `webcal://` button. The token is kept in `data/secrets.json` (`calendar_feed_token`); without one the feed is off.
 
@@ -81,5 +89,6 @@ Read-only iCalendar (RFC 5545) subscription for the business's own calendar app:
 | Admin approves | Customer | Booking's language | Confirmation (`email.approved.*`) with `booking.ics` attached (one event, `METHOD:PUBLISH`, summary `<service> – <business>`, no contact details) |
 | Admin rejects | Customer | Booking's language | Decline (`email.rejected.*`) |
 | Day before (cron) | Customer | Booking's language | Reminder (`send_reminders.php`) |
+| Customer cancels online | `smtp.notification_email` (if set) | `config.json` `app.language` | Alert (`email.admin.cancelled.*`) |
 
-Customer emails sign off with `business_name` and, when `public_url` is set, end with a link to the privacy notice (`email.privacyLink`). A mail failure never undoes a booking or a decision. After approve/reject the bookings page says whether the customer got an email, or that emails are off and the customer must be told some other way; the result is stored as `decision_emailed`. Placeholders are filled in one pass, so a customer name containing `{service}` stays as typed.
+Customer emails sign off with `business_name`. When `public_url` is set, the receipt, approval and reminder end with the cancellation link (`email.cancelLink`), and all customer emails with a link to the privacy notice (`email.privacyLink`). A mail failure never undoes a booking or a decision. After approve/reject the bookings page says whether the customer got an email, or that emails are off and the customer must be told some other way; the result is stored as `decision_emailed`. Placeholders are filled in one pass, so a customer name containing `{service}` stays as typed.

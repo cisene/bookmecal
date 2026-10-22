@@ -16,5 +16,6 @@
     "booking_retention_days": 365,
     "business_name": "",
     "privacy_contact": "",
-    "public_url": ""
+    "public_url": "",
+    "cancel_cutoff_hours": 24
 }

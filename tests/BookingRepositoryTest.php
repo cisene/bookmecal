@@ -118,4 +118,35 @@ class BookingRepositoryTest extends TestCase {
             $this->removeDir($dir);
         }
     }
+
+    public function testCustomerCancellationRespectsStatusAndCutoff() {
+        $tz = ResourceProvider::getTimezone();
+        [$repo, $dir] = $this->tempRepository([
+            ['id' => 'book_c1', 'date' => '2026-11-10', 'time' => '10:00', 'status' => 'approved'],
+            ['id' => 'book_c2', 'date' => '2026-11-10', 'time' => '10:00', 'status' => 'pending'],
+            ['id' => 'book_c3', 'date' => '2026-11-10', 'time' => '10:00', 'status' => 'rejected'],
+            ['id' => 'book_c4', 'date' => '2026-11-09', 'time' => '12:00', 'status' => 'approved'],
+        ]);
+        $now = new DateTimeImmutable('2026-11-08 12:00', $tz);
+        try {
+            $this->assertSame(BookingRepository::CANCEL_OK, $repo->cancelBooking('book_c1', 24, $now));
+            $this->assertSame(BookingRepository::CANCEL_OK, $repo->cancelBooking('book_c2', 24, $now));
+            $this->assertSame(BookingRepository::CANCEL_INACTIVE, $repo->cancelBooking('book_c1', 24, $now), 'already cancelled');
+            $this->assertSame(BookingRepository::CANCEL_INACTIVE, $repo->cancelBooking('book_c3', 24, $now));
+            // Exactly 24 hours before the start is too late
+            $this->assertSame(BookingRepository::CANCEL_TOO_LATE, $repo->cancelBooking('book_c4', 24, $now));
+            $this->assertSame(BookingRepository::CANCEL_OK, $repo->cancelBooking('book_c4', 0, $now));
+            $this->assertSame(BookingRepository::CANCEL_NOT_FOUND, $repo->cancelBooking('book_ff', 24, $now));
+            $this->assertSame(BookingRepository::CANCEL_NOT_FOUND, $repo->cancelBooking('../x', 24, $now));
+
+            $bookings = $repo->getBookings();
+            $this->assertSame('cancelled', $bookings['book_c1']['status']);
+            $this->assertSame('customer', $bookings['book_c1']['cancelled_by']);
+            $this->assertSame('rejected', $bookings['book_c3']['status']);
+            // A cancelled booking no longer blocks its time
+            $this->assertSame([], $repo->getBlockingIntervals('2026-11-10'));
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
 }

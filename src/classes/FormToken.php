@@ -6,8 +6,7 @@
  * The signing key is generated on first use and kept in data/secrets.json.
  */
 
-require_once __DIR__ . '/JsonStore.php';
-require_once __DIR__ . '/ResourceProvider.php';
+require_once __DIR__ . '/Secrets.php';
 
 class FormToken {
     public const MIN_AGE = 3;
@@ -49,22 +48,6 @@ class FormToken {
     }
 
     private static function secret(): string {
-        if (self::$secret !== null) {
-            return self::$secret;
-        }
-        $path = ResourceProvider::dataPath('secrets.json');
-        $secret = JsonStore::read($path)['form_secret'] ?? null;
-        if (!is_string($secret) || strlen($secret) < 32) {
-            // Generate under the store's lock so concurrent first requests agree on one key
-            JsonStore::update($path, function (array $data) use (&$secret) {
-                if (!is_string($data['form_secret'] ?? null) || strlen($data['form_secret']) < 32) {
-                    $data['form_secret'] = bin2hex(random_bytes(32));
-                }
-                $secret = $data['form_secret'];
-                return $data;
-            });
-            @chmod($path, 0640);
-        }
-        return self::$secret = (string)$secret;
+        return self::$secret ?? Secrets::key('form_secret');
     }
 }

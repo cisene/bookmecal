@@ -37,6 +37,12 @@
             <small class="muted"><?= e(__t('admin.config.pendingExpiryHint')) ?></small>
         </div>
 
+        <div class="form-group">
+            <label for="cfg-cancel"><?= e(__t('admin.config.cancelCutoff')) ?></label>
+            <input type="number" id="cfg-cancel" name="cancel_cutoff_hours" min="0" max="<?= e($maxCancelCutoffHours) ?>" step="1" value="<?= e($cancelCutoffHours) ?>" required>
+            <small class="muted"><?= e(__t('admin.config.cancelCutoffHint')) ?></small>
+        </div>
+
         <h3><?= e(__t('admin.config.privacyTitle')) ?></h3>
         <p class="muted"><?= e(__t('admin.config.privacyIntro')) ?> <a href="../privacy.php" target="_blank" rel="noopener"><?= e(__t('admin.config.privacyView')) ?></a></p>
 

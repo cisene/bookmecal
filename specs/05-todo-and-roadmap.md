@@ -2,7 +2,7 @@
 
 ## Active Todo List & Roadmap
 
-- [ ] **Calendar Feeds:** Read-only subscription feed and `.ics` file in the approval email done. Next: a cancellation link for customers (the reminder text already mentions one).
+- [ ] **Calendar Feeds:** Read-only subscription feed and `.ics` file in the approval email done. Customer cancellation link done.
 - [ ] **Advanced Google Calendar API:** Add two-way synchronization for adding and removing calendar events via the Google Calendar API.
 - [ ] **Bulk & Direct SMTP Messaging:** Booking emails done (receipt, admin alert, approval, rejection). Next: real SMTP (authenticated, e.g. with PHPMailer) instead of PHP `mail()`, and messages to a single customer, group, or all customers.
 - [ ] **Email delivery on the server:** Set up SPF/DKIM for the sender domain and test that mails are not taken for spam before the trial.
@@ -19,6 +19,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-22** | • Customer cancellation: secret link in the receipt, approval and reminder emails opens `cancel.php`, which cancels after a button press until `cancel_cutoff_hours` (default 24, Config page) before the appointment; the business gets an alert. Signing keys moved to a shared `Secrets` class.<br>• Removed unused email keys (`email.confirmation.*`, `email.admin.newBooking.*`, `email.admin.cancellation.*`, `email.reminder.cancellationLink`). |
 | **2026-10-22** | • Booking emails: receipt to the customer and alert to the business on a new request, confirmation with an `.ics` calendar file on approval, decline on rejection. Email on/off, sender, alert address and site address (`public_url`, for links) on the admin Config page; the bookings page says whether the customer was emailed.<br>• Translation placeholders are filled in one pass. |
 | **2026-10-22** | • Calendar subscription feed (`calendar.php`, iCalendar): approved bookings and, as tentative, unanswered requests, for Apple, Google or Outlook calendars. Secret link turned on, renewed and turned off on the admin Config page; wrong tokens logged; privacy notice mentions the calendar provider while the feed is on.<br>• Removed the unused `admin_user`/`admin_pass` from `data/config.json`. |
 | **2026-10-22** | • `JsonStore::read()` takes a shared lock: readers no longer see half-written files during an update. |

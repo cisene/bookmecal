@@ -67,7 +67,7 @@ class LanguageFilesTest extends TestCase {
                 continue;
             }
             // File names such as 'privacy.php' or 'booking.ics' are not keys
-            preg_match_all("/'((?:admin|booking|common|email|meta|privacy)\.(?!(?:php|ics|js|json|css)')[a-zA-Z0-9.]*[a-zA-Z0-9])'/", file_get_contents($file->getPathname()), $m);
+            preg_match_all("/'((?:admin|booking|cancel|common|email|meta|privacy)\.(?!(?:php|ics|js|json|css)')[a-zA-Z0-9.]*[a-zA-Z0-9])'/", file_get_contents($file->getPathname()), $m);
             foreach ($m[1] as $key) {
                 $keys[$key] = $file->getFilename();
             }

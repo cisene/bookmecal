@@ -52,6 +52,7 @@ bookmecal/
 │   ├── api.php
 │   ├── bootstrap.php
 │   ├── calendar.php
+│   ├── cancel.php
 │   ├── classes
 │   │   ├── AdminAccounts.php
 │   │   ├── AvailabilityEngine.php
@@ -60,6 +61,7 @@ bookmecal/
 │   │   ├── BookingRepository.php
 │   │   ├── BookingService.php
 │   │   ├── CalendarFeed.php
+│   │   ├── CancelLink.php
 │   │   ├── Constants.php
 │   │   ├── Database.php
 │   │   ├── EmailNotifier.php
@@ -73,6 +75,7 @@ bookmecal/
 │   │   ├── MultiSlotEngine.php
 │   │   ├── RateLimiter.php
 │   │   ├── ResourceProvider.php
+│   │   ├── Secrets.php
 │   │   ├── SecurityHeaders.php
 │   │   ├── SecurityLog.php
 │   │   ├── TimeSlot.php
@@ -144,6 +147,7 @@ bookmecal/
 │       │   └── csrf.php
 │       └── public
 │           ├── booking.php
+│           ├── cancel.php
 │           └── privacy.php
 └── tests
     ├── AdminAccountsTest.php
@@ -153,6 +157,7 @@ bookmecal/
     ├── BookingRepositoryTest.php
     ├── BookingServiceTest.php
     ├── CalendarFeedTest.php
+    ├── CancelLinkTest.php
     ├── DatabaseTest.php
     ├── EmailNotifierTest.php
     ├── FormTokenTest.php
@@ -164,6 +169,7 @@ bookmecal/
     ├── MultiSlotEngineTest.php
     ├── RateLimiterTest.php
     ├── ResourceProviderTest.php
+    ├── SecretsTest.php
     ├── SecurityLogTest.php
     └── TimeSlotTest.php
 ```

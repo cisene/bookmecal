@@ -9,6 +9,7 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - `src/index.php`: Public booking page controller, renders `templates/public/booking.php`.
 - `src/privacy.php`: Public privacy notice, renders `templates/public/privacy.php` (§1.8). Public pages share `templates/layout/public.php` (language switcher, footer link to the privacy notice, `js/public.js`).
 - `src/api.php`: JSON API used by the booking page (see [04-api-and-integrations.md](04-api-and-integrations.md)).
+- `src/cancel.php`: Customer cancellation page, opened from the link in the booking emails (see [04-api-and-integrations.md](04-api-and-integrations.md)).
 - `src/calendar.php`: Calendar subscription feed (iCalendar) of bookings, opened with a secret token (see [04-api-and-integrations.md](04-api-and-integrations.md)). Also reachable as `/.well-known/calendar`.
 - `src/admin/*.php`: Admin controllers. Each requires `admin/auth.php` (signed-in user required; built on `admin/session.php`), handles POST (CSRF-checked, Post/Redirect/Get) and renders a template in `templates/admin/` inside `templates/layout/admin.php`. `admin/login.php` and `admin/logout.php` handle sign-in (§1.4).
 - `src/send_reminders.php`: CLI-only cron script for 24-hour reminder emails.
@@ -26,6 +27,8 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - `Input.php`: The input validation layer (§1.6).
 - `AdminAccounts.php`: Admin accounts in `admin/.htpasswd`: password check, hashing, password policy (§1.4).
 - `SecurityLog.php`: Security event log (§1.7).
+- `CancelLink.php`: Per-booking cancellation token (HMAC of the booking ID) and link.
+- `Secrets.php`: Signing keys in `data/secrets.json` (`form_secret`, `cancel_secret`), created on first use.
 - `CalendarFeed.php`: Feed token in `data/secrets.json` and the iCalendar output of `calendar.php`.
 - `src/bootstrap.php` also defines the escaping and request helpers used everywhere.
 
@@ -89,12 +92,13 @@ Used by the API (dates, times, names, emails, service IDs) and by every admin fo
 
 | Event | When |
 | :--- | :--- |
-| `rate_limited` | Rate limit hit (`bucket`: `read` or `book` for the API, `feed` for the calendar feed) |
+| `rate_limited` | Rate limit hit (`bucket`: `read` or `book` for the API, `feed` for the calendar feed, `cancel` for the cancellation page) |
 | `honeypot` | Booking with the hidden field filled in |
 | `form_too_fast`, `form_token_invalid` | Booking form token too young, missing or forged |
 | `pending_limit` | Pending cap per email reached |
 | `login_ok`, `login_failed`, `login_locked` | Admin sign-in (with `username`) |
 | `csrf_failed` | Admin POST without a valid CSRF token (with `page`) |
+| `cancel_token_invalid` | Cancellation page opened with an unknown booking or a wrong token |
 | `feed_token_invalid` | Calendar feed requested with a wrong or missing token, or while the feed is off |
 
 The newest 100 events are shown on the admin Users page. The one-line JSON format suits `fail2ban` (match on `"event":"login_failed"` and the `ip` field) for blocking at the firewall.
