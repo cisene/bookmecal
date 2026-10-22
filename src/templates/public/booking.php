@@ -10,6 +10,13 @@
         </select>
     </div>
 
+    <div class="form-group" id="staffGroup" hidden>
+        <label for="staffSelect"><?= e(__t('booking.staff.label')) ?></label>
+        <select id="staffSelect">
+            <option value=""><?= e(__t('booking.staff.any')) ?></option>
+        </select>
+    </div>
+
     <div class="form-group">
         <span class="label"><?= e(__t('booking.slots.title')) ?></span>
         <p class="muted"><?= e(__t('booking.slots.instructions')) ?></p>
@@ -23,6 +30,7 @@
         <div class="legend">
             <span><i class="swatch swatch-free"></i><?= e(__t('booking.timeline.free')) ?></span>
             <span><i class="swatch swatch-booked"></i><?= e(__t('booking.timeline.booked')) ?></span>
+            <span><i class="swatch swatch-off"></i><?= e(__t('booking.timeline.off')) ?></span>
             <span><i class="swatch swatch-past"></i><?= e(__t('booking.timeline.past')) ?></span>
         </div>
         <div class="selection-bar">

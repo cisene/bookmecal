@@ -6,10 +6,10 @@
 * **Directory Structure:**
   * `src/data/` (Protected by `.htaccess` rules, see [02-storage-and-repository.md](02-storage-and-repository.md))
   * `src/data/pending/` (Individual JSON files for incoming booking requests)
-  * `src/data/openhours.json` (Opening hours used by the booking)
-  * `src/data/booking/availability.json` (Admin slot matrix, not used by the booking yet)
+  * `src/data/openhours.json` (Opening hours: the outer limit of all bookings)
+  * `src/data/employees/` (One file per employee, with the treatments offered and weekly working hours)
   * `src/templates/` (HTML templates), `src/classes/` (logic), `src/language/` (translations)
-* **Availability:** Soft slots, a treatment can start every 5 minutes where treatment plus cleanup fits (see [availability_logic_appendix.md](availability_logic_appendix.md)).
+* **Availability:** Soft slots, a treatment can start every 5 minutes where treatment plus cleanup fits for at least one employee offering it. Opening hours are the outer limit, each employee's working hours the inner one; several employees can be booked at once (see [03-business-logic-and-engine.md](03-business-logic-and-engine.md) §3.2 and [availability_logic_appendix.md](availability_logic_appendix.md)).
 
 ---
 
@@ -25,7 +25,7 @@ Our specification treats relational schemas and their JSON data contracts as fir
 ---
 
 ## 3. Implementation & Automation Modules
-* **Booking page (`index.php`, `js/booking.js`):** Week view with a draggable selection block, see [04-api-and-integrations.md](04-api-and-integrations.md).
+* **Booking page (`index.php`, `js/booking.js`):** Choice of employee or "first available", week view with a draggable selection block, see [04-api-and-integrations.md](04-api-and-integrations.md).
 * **API (`api.php`):** `get_services`, `check_availability`, `check_week`, `book`.
 * **Security (`admin/login.php`, `admin/session.php`, `api.php`, `Input`, `AdminAccounts`, `SecurityLog`, `SecurityHeaders`, `RateLimiter`, `FormToken`):** Admin sign-in with lockout and session timeouts, CSRF tokens on all admin forms, hardened cookies, one input validation layer for the API and admin forms, rate limiting, honeypot and form token on bookings, pending cap and expiry, CORS allow-list, strict Content-Security-Policy and other security headers, security event log (see [01-architecture-and-config.md](01-architecture-and-config.md) §1.4–1.7).
 * **Booking emails (`BookingEmails`, `EmailNotifier`):** Receipt and admin alert on a new request, approval with an `.ics` file, rejection; on/off and sender on the Config page (see [04-api-and-integrations.md](04-api-and-integrations.md)).

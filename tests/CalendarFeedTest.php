@@ -125,4 +125,10 @@ class CalendarFeedTest extends TestCase {
         $this->assertStringNotContainsString('REFRESH-INTERVAL', $ics);
         $this->assertNull(CalendarFeed::single(self::booking('book_a1', 'x', '10:00', '10:45', 'approved'), 'x', $this->tz));
     }
+
+    public function testSummaryNamesTheEmployee() {
+        $booking = self::booking('book_a7', '2026-10-23', '10:00', '10:45', 'approved') + ['employee_id' => 'emp_1'];
+        $ics = CalendarFeed::render([$booking], ['foot' => 'Medical Foot Care'], 'Salong', $this->tz, new DateTimeImmutable('2026-10-22 12:00', $this->tz), ['emp_1' => 'Lynn']);
+        $this->assertStringContainsString('(Lynn)', $ics);
+    }
 }

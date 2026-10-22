@@ -1,14 +1,21 @@
 <?php
 /**
  * src/classes/BookingService.php
- * Business logic for soft slots: a treatment may start at any step (SLOT_STEP minutes) within
- * opening hours, as long as treatment plus cleanup buffer does not overlap a pending/approved
- * booking. Also builds day and week plans (opening hours, busy intervals, free starts) for the
- * booking page's timeline.
+ * Business logic for soft slots: a treatment may start at any step (SLOT_STEP minutes) where some
+ * bookable employee offering it works for the whole treatment, within opening hours, and has no
+ * pending/approved booking overlapping treatment plus cleanup buffer. Opening hours are the outer
+ * limit, each employee's weekly hours (Staff) the inner one; several employees can be booked at
+ * the same time, except around an exclusive treatment, which needs the venue to itself. A set
+ * (a service with 'items') is done back to back by one employee offering all its treatments.
+ * Without any bookable employee the venue itself is the one bookable resource.
+ * Also builds day and week plans (opening hours, busy intervals, free starts) for the booking
+ * page's timeline.
  */
 
 require_once __DIR__ . '/BookingRepository.php';
+require_once __DIR__ . '/EmployeeRepository.php';
 require_once __DIR__ . '/ResourceProvider.php';
+require_once __DIR__ . '/Staff.php';
 
 class BookingService {
     /** Minutes between possible start times. */
@@ -16,51 +23,104 @@ class BookingService {
 
     private BookingRepository $repository;
     private DateTimeZone $timezone;
+    private ?array $employees;
 
-    public function __construct(?BookingRepository $repository = null) {
+    /** $employees: employee records keyed by ID; loaded from data/employees/ when null. */
+    public function __construct(?BookingRepository $repository = null, ?array $employees = null) {
         $this->repository = $repository ?? new BookingRepository();
         $this->timezone = ResourceProvider::getTimezone();
+        $this->employees = $employees;
+    }
+
+    /** All employee records keyed by ID. */
+    public function employees(): array {
+        return $this->employees ??= (new EmployeeRepository())->getAll();
+    }
+
+    /** Whether bookings go to employees (true) or to the venue as a whole (no bookable employee). */
+    public function hasStaff(): bool {
+        return array_filter($this->employees(), fn ($e) => is_array($e) && Staff::isBookable($e)) !== [];
+    }
+
+    /** Bookable employees offering the service, keyed by ID; empty for an unknown service. */
+    public function staffFor(string $serviceId): array {
+        $service = $this->repository->getServiceById($serviceId);
+        return $service === null ? [] : $this->eligibleStaff($serviceId, $service);
     }
 
     /**
-     * Available slots for a date and service. Returns null when the date is invalid or the
-     * service is unknown/inactive/without duration; an empty array when closed or fully booked.
+     * Available slots for a date and service, optionally for one employee. Returns null when the
+     * date is invalid, the service is unknown/inactive/without duration or the employee does not
+     * offer it; an empty array when closed or fully booked.
      */
-    public function getAvailableSlots(string $dateStr, string $serviceId, string $countryCode = 'se'): ?array {
+    public function getAvailableSlots(string $dateStr, string $serviceId, string $countryCode = 'se', ?string $employeeId = null): ?array {
         $date = $this->parseDate($dateStr);
         $service = $this->bookableService($serviceId);
-        if ($date === null || $service === null) {
+        $resources = $service === null ? null : $this->resources($serviceId, $service, $employeeId);
+        if ($date === null || $resources === null) {
             return null;
         }
-        return $this->planDay($date, $service, $countryCode)['slots'];
+        return self::publicSlots($this->planDay($date, $service, $resources, $countryCode)['slots']);
     }
 
     /**
      * Monday-to-Sunday plan for the week containing $dateStr: per day the opening hours,
-     * busy intervals (bookings and time already passed) and free start times.
-     * Returns null for an invalid date or a service that cannot be booked.
+     * busy intervals (bookings, time already passed, nobody working) and free start times.
+     * Returns null for an invalid date, a service that cannot be booked or an employee who does not offer it.
      */
-    public function getWeekPlan(string $dateStr, string $serviceId, string $countryCode = 'se'): ?array {
+    public function getWeekPlan(string $dateStr, string $serviceId, string $countryCode = 'se', ?string $employeeId = null): ?array {
         $date = $this->parseDate($dateStr);
         $service = $this->bookableService($serviceId);
-        if ($date === null || $service === null) {
+        $resources = $service === null ? null : $this->resources($serviceId, $service, $employeeId);
+        if ($date === null || $resources === null) {
             return null;
         }
 
         $day = $date->modify('monday this week');
         $days = [];
         for ($i = 0; $i < 7; $i++) {
-            $days[] = $this->planDay($day, $service, $countryCode);
+            $plan = $this->planDay($day, $service, $resources, $countryCode);
+            $plan['slots'] = self::publicSlots($plan['slots']);
+            $days[] = $plan;
             $day = $day->modify('+1 day');
         }
 
         return [
             'week_start' => $days[0]['date'],
             'step' => self::SLOT_STEP,
-            'duration' => ResourceProvider::serviceDuration($service),
-            'cleanup' => ResourceProvider::serviceCleanup($service),
+            'duration' => ResourceProvider::serviceDuration($service, $this->services()),
+            'cleanup' => ResourceProvider::serviceCleanup($service, $this->services()),
             'days' => $days,
         ];
+    }
+
+    /**
+     * Who takes a booking at $time: the chosen employee if free, otherwise (no choice) the free
+     * employee with the fewest bookings that day. Returns ['employee_id' => ?string, 'end_time' => 'HH:MM'],
+     * employee_id null when there is no staff, or null when the time is not free.
+     * Call inside BookingRepository::withBookingLock() together with saving the booking.
+     */
+    public function assign(string $dateStr, string $serviceId, string $time, ?string $employeeId = null, string $countryCode = 'se'): ?array {
+        $date = $this->parseDate($dateStr);
+        $service = $this->bookableService($serviceId);
+        $resources = $service === null ? null : $this->resources($serviceId, $service, $employeeId);
+        if ($date === null || $resources === null) {
+            return null;
+        }
+        foreach ($this->planDay($date, $service, $resources, $countryCode)['slots'] as $slot) {
+            if ($slot['start_time'] !== $time) {
+                continue;
+            }
+            $load = array_count_values(array_filter(array_column($this->repository->getBlockingIntervals($dateStr), 'employee_id'), 'is_string'));
+            $best = null;
+            foreach ($slot['employees'] as $id) {
+                if ($best === null || ($load[$id] ?? 0) < ($load[$best] ?? 0)) {
+                    $best = $id;
+                }
+            }
+            return ['employee_id' => $best, 'end_time' => $slot['end_time']];
+        }
+        return null;
     }
 
     private function parseDate(string $dateStr): ?DateTimeImmutable {
@@ -70,62 +130,145 @@ class BookingService {
 
     private function bookableService(string $serviceId): ?array {
         $service = $this->repository->getServiceById($serviceId);
-        if ($service === null || !ResourceProvider::isServiceActive($service) || ResourceProvider::serviceDuration($service) === null) {
+        if ($service === null || !ResourceProvider::isServiceActive($service) || ResourceProvider::serviceDuration($service, $this->services()) === null) {
             return null;
         }
         return $service;
     }
 
-    private function planDay(DateTimeImmutable $date, array $service, string $countryCode): array {
+    /** All services keyed by key, for resolving sets. */
+    private function services(): array {
+        return $this->repository->getServices() ?? [];
+    }
+
+    /**
+     * Bookable employees who can do the service: for a set, those offering every treatment in it.
+     */
+    private function eligibleStaff(string $serviceId, array $service): array {
+        $items = ResourceProvider::serviceItems($service);
+        if ($items === []) {
+            return Staff::forService($this->employees(), $this->serviceIds($serviceId, $service));
+        }
+        $services = $this->services();
+        $staff = Staff::forService($this->employees(), []);
+        foreach ($items as $key) {
+            $ids = $this->serviceIds($key, is_array($services[$key] ?? null) ? $services[$key] : []);
+            $staff = array_filter($staff, fn ($e) => Staff::offers($e, $ids));
+        }
+        return $staff;
+    }
+
+    /** Names the service goes by, for matching an employee's treatment list. */
+    private function serviceIds(string $serviceId, array $service): array {
+        return array_unique(array_filter([$serviceId, (string)($service['sku'] ?? ''), (string)($service['id'] ?? '')], 'strlen'));
+    }
+
+    /**
+     * Bookable resources as employee ID => record. Without staff: [null-keyed venue] as ['' => null].
+     * Returns null when $employeeId is given but cannot be booked for this service.
+     */
+    private function resources(string $serviceId, array $service, ?string $employeeId): ?array {
+        if (!$this->hasStaff()) {
+            return $employeeId === null || $employeeId === '' ? ['' => null] : null;
+        }
+        $staff = $this->eligibleStaff($serviceId, $service);
+        if ($employeeId === null || $employeeId === '') {
+            return $staff;
+        }
+        return isset($staff[$employeeId]) ? [$employeeId => $staff[$employeeId]] : null;
+    }
+
+    /** Slots without the internal list of free employees. */
+    private static function publicSlots(array $slots): array {
+        return array_map(function (array $slot) {
+            unset($slot['employees']);
+            return $slot;
+        }, $slots);
+    }
+
+    private static function minuteOfDay(DateTimeInterface $time): int {
+        return (int)$time->format('G') * 60 + (int)$time->format('i');
+    }
+
+    private function planDay(DateTimeImmutable $date, array $service, array $resources, string $countryCode): array {
         $dateStr = $date->format('Y-m-d');
         $plan = ['date' => $dateStr, 'open' => null, 'close' => null, 'busy' => [], 'slots' => []];
 
         if ($this->repository->isHoliday($dateStr, $countryCode)) {
             return $plan;
         }
-        $hours = $this->repository->getOperatingHours(strtolower($date->format('l')));
+        $weekday = strtolower($date->format('l'));
+        $hours = $this->repository->getOperatingHours($weekday);
         if ($hours === null || empty($hours['is_open']) || empty($hours['open_time']) || empty($hours['close_time'])) {
             return $plan;
         }
         $opening = DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} {$hours['open_time']}", $this->timezone);
         $closing = DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} {$hours['close_time']}", $this->timezone);
-        if (!$opening || !$closing || $closing <= $opening) {
+        if (!$opening || !$closing || $closing <= $opening || $closing->format('Y-m-d') !== $dateStr) {
             return $plan;
         }
         $plan['open'] = $opening->format('H:i');
         $plan['close'] = $closing->format('H:i');
+        $open = self::minuteOfDay($opening);
+        $close = self::minuteOfDay($closing);
 
-        $occupied = $this->repository->getBlockingIntervals($dateStr);
-        $now = new DateTime('now', $this->timezone);
-        $busy = [];
-        if ($now > $opening) {
-            $busy[] = ['start' => $opening, 'end' => min($now, $closing), 'kind' => 'past'];
-        }
-        foreach ($occupied as $interval) {
-            $start = max($interval['start'], $opening);
-            $end = min($interval['end'], $closing);
-            if ($start < $end) {
-                $busy[] = ['start' => $start, 'end' => $end, 'kind' => 'booked'];
-            }
-        }
-        usort($busy, fn ($a, $b) => $a['start'] <=> $b['start']);
-        // Only times are exposed, never who booked
-        $plan['busy'] = array_map(fn ($b) => ['start' => $b['start']->format('H:i'), 'end' => $b['end']->format('H:i'), 'kind' => $b['kind']], $busy);
+        // Everything before $now (in minutes of this day) has passed
+        $now = new DateTimeImmutable('now', $this->timezone);
+        $today = $now->format('Y-m-d');
+        $nowMinute = $dateStr < $today ? 24 * 60 : ($dateStr > $today ? 0 : self::minuteOfDay($now) + ((int)$now->format('s') > 0 ? 1 : 0));
 
-        $duration = ResourceProvider::serviceDuration($service);
-        $blockMinutes = $duration + ResourceProvider::serviceCleanup($service);
-        for ($current = clone $opening; ; $current->modify('+' . self::SLOT_STEP . ' minutes')) {
-            $treatmentEnd = (clone $current)->modify("+{$duration} minutes");
-            if ($treatmentEnd > $closing) {
-                break;
+        $bookings = [];
+        foreach ($this->repository->getBlockingIntervals($dateStr) as $interval) {
+            if ($interval['start']->format('Y-m-d') !== $dateStr) {
+                continue;
             }
-            $blockEnd = (clone $current)->modify("+{$blockMinutes} minutes");
-            if ($current >= $now && !$this->overlaps($current, $blockEnd, $occupied)) {
+            $end = $interval['end']->format('Y-m-d') > $dateStr ? 24 * 60 : self::minuteOfDay($interval['end']);
+            $bookings[] = [
+                'from' => self::minuteOfDay($interval['start']),
+                'to' => $end,
+                'employee_id' => $interval['employee_id'] ?? null,
+                'exclusive' => !empty($interval['exclusive']),
+            ];
+        }
+        // An exclusive treatment needs the venue to itself: every booking blocks it
+        $exclusive = ResourceProvider::isServiceExclusive($service, $this->services());
+
+        // Per resource: working periods within opening hours, and the bookings that block it
+        $staff = [];
+        foreach ($resources as $id => $employee) {
+            $id = (string)$id;
+            $staff[$id] = [
+                'windows' => Staff::windows($employee === null ? null : Staff::hours($employee, $weekday), $open, $close),
+                // Bookings without an employee (older records, or no staff) and exclusive ones block everyone
+                'booked' => array_values(array_filter($bookings, fn ($b) => $exclusive || $b['exclusive']
+                    || $id === '' || $b['employee_id'] === null || $b['employee_id'] === $id)),
+            ];
+        }
+
+        $plan['busy'] = $this->busyIntervals($staff, $open, $close, $nowMinute);
+
+        $duration = ResourceProvider::serviceDuration($service, $this->services());
+        $blockMinutes = $duration + ResourceProvider::serviceCleanup($service, $this->services());
+        for ($start = $open; $start + $duration <= $close; $start += self::SLOT_STEP) {
+            if ($start < $nowMinute) {
+                continue;
+            }
+            $free = [];
+            foreach ($staff as $id => $resource) {
+                if (self::within($start, $start + $duration, $resource['windows'])
+                    && !self::overlaps($start, $start + $blockMinutes, $resource['booked'])) {
+                    $free[] = $id === '' ? null : $id;
+                }
+            }
+            if ($free) {
+                $startTime = (clone $opening)->setTime(intdiv($start, 60), $start % 60);
+                $endTime = (clone $startTime)->modify("+{$duration} minutes");
                 $plan['slots'][] = [
-                    'start_time' => $current->format('H:i'),
-                    'end_time' => $treatmentEnd->format('H:i'),
-                    'start_iso' => $current->format(DATE_ATOM),
-                    'end_iso' => $treatmentEnd->format(DATE_ATOM),
+                    'start_time' => $startTime->format('H:i'),
+                    'end_time' => $endTime->format('H:i'),
+                    'start_iso' => $startTime->format(DATE_ATOM),
+                    'end_iso' => $endTime->format(DATE_ATOM),
+                    'employees' => $free,
                 ];
             }
         }
@@ -133,9 +276,59 @@ class BookingService {
         return $plan;
     }
 
-    private function overlaps(DateTime $start, DateTime $end, array $intervals): bool {
-        foreach ($intervals as $interval) {
-            if ($start < $interval['end'] && $end > $interval['start']) {
+    /**
+     * Times within opening hours when nobody can take a customer, as [['start', 'end', 'kind'], ...]:
+     * 'past', 'booked' (someone works but is booked) or 'off' (nobody works). Only times are
+     * exposed, never who booked.
+     */
+    private function busyIntervals(array $staff, int $open, int $close, int $nowMinute): array {
+        $busy = [];
+        $current = null;
+        for ($minute = $open; $minute < $close; $minute++) {
+            if ($minute < $nowMinute) {
+                $kind = 'past';
+            } else {
+                $kind = 'off';
+                foreach ($staff as $resource) {
+                    if (!self::within($minute, $minute + 1, $resource['windows'])) {
+                        continue;
+                    }
+                    if (!self::overlaps($minute, $minute + 1, $resource['booked'])) {
+                        $kind = null;
+                        break;
+                    }
+                    $kind = 'booked';
+                }
+            }
+            if ($current !== null && $current['kind'] === $kind) {
+                $current['end'] = $minute + 1;
+                continue;
+            }
+            if ($current !== null && $current['kind'] !== null) {
+                $busy[] = $current;
+            }
+            $current = ['start' => $minute, 'end' => $minute + 1, 'kind' => $kind];
+        }
+        if ($current !== null && $current['kind'] !== null) {
+            $busy[] = $current;
+        }
+        $format = fn (int $m) => sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
+        return array_map(fn ($b) => ['start' => $format($b['start']), 'end' => $format($b['end']), 'kind' => $b['kind']], $busy);
+    }
+
+    /** Whether [$from, $to) lies inside one of the periods. */
+    private static function within(int $from, int $to, array $windows): bool {
+        foreach ($windows as [$start, $end]) {
+            if ($from >= $start && $to <= $end) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function overlaps(int $from, int $to, array $bookings): bool {
+        foreach ($bookings as $booking) {
+            if ($from < $booking['to'] && $to > $booking['from']) {
                 return true;
             }
         }

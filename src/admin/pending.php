@@ -8,6 +8,8 @@
 require_once __DIR__ . '/auth.php';
 require_once dirname(__DIR__) . '/classes/BookingRepository.php';
 require_once dirname(__DIR__) . '/classes/BookingEmails.php';
+require_once dirname(__DIR__) . '/classes/EmployeeRepository.php';
+require_once dirname(__DIR__) . '/classes/Staff.php';
 
 $repository = new BookingRepository();
 $repository->housekeeping();
@@ -90,9 +92,13 @@ if (isset($decisions[$done]) || $done === 'delete') {
 }
 
 $bookings = [];
+$employees = (new EmployeeRepository())->getAll();
 foreach ($found as $id => $booking) {
     $service = ResourceProvider::getServiceById((string)($booking['service_id'] ?? ''));
-    $bookings[$id] = $booking + ['service_name' => $service['name'] ?? ($booking['service_id'] ?? '')];
+    $bookings[$id] = $booking + [
+        'service_name' => $service['name'] ?? ($booking['service_id'] ?? ''),
+        'employee_name' => Staff::nameOf($employees, $booking['employee_id'] ?? null),
+    ];
 }
 
 render_admin('pending', [

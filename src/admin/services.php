@@ -1,7 +1,9 @@
 <?php
 /**
  * src/admin/services.php
- * Create, edit and delete bookable services (data/services.json).
+ * Create, edit and delete bookable services (data/services.json): single treatments, which may be
+ * exclusive (nothing else runs at the same time), and sets of treatments done back to back by one
+ * employee, with their own price and the summed duration.
  */
 
 require_once __DIR__ . '/auth.php';
@@ -14,8 +16,19 @@ const SERVICE_LIMITS = ['name' => 255, 'sku' => 64, 'description' => 2000, 'dura
 
 /**
  * Validates the posted service form; returns [fields, error message or null].
+ * $services: all services, to check the treatments of a set; $serviceId: the edited one ('' = new).
  */
-function service_from_post(array $post): array {
+function service_from_post(array $post, array $services, string $serviceId): array {
+    // Ticked treatments, in the order of the service list; only single treatments, never the set itself
+    $posted = array_filter(request_array($post, 'items'), 'is_string');
+    $items = [];
+    foreach ($services as $key => $service) {
+        $key = (string)$key;
+        if ($key !== $serviceId && in_array($key, $posted, true) && ResourceProvider::serviceItems($service) === []) {
+            $items[] = $key;
+        }
+    }
+
     $fields = [
         'name' => Input::text(request_string($post, 'name'), SERVICE_LIMITS['name']),
         'sku' => Input::text(request_string($post, 'sku'), SERVICE_LIMITS['sku']),
@@ -25,7 +38,14 @@ function service_from_post(array $post): array {
         'price_incl_vat' => Input::decimal(request_string($post, 'price_incl_vat') ?: '0', 0, SERVICE_LIMITS['price']),
         'vat_rate' => Input::decimal(request_string($post, 'vat_rate') ?: '0', 0, 100),
         'is_active' => request_string($post, 'is_active') === '1',
+        'exclusive' => request_string($post, 'exclusive') === '1',
+        'items' => $items,
     ];
+    if ($items !== []) {
+        // A set's duration and cleanup come from its treatments
+        $fields['duration'] = null;
+        $fields['cleanup'] = null;
+    }
 
     if ($fields['name'] === null || $fields['name'] === '') {
         return [$fields, 'Service name is required (max ' . SERVICE_LIMITS['name'] . ' characters, no control characters).'];
@@ -33,10 +53,16 @@ function service_from_post(array $post): array {
     if ($fields['sku'] === null || $fields['description'] === null) {
         return [$fields, 'SKU (max ' . SERVICE_LIMITS['sku'] . ') or description (max ' . SERVICE_LIMITS['description'] . ' characters) is too long or contains control characters.'];
     }
-    if ($fields['duration'] === null) {
+    if (count($items) === 1) {
+        return [$fields, 'A set needs at least two treatments. Untick all of them for a single treatment.'];
+    }
+    if ($items === [] && $fields['duration'] === null) {
         return [$fields, 'Duration must be a whole number of minutes between 5 and ' . SERVICE_LIMITS['duration'] . '.'];
     }
-    if ($fields['cleanup'] === null || $fields['price_incl_vat'] === null || $fields['vat_rate'] === null) {
+    if ($items !== [] && ResourceProvider::serviceDuration($fields, $services) === null) {
+        return [$fields, 'Every treatment in a set needs a duration.'];
+    }
+    if (($items === [] && $fields['cleanup'] === null) || $fields['price_incl_vat'] === null || $fields['vat_rate'] === null) {
         return [$fields, 'Cleanup (0-' . SERVICE_LIMITS['cleanup'] . ' minutes), price and VAT rate (0-100) must be valid numbers.'];
     }
 
@@ -52,7 +78,7 @@ if (is_post()) {
     if (Input::text($serviceId, 100) === null) {
         $flash[] = flash_error('Invalid service ID.');
     } elseif ($action === 'save_service') {
-        [$fields, $error] = service_from_post($_POST);
+        [$fields, $error] = service_from_post($_POST, array_filter(ResourceProvider::getServices() ?? [], 'is_array'), $serviceId);
         if ($error !== null) {
             $flash[] = flash_error($error);
         } else {
@@ -74,13 +100,24 @@ if (is_post()) {
             $flash[] = flash_error('Could not write services.json. Check file permissions.');
         }
     } elseif ($action === 'delete_service' && $serviceId !== '') {
-        JsonStore::update($servicesFile, function (array $services) use ($serviceId) {
-            unset($services[$serviceId]);
-            return $services;
-        });
-        log_audit_action($currentAdmin, 'SERVICE_DELETE', "Deleted service record: {$serviceId}");
-        header('Location: services.php?done=deleted');
-        exit;
+        // A treatment used in a set stays until the set no longer includes it
+        $usedIn = [];
+        foreach (array_filter(ResourceProvider::getServices() ?? [], 'is_array') as $service) {
+            if (in_array($serviceId, ResourceProvider::serviceItems($service), true)) {
+                $usedIn[] = (string)($service['name'] ?? '');
+            }
+        }
+        if ($usedIn) {
+            $flash[] = ['type' => 'error', 'text' => __t('admin.services.error.inSet', ['sets' => implode(', ', $usedIn)])];
+        } else {
+            JsonStore::update($servicesFile, function (array $services) use ($serviceId) {
+                unset($services[$serviceId]);
+                return $services;
+            });
+            log_audit_action($currentAdmin, 'SERVICE_DELETE', "Deleted service record: {$serviceId}");
+            header('Location: services.php?done=deleted');
+            exit;
+        }
     }
 }
 
@@ -89,17 +126,22 @@ if (in_array($done, ['saved', 'deleted'], true)) {
     $flash[] = flash_success('admin.services.done.' . $done);
 }
 
+$services = array_filter(ResourceProvider::getServices() ?? [], 'is_array');
 $rows = [];
-foreach (array_filter(ResourceProvider::getServices() ?? [], 'is_array') as $id => $service) {
+foreach ($services as $id => $service) {
     $price = (float)($service['price_incl_vat'] ?? $service['price'] ?? 0);
     $isActive = ResourceProvider::isServiceActive($service);
+    $items = ResourceProvider::serviceItems($service);
     $rows[$id] = [
         'name' => $service['name'] ?? '',
         'sku' => $service['sku'] ?? '',
-        'duration' => (int)($service['duration'] ?? 0),
-        'cleanup' => ResourceProvider::serviceCleanup($service),
+        // null for a set whose treatments are missing: it cannot be booked
+        'duration' => ResourceProvider::serviceDuration($service, $services),
+        'cleanup' => ResourceProvider::serviceCleanup($service, $services),
         'price' => $price,
         'isActive' => $isActive,
+        'exclusive' => ResourceProvider::isServiceExclusive($service, $services),
+        'items' => array_map(fn ($key) => (string)($services[$key]['name'] ?? $key), $items),
         // Values the Edit button copies into the form (see js/admin.js)
         'editValues' => [
             'service_id' => (string)$id,
@@ -111,6 +153,8 @@ foreach (array_filter(ResourceProvider::getServices() ?? [], 'is_array') as $id 
             'vat_rate' => $service['vat_rate'] ?? 0,
             'description' => $service['description'] ?? '',
             'is_active' => $isActive,
+            'exclusive' => ($service['exclusive'] ?? false) === true,
+            'items' => $items,
         ],
     ];
 }
@@ -119,4 +163,6 @@ render_admin('services', [
     'title' => 'admin.services.title',
     'flash' => $flash,
     'rows' => $rows,
+    // Single treatments that can go into a set
+    'treatments' => array_map(fn ($s) => (string)($s['name'] ?? ''), array_filter($services, fn ($s) => ResourceProvider::serviceItems($s) === [])),
 ]);

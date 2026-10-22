@@ -42,13 +42,19 @@ class EmailNotifier {
     }
 
     /**
-     * Answer to the customer after the admin approved or rejected the request.
-     * An approval carries the appointment as an .ics attachment when $ics is given.
+     * Answer to the customer after the admin approved or rejected the request. An approval carries
+     * the appointment as booking.ics when $ics is given, and contact cards as contact.vcf when $vcard is.
      */
-    public function sendBookingDecision(string $toEmail, bool $approved, array $vars, ?string $lang = null, ?string $ics = null): bool {
-        $attachment = $approved && $ics !== null ? ['name' => 'booking.ics', 'type' => 'text/calendar; method=PUBLISH', 'content' => $ics] : null;
+    public function sendBookingDecision(string $toEmail, bool $approved, array $vars, ?string $lang = null, ?string $ics = null, ?string $vcard = null): bool {
+        $attachments = [];
+        if ($approved && $ics !== null) {
+            $attachments[] = ['name' => 'booking.ics', 'type' => 'text/calendar; method=PUBLISH', 'content' => $ics];
+        }
+        if ($approved && $vcard !== null) {
+            $attachments[] = ['name' => 'contact.vcf', 'type' => 'text/vcard', 'content' => $vcard];
+        }
         return $approved
-            ? $this->send($toEmail, __t('email.approved.subject', $vars, $lang), $this->body('email.approved.body', $vars, $lang), $attachment)
+            ? $this->send($toEmail, __t('email.approved.subject', $vars, $lang), $this->body('email.approved.body', $vars, $lang), $attachments)
             : $this->send($toEmail, __t('email.rejected.subject', $vars, $lang), $this->body('email.rejected.body', $vars, $lang));
     }
 
@@ -89,11 +95,11 @@ class EmailNotifier {
     }
 
     /**
-     * Sends one plain-text mail, optionally with one attachment (['name', 'type', 'content']).
+     * Sends one plain-text mail, optionally with attachments (list of ['name', 'type', 'content']).
      * Returns false when email is off. Rejects malformed addresses and strips CR/LF from header
      * values so user-supplied data cannot inject extra mail headers.
      */
-    public function send(string $to, string $subject, string $body, ?array $attachment = null): bool {
+    public function send(string $to, string $subject, string $body, array $attachments = []): bool {
         $fromEmail = $this->smtpConfig['from_email'] ?? 'noreply@example.com';
         $fromName = $this->smtpConfig['from_name'] ?? 'Book Me Calendar';
 
@@ -108,22 +114,24 @@ class EmailNotifier {
             . 'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <{$fromEmail}>\r\n"
             . "Reply-To: {$fromEmail}\r\n";
 
-        if ($attachment === null) {
+        if ($attachments === []) {
             $headers .= "Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n";
         } else {
             $boundary = 'bmc-' . bin2hex(random_bytes(12));
-            $name = preg_replace('/[^A-Za-z0-9._-]/', '_', (string)$attachment['name']);
-            $type = preg_replace('/[^A-Za-z0-9.\/=; -]/', '', (string)$attachment['type']);
             $headers .= "Content-Type: multipart/mixed; boundary=\"{$boundary}\"\r\n";
             $body = "--{$boundary}\r\n"
                 . "Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n"
-                . str_replace("\n", "\r\n", $body) . "\r\n"
-                . "--{$boundary}\r\n"
-                . "Content-Type: {$type}; charset=UTF-8; name=\"{$name}\"\r\n"
-                . "Content-Disposition: attachment; filename=\"{$name}\"\r\n"
-                . "Content-Transfer-Encoding: base64\r\n\r\n"
-                . chunk_split(base64_encode((string)$attachment['content']), 76, "\r\n")
-                . "--{$boundary}--\r\n";
+                . str_replace("\n", "\r\n", $body) . "\r\n";
+            foreach ($attachments as $attachment) {
+                $name = preg_replace('/[^A-Za-z0-9._-]/', '_', (string)$attachment['name']);
+                $type = preg_replace('/[^A-Za-z0-9.\/=; -]/', '', (string)$attachment['type']);
+                $body .= "--{$boundary}\r\n"
+                    . "Content-Type: {$type}; charset=UTF-8; name=\"{$name}\"\r\n"
+                    . "Content-Disposition: attachment; filename=\"{$name}\"\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n\r\n"
+                    . chunk_split(base64_encode((string)$attachment['content']), 76, "\r\n");
+            }
+            $body .= "--{$boundary}--\r\n";
         }
 
         return ($this->transport)($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);

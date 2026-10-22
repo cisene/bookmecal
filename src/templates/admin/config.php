@@ -100,6 +100,48 @@
     </form>
 </div>
 
+<div class="card" id="venue">
+    <h2><?= e(__t('admin.config.venueTitle')) ?></h2>
+    <p class="muted"><?= e(__t('admin.config.venueIntro')) ?></p>
+    <form method="post">
+        <?php include __DIR__ . '/../partials/csrf.php'; ?>
+        <input type="hidden" name="venue_action" value="save">
+
+        <div class="form-group">
+            <label for="cfg-vcard"><?= e(__t('admin.config.vcard')) ?></label>
+            <select id="cfg-vcard" name="vcard">
+                <?php foreach ($vcardModes as $mode): ?>
+                    <option value="<?= e($mode) ?>"<?= $mode === $vcardMode ? ' selected' : '' ?>><?= e(__t('admin.config.vcardMode.' . $mode)) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <small class="muted"><?= e(__t('admin.config.vcardHint')) ?></small>
+        </div>
+
+        <div class="form-grid">
+            <?php foreach ([
+                'website' => ['website', 'url', 200, 'https://'],
+                'phone' => ['phone', 'tel', 30, ''],
+                'email' => ['email', 'email', 254, ''],
+                'street' => ['street', 'text', 100, ''],
+                'postal_code' => ['postalCode', 'text', 20, ''],
+                'city' => ['city', 'text', 100, ''],
+                'country' => ['country', 'text', 60, ''],
+                'latitude' => ['latitude', 'text', 12, '59.334591'],
+                'longitude' => ['longitude', 'text', 12, '18.063240'],
+                'plus_code' => ['plusCode', 'text', 80, '9FFW83PH+X9'],
+            ] as $field => [$labelKey, $type, $max, $placeholder]): ?>
+                <div class="form-group">
+                    <label for="venue-<?= e($field) ?>"><?= e(__t('admin.config.venue.' . $labelKey)) ?></label>
+                    <input type="<?= e($type) ?>" id="venue-<?= e($field) ?>" name="<?= e($field) ?>" maxlength="<?= e($max) ?>"<?= $placeholder !== '' ? ' placeholder="' . e($placeholder) . '"' : '' ?> value="<?= e($venue[$field] ?? '') ?>">
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <p class="muted"><?= e(__t('admin.config.venueGeoHint')) ?></p>
+
+        <button type="submit" class="btn"><?= e(__t('admin.common.save')) ?></button>
+    </form>
+</div>
+
 <div class="card" id="calendar-feed">
     <h2><?= e(__t('admin.config.feedTitle')) ?></h2>
     <p><?= e(__t('admin.config.feedIntro', ['days' => $feedPastDays])) ?></p>

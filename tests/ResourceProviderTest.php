@@ -24,4 +24,21 @@ class ResourceProviderTest extends TestCase {
         $service = ResourceProvider::getServiceById('completely_fake_sku_999');
         $this->assertNull($service);
     }
+
+    public function testSetDurationCleanupAndExclusiveComeFromItsTreatments() {
+        $services = [
+            'a' => ['duration' => 45, 'cleanup' => 15],
+            'b' => ['duration' => 30, 'cleanup' => 5, 'exclusive' => true],
+            'set' => ['items' => ['a', 'b'], 'duration' => 999],
+            'nested' => ['items' => ['set']],
+            'missing' => ['items' => ['a', 'nope']],
+        ];
+        $this->assertSame(75, ResourceProvider::serviceDuration($services['set'], $services));
+        $this->assertSame(5, ResourceProvider::serviceCleanup($services['set'], $services));
+        $this->assertTrue(ResourceProvider::isServiceExclusive($services['set'], $services));
+        $this->assertFalse(ResourceProvider::isServiceExclusive($services['a'], $services));
+        $this->assertNull(ResourceProvider::serviceDuration($services['nested'], $services));
+        $this->assertNull(ResourceProvider::serviceDuration($services['missing'], $services));
+        $this->assertSame(45, ResourceProvider::serviceDuration($services['a'], $services));
+    }
 }

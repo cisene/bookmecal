@@ -20,14 +20,14 @@ class BookingEmailsTest extends TestCase {
         CancelLink::setKey(null);
     }
 
-    private function emails(array $smtp = [], array $settings = []): BookingEmails {
+    private function emails(array $smtp = [], array $settings = [], array $employees = []): BookingEmails {
         $this->sent = [];
         $notifier = new EmailNotifier(['smtp' => $smtp + ['enabled' => true, 'from_email' => 'salong@example.com', 'from_name' => 'Salong']],
             function (string $to, string $subject, string $body, string $headers): bool {
                 $this->sent[] = compact('to', 'subject', 'body', 'headers');
                 return true;
             });
-        return new BookingEmails($notifier, $settings + ['business_name' => 'Salong Anna'], 'en');
+        return new BookingEmails($notifier, $settings + ['business_name' => 'Salong Anna'], 'en', $employees);
     }
 
     private static function booking(): array {
@@ -46,6 +46,36 @@ class BookingEmailsTest extends TestCase {
         $this->assertStringContainsString('Tack för din bokningsförfrågan', $this->sent[1]['body']);
         $this->assertStringContainsString('https://example.se/boka/privacy.php', $this->sent[1]['body']);
         $this->assertStringContainsString('Salong Anna', $this->sent[1]['body']);
+    }
+
+    public function testEmailsNameTheEmployee() {
+        $emails = $this->emails(['notification_email' => 'owner@example.com'], [], ['emp_1' => ['givenName' => 'Lynn', 'familyName' => 'Isene']]);
+        $emails->requestReceived(self::booking() + ['employee_id' => 'emp_1']);
+        $this->assertStringContainsString('no-such-service with Lynn Isene', $this->sent[0]['body']);
+        $this->assertStringContainsString('no-such-service hos Lynn Isene', $this->sent[1]['body']);
+
+        // An employee who has been deleted is left out
+        $this->emails([], [], [])->requestReceived(self::booking() + ['employee_id' => 'emp_gone']);
+        $this->assertStringNotContainsString(' hos ', $this->sent[0]['body']);
+    }
+
+    public function testApprovalCarriesContactCardsAndLocation() {
+        $settings = ['vcard' => 'staff', 'venue' => ['phone' => '+46 8 123 45 67', 'street' => 'Storgatan 1', 'city' => 'Stockholm', 'latitude' => '59.3', 'longitude' => '18.1']];
+        $employees = ['emp_1' => ['givenName' => 'Lynn', 'familyName' => 'Isene', 'email' => 'lynn@example.se', 'shareContact' => true]];
+        $this->emails([], $settings, $employees)->decided(self::booking() + ['employee_id' => 'emp_1'], true);
+        $body = $this->sent[0]['body'];
+        $this->assertStringContainsString('name="booking.ics"', $body);
+        $this->assertStringContainsString('name="contact.vcf"', $body);
+        preg_match_all('/base64\r\n\r\n([A-Za-z0-9+\/=\r\n]+)\r\n--/', $body, $m);
+        [$ics, $vcf] = array_map(fn ($part) => base64_decode(str_replace("\r\n", '', $part)), $m[1]);
+        $this->assertStringContainsString('LOCATION:Storgatan 1\, Stockholm', $ics);
+        $this->assertStringContainsString('GEO:59.3;18.1', $ics);
+        $this->assertSame(2, substr_count($vcf, 'BEGIN:VCARD'));
+        $this->assertStringContainsString('FN:Lynn Isene', $vcf);
+
+        // Rejections carry nothing
+        $this->emails([], $settings, $employees)->decided(self::booking() + ['employee_id' => 'emp_1'], false);
+        $this->assertStringNotContainsString('contact.vcf', $this->sent[0]['body']);
     }
 
     public function testNoAlertWithoutAddressAndNoLinksWithoutUrl() {

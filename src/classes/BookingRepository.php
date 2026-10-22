@@ -228,10 +228,13 @@ class BookingRepository {
     }
 
     /**
-     * Occupied intervals for a date as [['start' => DateTime, 'end' => DateTime], ...],
-     * where 'end' includes the booked service's cleanup buffer.
+     * Occupied intervals for a date as [['start' => DateTime, 'end' => DateTime, 'employee_id' => ?string, 'exclusive' => bool], ...],
+     * where 'end' includes the booked service's cleanup buffer. employee_id is null for bookings
+     * made before employees were assigned; those block every employee, as do bookings of an
+     * exclusive treatment.
      */
     public function getBlockingIntervals(string $dateStr): array {
+        $services = $this->getServices() ?? [];
         $intervals = [];
         foreach ($this->getBookings() as $booking) {
             if (($booking['date'] ?? null) !== $dateStr || !in_array($booking['status'] ?? 'pending', self::BLOCKING_STATUSES, true)) {
@@ -242,20 +245,26 @@ class BookingRepository {
                 continue;
             }
 
-            $service = isset($booking['service_id']) ? ResourceProvider::getServiceById((string)$booking['service_id']) : null;
+            $service = isset($booking['service_id']) ? $this->getServiceById((string)$booking['service_id']) : null;
             $end = !empty($booking['end_time'])
                 ? DateTime::createFromFormat('Y-m-d H:i', $dateStr . ' ' . $booking['end_time'], $this->timezone)
                 : false;
             if (!$end) {
                 // Older records have no end_time: derive it from the booked service's duration
-                $duration = $service ? (ResourceProvider::serviceDuration($service) ?? 1) : 1;
+                $duration = $service ? (ResourceProvider::serviceDuration($service, $services) ?? 1) : 1;
                 $end = (clone $start)->modify("+{$duration} minutes");
             }
             if ($service) {
-                $end->modify('+' . ResourceProvider::serviceCleanup($service) . ' minutes');
+                $end->modify('+' . ResourceProvider::serviceCleanup($service, $services) . ' minutes');
             }
 
-            $intervals[] = ['start' => $start, 'end' => $end];
+            $employeeId = $booking['employee_id'] ?? null;
+            $intervals[] = [
+                'start' => $start,
+                'end' => $end,
+                'employee_id' => is_string($employeeId) && $employeeId !== '' ? $employeeId : null,
+                'exclusive' => $service !== null && ResourceProvider::isServiceExclusive($service, $services),
+            ];
         }
         return $intervals;
     }

@@ -5,10 +5,12 @@ JSON over HTTP. Every response has `success`. Errors also have a stable `code` (
 
 | Action | Method | Parameters | Response |
 | :--- | :--- | :--- | :--- |
-| `get_services` | GET | – | `data`: active services keyed by SKU |
-| `check_availability` | GET | `service_id`, `date`, optional `country` | `date`, `slots`: free starts for that day |
-| `check_week` | GET | `service_id`, `date` (any day in the week), optional `country` | week plan, see below |
-| `book` | POST (`application/json`, max 8 KB) | `service_id`, `date`, `time`, `customer_name`, `customer_email`, `form_token`, `website` (honeypot, must be empty) | `booking_id` |
+| `get_services` | GET | – | `data`: active, bookable services keyed by SKU (sets with their calculated `duration`), each with `employee_ids` (who offers it; for a set, who offers all its treatments); `staff`: bookable employees as `id => {name, title}` (empty when there is no staff) |
+| `check_availability` | GET | `service_id`, `date`, optional `country`, `employee_id` | `date`, `slots`: free starts for that day |
+| `check_week` | GET | `service_id`, `date` (any day in the week), optional `country`, `employee_id` | week plan, see below |
+| `book` | POST (`application/json`, max 8 KB) | `service_id`, `date`, `time`, optional `employee_id`, `customer_name`, `customer_email`, `form_token`, `website` (honeypot, must be empty) | `booking_id` |
+
+`employee_id` empty or missing means "first available" (anyone offering the treatment). An ID that is not a bookable employee offering the service gets `400 unknown_employee`.
 
 ### Week plan (`check_week`)
 ```json
@@ -30,10 +32,10 @@ JSON over HTTP. Every response has `success`. Errors also have a stable `code` (
 }
 ```
 - `days` always has 7 entries, Monday first. Closed days and holidays have `open`/`close` set to `null` and no slots.
-- `busy.kind` is `booked` (a booking including its cleanup) or `past` (time already passed today, or the whole day for past dates). Busy intervals are clipped to opening hours and never contain customer data.
+- Busy intervals are times within opening hours when nobody (of the chosen employee, or of all employees offering the treatment) can take a customer. `busy.kind` is `past` (time already passed today, or the whole day for past dates), `booked` (someone works then but is booked, including cleanup) or `off` (nobody works then). They never contain customer data or say who is booked.
 
 ### Booking
-`book` re-checks the requested start under the booking lock. If it is no longer free the API answers `409` with `slot_unavailable`. On success the booking is saved with status `pending`, its `end_time` and the visitor's language.
+`book` re-checks the requested start under the booking lock and picks the employee (`BookingService::assign()`: the chosen one, or the free employee with the fewest bookings that day). If nobody is free the API answers `409` with `slot_unavailable`. On success the booking is saved with status `pending`, its `end_time`, `employee_id`, `employee_requested` and the visitor's language.
 
 ### Abuse protection
 Checked in this order for every request:
@@ -52,14 +54,15 @@ For `book` additionally:
 Rejections in steps 2 and 5–7 are written to the security log (`src/log/security.log`, see [01-architecture-and-config.md](01-architecture-and-config.md) §1.7), without names or email addresses. All fields are validated by the `Input` layer (§1.6 there); `check_availability` and `check_week` answer `400 invalid_date` for an impossible date.
 
 ### Error codes
-`missing_fields`, `invalid_country`, `invalid_request`, `method_not_allowed`, `invalid_date`, `invalid_time`, `invalid_email`, `invalid_name`, `unknown_service`, `slot_unavailable` (409), `save_failed` (500), `invalid_action`, `origin_not_allowed` (403), `rate_limited` (429), `unsupported_media_type` (415), `payload_too_large` (413), `too_fast`, `form_expired`, `too_many_pending` (429).
+`missing_fields`, `invalid_country`, `invalid_request`, `method_not_allowed`, `invalid_date`, `invalid_time`, `invalid_email`, `invalid_name`, `unknown_service`, `unknown_employee`, `slot_unavailable` (409), `save_failed` (500), `invalid_action`, `origin_not_allowed` (403), `rate_limited` (429), `unsupported_media_type` (415), `payload_too_large` (413), `too_fast`, `form_expired`, `too_many_pending` (429).
 
 ## Booking page (`src/index.php`, `js/booking.js`)
 1. The visitor picks a treatment; the page loads the week of the chosen date (today by default) with `check_week`.
-2. The week view shows one column per day with time running downwards: green = bookable (from the first to the last free start of a run, until that treatment would end), striped = booked, grey = passed, hatched narrow column = closed. White open time is too short for the chosen treatment.
-3. A block as long as the treatment marks the selected time. It is placed by tapping a green area (centred on the tap, snapped to the nearest free start), dragged (also across days), moved with the arrow keys (up/down: previous/next start, left/right: same time on another day), or stepped with the Earlier/Later buttons.
-4. Previous/next buttons and a date field move between weeks; weeks before the current one are not reachable.
-5. Name and email are entered and the request is sent with `book`, together with the page's form token and the (empty) honeypot field. A short notice above the button links to the privacy notice (`privacy.php`).
+2. When two or more employees offer the treatment, a "Who would you like to see?" choice appears: "First available" (default) or one employee (name and job title). Changing it reloads the week for that employee. With one or no employee the choice stays hidden.
+3. The week view shows one column per day with time running downwards: green = bookable (from the first to the last free start of a run, until that treatment would end), striped = booked, light hatching = not bookable (nobody works), grey = passed, hatched narrow column = closed. White open time is too short for the chosen treatment.
+4. A block as long as the treatment marks the selected time. It is placed by tapping a green area (centred on the tap, snapped to the nearest free start), dragged (also across days), moved with the arrow keys (up/down: previous/next start, left/right: same time on another day), or stepped with the Earlier/Later buttons.
+5. Previous/next buttons and a date field move between weeks; weeks before the current one are not reachable.
+6. Name and email are entered and the request is sent with `book`, together with the employee choice, the page's form token and the (empty) honeypot field. A short notice above the button links to the privacy notice (`privacy.php`).
 
 ## Customer cancellation (`src/cancel.php`)
 `cancel.php?id=<booking id>&token=<32 hex>&lang=<booking language>`, sent in the customer emails when `public_url` is set. The token is the first 32 hex characters of HMAC-SHA256(`cancel|<id>`) with `cancel_secret` from `data/secrets.json` (`CancelLink`), so nothing is stored per booking and older bookings get links too.
@@ -73,7 +76,7 @@ Rejections in steps 2 and 5–7 are written to the security log (`src/log/securi
 Read-only iCalendar (RFC 5545) subscription for the business's own calendar app: `calendar.php?token=<64 hex>` (also `/.well-known/calendar?token=...`). Turned on, renewed and turned off on the admin Config page; the page shows the link and a `webcal://` button. The token is kept in `data/secrets.json` (`calendar_feed_token`); without one the feed is off.
 
 - **Contents:** `pending` bookings as `STATUS:TENTATIVE` (summary starts with `? `), `approved` and `confirmed` as `STATUS:CONFIRMED`. Other statuses are left out, so rejected and expired requests disappear from the calendar. Bookings that ended more than 30 days ago (`CalendarFeed::PAST_DAYS`) are left out.
-- **Events:** `UID` is `<booking id>@bookmecal`; start and end in UTC (no `VTIMEZONE` needed); end is the treatment end without cleanup (one hour if missing). `SUMMARY` is `<service> – <customer name>`, `DESCRIPTION` holds name, email and phone. Text is escaped and control characters dropped, so customer input cannot add properties; long lines are folded at 75 octets without splitting UTF-8 characters.
+- **Events:** `UID` is `<booking id>@bookmecal`; start and end in UTC (no `VTIMEZONE` needed); end is the treatment end without cleanup (one hour if missing). `SUMMARY` is `<service> – <customer name>`, followed by ` (<employee name>)` when the booking has an employee, `DESCRIPTION` holds name, email and phone. Text is escaped and control characters dropped, so customer input cannot add properties; long lines are folded at 75 octets without splitting UTF-8 characters.
 - **Protection:** Token compared in constant time; wrong or missing token: `404`, logged as `feed_token_invalid`. Rate limit 30 requests per 5 minutes per client (`429` with `Retry-After`). `Cache-Control: no-store`, API security headers. Runs the same housekeeping (expiry, retention) as the API.
 - Calendar apps are asked to refresh every 15 minutes (`REFRESH-INTERVAL`, `X-PUBLISHED-TTL`); Google Calendar decides on its own and can take hours.
 
@@ -91,4 +94,6 @@ Read-only iCalendar (RFC 5545) subscription for the business's own calendar app:
 | Day before (cron) | Customer | Booking's language | Reminder (`send_reminders.php`) |
 | Customer cancels online | `smtp.notification_email` (if set) | `config.json` `app.language` | Alert (`email.admin.cancelled.*`) |
 
-Customer emails sign off with `business_name`. When `public_url` is set, the receipt, approval and reminder end with the cancellation link (`email.cancelLink`), and all customer emails with a link to the privacy notice (`email.privacyLink`). A mail failure never undoes a booking or a decision. After approve/reject the bookings page says whether the customer got an email, or that emails are off and the customer must be told some other way; the result is stored as `decision_emailed`. Placeholders are filled in one pass, so a customer name containing `{service}` stays as typed.
+Contact cards (`ContactCard`): with settings.json `vcard` set to `venue` or `staff`, the approval email also carries `contact.vcf` (vCard 3.0, `text/vcard`): the venue's card (name, phone, email, website or else `public_url`, address, `GEO` in WGS-84, plus code and coordinates in `NOTE`) and, with `staff`, the card of the employee taking the booking if that employee agreed (`shareContact`). The employee card maps every profile field with a vCard counterpart: `N` (family, given, middle name, title before and after), `FN`, `NICKNAME`, `ORG` (business; department), `TITLE`, `ROLE`, `TEL` (mobile as CELL, phone as WORK), `EMAIL`, `URL`, `PHOTO` (only with `showPhoto`), `X-SOCIALPROFILE` (network from the host), `CATEGORIES` (qualifications) and `NOTE` (presentation and languages, as vCard 3.0 has no `LANG`). Swish and organisation numbers are not sent. All text is escaped and folded like the calendar files. The approval's `booking.ics` gets `LOCATION` (street, postal code, city) and `GEO` when the venue has them.
+
+Customer emails sign off with `business_name`. When `public_url` is set, the receipt, approval and reminder end with the cancellation link (`email.cancelLink`), and all customer emails with a link to the privacy notice (`email.privacyLink`). A mail failure never undoes a booking or a decision. After approve/reject the bookings page says whether the customer got an email, or that emails are off and the customer must be told some other way; the result is stored as `decision_emailed`. Placeholders are filled in one pass, so a customer name containing `{service}` stays as typed. When the booking has an employee, `{service}` reads "<service> with <employee>" (`email.serviceWithEmployee`, sv "hos"), in subjects and bodies alike.

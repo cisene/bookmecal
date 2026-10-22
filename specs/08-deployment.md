@@ -23,6 +23,7 @@ How to put Book Me Calendar on a real server for the trial. Files referred to he
 1. Create the first admin account: `htpasswd -B -c src/admin/.htpasswd <name>` (bcrypt). More accounts can be added on the Users page.
 2. Sign in at `/admin/` and work through the "Before customers book" list on the dashboard (`SetupCheck`). It disappears when everything is set:
    - Treatments (Services page) and opening hours (Opening hours page).
+   - Optional: employees (Employees page, with the treatments each one offers) and their working hours (Working hours page). Without employees the opening hours alone decide; an employee without saved hours follows the opening hours.
    - Business name, privacy contact and retention (Config page, Privacy).
    - Email on, sender name and address, alert address, booking site address (`public_url`, the address customers use, e.g. `https://boka.example.se/`), cancellation limit (Config page, Email).
 3. Optional: turn on the calendar subscription (Config page) and add the link to the phone's calendar.
@@ -65,10 +66,10 @@ The filter matches failed sign-ins, lockouts, honeypot hits, bad form tokens, ra
 - `src/data/secrets.json` holds the signing keys. If it is lost, a new one is created: open booking pages need a reload, old cancellation links stop working and the calendar subscription must be turned on again.
 
 ## 8.9 Updating
-Some data files are in git with development values: `src/data/config.json`, `settings.json`, `services.json`, `openhours.json`, `credentials.json` and `booking/availability.json`. The admin pages change them on the server, so a plain `git pull` there would conflict with (or overwrite) the live settings.
+Some data files are in git with development values: `src/data/config.json`, `settings.json`, `services.json`, `openhours.json` and `credentials.json`. The admin pages change them on the server, so a plain `git pull` there would conflict with (or overwrite) the live settings.
 
 - Simplest for the trial: update the code with `rsync` from a checkout and leave the data alone, e.g. `rsync -a --delete --exclude 'src/data/' --exclude 'src/log/' --exclude 'src/cache/' --exclude 'src/admin/.htpasswd' --exclude '.git/' ./ server:/var/www/bookmecal/`.
-- Bookings (`src/data/pending/`), keys (`secrets.json`), the audit log and the security log are not in git and are never touched by an update.
+- Bookings (`src/data/pending/`), employees with their working hours (`src/data/employees/`, excluded with `src/data/`), keys (`secrets.json`), the audit log and the security log are never touched by an update.
 - New settings get their defaults until they are saved on the Config page.
 - Run `phpunit` before copying a larger update.
 

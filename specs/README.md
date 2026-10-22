@@ -70,6 +70,7 @@ bookmecal/
 │   │   ├── CalendarFeed.php
 │   │   ├── CancelLink.php
 │   │   ├── Constants.php
+│   │   ├── ContactCard.php
 │   │   ├── Database.php
 │   │   ├── EmailNotifier.php
 │   │   ├── EmployeeRepository.php
@@ -85,6 +86,7 @@ bookmecal/
 │   │   ├── Secrets.php
 │   │   ├── SecurityHeaders.php
 │   │   ├── SecurityLog.php
+│   │   ├── Staff.php
 │   │   ├── TimeSlot.php
 │   │   └── View.php
 │   ├── css
@@ -93,8 +95,6 @@ bookmecal/
 │   │   ├── booking_modal.css
 │   │   └── calendar_style.css
 │   ├── data
-│   │   ├── booking
-│   │   │   └── availability.json
 │   │   ├── config.json
 │   │   ├── credentials.json
 │   │   ├── openhours.json
@@ -165,6 +165,7 @@ bookmecal/
     ├── BookingServiceTest.php
     ├── CalendarFeedTest.php
     ├── CancelLinkTest.php
+    ├── ContactCardTest.php
     ├── DatabaseTest.php
     ├── EmailNotifierTest.php
     ├── FormTokenTest.php
@@ -178,6 +179,7 @@ bookmecal/
     ├── ResourceProviderTest.php
     ├── SecretsTest.php
     ├── SecurityLogTest.php
+    ├── StaffTest.php
     └── TimeSlotTest.php
 ```
 
@@ -215,13 +217,13 @@ bookmecal/
 
 | File                                                                  | Description |
 | --------------------------------------------------------------------- | ----------- |
-| data/booking/availability.json                                        | Admin slot matrix (not used by the booking yet) |
 | data/audit.json                                                       | Admin audit log, newest 200 entries |
 | data/config.json                                                      | Application configuration |
 | data/credentials.json                                                 | Google OAuth client credentials |
-| data/openhours.json                                                   | Opening hours per weekday, used by the booking |
+| data/openhours.json                                                   | Opening hours per weekday: the outer limit of all bookings |
+| data/employees/emp_*.json                                             | One employee: profile, treatments offered, weekly working hours |
 | data/services.json                                                    | Treatments keyed by SKU |
-| data/settings.json                                                    | Timezone, default country, pending expiry, allowed origins, HTTPS-only admin, retention, business name and privacy contact |
+| data/settings.json                                                    | Timezone, default country, pending expiry, allowed origins, HTTPS-only admin, retention, business name and privacy contact, venue contact details and contact card setting |
 | data/secrets.json                                                     | Form token signing key (generated, not in git) |
 | admin/.htpasswd                                                       | Admin accounts (not in git) |
 | log/security.log                                                      | Security events, JSON lines (not in git) |

@@ -18,7 +18,7 @@
             </div>
             <div class="form-group">
                 <label for="srv-duration"><?= e(__t('admin.services.duration')) ?></label>
-                <input type="number" id="srv-duration" name="duration" min="5" max="720" step="5" required>
+                <input type="number" id="srv-duration" name="duration" min="5" max="720" step="5">
             </div>
             <div class="form-group">
                 <label for="srv-cleanup"><?= e(__t('admin.services.cleanup')) ?></label>
@@ -36,8 +36,19 @@
                 <label for="srv-description"><?= e(__t('admin.services.description')) ?></label>
                 <textarea id="srv-description" name="description" rows="3" maxlength="2000"></textarea>
             </div>
+            <fieldset class="form-group span-2">
+                <legend><?= e(__t('admin.services.items')) ?></legend>
+                <?php foreach ($treatments as $key => $name): ?>
+                    <label class="checkbox"><input type="checkbox" name="items[]" value="<?= e((string)$key) ?>"> <?= e($name) ?></label>
+                <?php endforeach; ?>
+                <small class="muted"><?= e(__t('admin.services.itemsHint')) ?></small>
+            </fieldset>
             <div class="form-group">
                 <label class="checkbox"><input type="checkbox" name="is_active" value="1" checked> <?= e(__t('admin.services.active')) ?></label>
+            </div>
+            <div class="form-group">
+                <label class="checkbox"><input type="checkbox" name="exclusive" value="1"> <?= e(__t('admin.services.exclusive')) ?></label>
+                <small class="muted"><?= e(__t('admin.services.exclusiveHint')) ?></small>
             </div>
         </div>
 
@@ -68,8 +79,12 @@
                         <td>
                             <strong><?= e($row['name']) ?></strong>
                             <?php if ($row['sku'] !== ''): ?><br><small class="muted"><?= e($row['sku']) ?></small><?php endif; ?>
+                            <?php if ($row['items']): ?><br><small class="muted"><?= e(__t('admin.services.setOf', ['items' => implode(' + ', $row['items'])])) ?></small><?php endif; ?>
+                            <?php if ($row['exclusive']): ?><br><span class="badge badge-exclusive"><?= e(__t('admin.services.exclusiveBadge')) ?></span><?php endif; ?>
                         </td>
-                        <td><?= e(__t('admin.common.minutes', ['count' => $row['duration']])) ?></td>
+                        <td><?= $row['duration'] === null
+                            ? '<span class="error-text">' . e(__t('admin.services.brokenSet')) . '</span>'
+                            : e(__t('admin.common.minutes', ['count' => $row['duration']])) ?></td>
                         <td><?= e(__t('admin.common.minutes', ['count' => $row['cleanup']])) ?></td>
                         <td><?= e(number_format($row['price'], 2)) ?></td>
                         <td><?= e(__t($row['isActive'] ? 'admin.services.active' : 'admin.services.inactive')) ?></td>

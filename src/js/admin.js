@@ -3,7 +3,8 @@
  * Small behaviours for the admin pages, wired through data attributes:
  *   data-confirm="text"    on a form: ask before submitting
  *   data-autosubmit        on a select: submit its form on change
- *   data-edit-form="id"    on a button: copy data-values (JSON) into that form's fields
+ *   data-edit-form="id"    on a button: copy data-values (JSON) into that form's fields; a list
+ *                          ticks the checkboxes named "<key>[]" whose values it contains
  *   data-select-all        on a read-only input: select the whole value on focus (easy copying)
  */
 (function () {
@@ -30,6 +31,13 @@
             const form = document.getElementById(button.dataset.editForm);
             const values = JSON.parse(button.dataset.values || '{}');
             Object.entries(values).forEach(([name, value]) => {
+                // A list fills a group of checkboxes named "name[]"
+                if (Array.isArray(value)) {
+                    form.querySelectorAll('input[type="checkbox"][name="' + name + '[]"]').forEach((box) => {
+                        box.checked = value.includes(box.value);
+                    });
+                    return;
+                }
                 const field = form.elements.namedItem(name);
                 if (!field) {
                     return;

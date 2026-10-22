@@ -82,6 +82,15 @@ class InputTest extends TestCase {
         $this->assertNull(Input::phone('12'));
     }
 
+    public function testUrl() {
+        $this->assertSame('https://instagram.com/salong?x=1', Input::url('https://instagram.com/salong?x=1'));
+        $this->assertNull(Input::url('javascript:alert(1)'));
+        $this->assertNull(Input::url('ftp://example.com/'));
+        $this->assertNull(Input::url('https://user:pw@example.com/'));
+        $this->assertNull(Input::url('https://example.com/a b'));
+        $this->assertNull(Input::url('https://example.com/' . str_repeat('a', 500)));
+    }
+
     public function testIdCannotEscapeADirectory() {
         $this->assertSame('Fotvård-bas', Input::id('Fotvård-bas'));
         $this->assertSame('srv_6713a1.5', Input::id('srv_6713a1.5'));

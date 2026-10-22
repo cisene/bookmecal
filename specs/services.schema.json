@@ -17,12 +17,22 @@
       "type": "string"
     },
     "duration": {
-      "type": "integer",
+      "type": ["integer", "null"],
       "minimum": 5,
-      "description": "Treatment time in minutes. The booking's end_time is start + duration."
+      "description": "Treatment time in minutes. The booking's end_time is start + duration. null for a set: the sum of its items."
+    },
+    "exclusive": {
+      "type": "boolean",
+      "default": false,
+      "description": "Nothing else can be booked at the same time, with any employee."
+    },
+    "items": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Makes this a set: keys of two or more single treatments, done back to back by one employee. Duration is their sum, cleanup the last one's."
     },
     "cleanup": {
-      "type": "integer",
+      "type": ["integer", "null"],
       "minimum": 0,
       "default": 0,
       "description": "Buffer or cleanup time in minutes following the service. Blocks the next start but may run past closing time."

@@ -12,8 +12,7 @@
     "storage": {
         "type": "json",
         "data_dir": "data",
-        "pending_dir": "data\/pending",
-        "availability_file": "data\/booking\/availability.json"
+        "pending_dir": "data\/pending"
     },
     "smtp": {
         "enabled": false,

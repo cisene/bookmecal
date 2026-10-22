@@ -8,6 +8,8 @@
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/classes/BookingRepository.php';
 require_once __DIR__ . '/classes/CalendarFeed.php';
+require_once __DIR__ . '/classes/EmployeeRepository.php';
+require_once __DIR__ . '/classes/Staff.php';
 require_once __DIR__ . '/classes/RateLimiter.php';
 require_once __DIR__ . '/classes/SecurityLog.php';
 
@@ -50,4 +52,6 @@ $businessName = trim((string)(ResourceProvider::getSettings()['business_name'] ?
 
 header('Content-Type: text/calendar; charset=UTF-8');
 header('Content-Disposition: inline; filename="bookings.ics"');
-echo CalendarFeed::render($repository->getBookings(), $serviceNames, $businessName !== '' ? $businessName : 'Book Me Calendar', ResourceProvider::getTimezone());
+$employeeNames = array_map([Staff::class, 'name'], (new EmployeeRepository())->getAll());
+
+echo CalendarFeed::render($repository->getBookings(), $serviceNames, $businessName !== '' ? $businessName : 'Book Me Calendar', ResourceProvider::getTimezone(), null, $employeeNames);

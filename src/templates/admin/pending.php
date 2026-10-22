@@ -43,7 +43,7 @@
                 <?php foreach ($bookings as $id => $booking): $status = $booking['status'] ?? 'pending'; ?>
                     <tr>
                         <td class="mono"><?= e(trim(($booking['date'] ?? '') . ' ' . ($booking['time'] ?? ''))) ?></td>
-                        <td><?= e($booking['service_name']) ?></td>
+                        <td><?= e($booking['service_name']) ?><?php if ($booking['employee_name'] !== ''): ?><br><small class="muted"><?= e($booking['employee_name']) ?><?= !empty($booking['employee_requested']) ? ' · ' . e(__t('admin.pending.requested')) : '' ?></small><?php endif; ?></td>
                         <td><?= e($booking['customer_name'] ?? '') ?></td>
                         <td><?= e($booking['customer_email'] ?? '') ?></td>
                         <td><span class="badge badge-<?= e($status) ?>"><?= e(__t('admin.status.' . $status)) ?></span></td>

@@ -1,57 +1,86 @@
 <?php
 /**
  * src/admin/availability.php
- * Hourly availability matrix (data/booking/availability.json).
- * Note: the public booking page currently uses opening hours (openhours.php), not this matrix.
+ * Weekly bookable hours per employee (the "schedule" in data/employees/<id>.json). Opening hours
+ * are the outer limit: hours outside them are shown but never bookable. An employee without a
+ * saved schedule follows the opening hours.
  */
 
 require_once __DIR__ . '/auth.php';
+require_once dirname(__DIR__) . '/classes/EmployeeRepository.php';
+require_once dirname(__DIR__) . '/classes/Staff.php';
 
-const MATRIX_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-
-$availabilityFile = ResourceProvider::dataPath('booking/availability.json');
+$repository = new EmployeeRepository();
+$employees = $repository->getAll();
 $hours = [];
 for ($i = 0; $i < 24; $i++) {
     $hours[] = sprintf('%02d:00', $i);
 }
 $flash = [];
 
-if (is_post()) {
+$selected = request_string(is_post() ? $_POST : $_GET, 'employee');
+if (!isset($employees[$selected])) {
+    $selected = (string)array_key_first($employees);
+}
+
+if (is_post() && $selected !== '') {
     require_csrf();
-    $posted = request_array($_POST, 'slots');
-    $matrix = [];
-    foreach (MATRIX_DAYS as $index => $day) {
-        $daySlots = [];
-        foreach ($hours as $hour) {
-            $daySlots[$hour] = isset($posted[$day][$hour]) ? 1 : 0;
+    $action = request_string($_POST, 'action');
+    if ($action === 'save_schedule' || $action === 'reset_schedule') {
+        $schedule = $action === 'save_schedule' ? Staff::scheduleFromPost(request_array($_POST, 'slots')) : null;
+        if ($repository->save($selected, ['schedule' => $schedule], $currentAdmin)) {
+            log_audit_action($currentAdmin, 'AVAILABILITY_UPDATE', ($schedule === null ? 'Reset weekly hours to opening hours for: ' : 'Updated weekly hours for: ') . $selected);
+            header('Location: availability.php?employee=' . rawurlencode($selected) . '&done=' . ($schedule === null ? 'reset' : 'saved'));
+            exit;
         }
-        $matrix[$day] = ['day_index' => $index + 1, 'slots' => $daySlots, 'updated_by' => $currentAdmin];
+        $flash[] = flash_error('Could not save the schedule. Check file permissions in data/employees/.');
     }
-
-    if (JsonStore::write($availabilityFile, $matrix)) {
-        log_audit_action($currentAdmin, 'AVAILABILITY_UPDATE', 'Updated weekly availability matrix.');
-        header('Location: availability.php?done=saved');
-        exit;
-    }
-    $flash[] = flash_error('Could not write availability.json. Check file permissions.');
 }
 
-if (request_string($_GET, 'done') === 'saved') {
-    $flash[] = flash_success('admin.slots.done.saved');
+$done = request_string($_GET, 'done');
+if (in_array($done, ['saved', 'reset'], true)) {
+    $flash[] = flash_success('admin.slots.done.' . $done);
 }
 
-$stored = JsonStore::read($availabilityFile) ?? [];
+// Opening hours per day in minutes, to grey out hours outside them
+$openHours = ResourceProvider::getOpenHours() ?? [];
+$openRange = [];
+foreach (Staff::DAYS as $day) {
+    $d = $openHours[$day] ?? [];
+    $from = !empty($d['is_open']) ? DateTime::createFromFormat('H:i', (string)($d['open_time'] ?? '')) : false;
+    $to = !empty($d['is_open']) ? DateTime::createFromFormat('H:i', (string)($d['close_time'] ?? '')) : false;
+    $openRange[$day] = $from && $to
+        ? [(int)$from->format('G') * 60 + (int)$from->format('i'), (int)$to->format('G') * 60 + (int)$to->format('i')]
+        : [0, 0];
+}
+
+$employee = $employees[$selected] ?? null;
+$followsOpening = $employee !== null && !is_array($employee['schedule'] ?? null);
 $open = [];
-foreach (MATRIX_DAYS as $day) {
-    foreach ($hours as $hour) {
-        $open[$day][$hour] = (int)($stored[$day]['slots'][$hour] ?? 0) === 1;
+$outside = [];
+foreach (Staff::DAYS as $day) {
+    [$from, $to] = $openRange[$day];
+    $worked = $employee === null ? [] : Staff::hours($employee, $day);
+    foreach ($hours as $index => $hour) {
+        $outside[$day][$hour] = $index * 60 + 60 <= $from || $index * 60 >= $to;
+        // Without a schedule, show the hours the opening hours cover
+        $open[$day][$hour] = $worked === null ? !$outside[$day][$hour] : in_array($index, $worked, true);
     }
+}
+
+$names = [];
+foreach ($employees as $id => $record) {
+    $names[$id] = Staff::name($record) . (Staff::isBookable($record) ? '' : ' (' . __t('admin.slots.notBookable') . ')');
 }
 
 render_admin('availability', [
     'title' => 'admin.slots.title',
     'flash' => $flash,
-    'days' => MATRIX_DAYS,
+    'names' => $names,
+    'selected' => $selected,
+    'followsOpening' => $followsOpening,
+    'days' => Staff::DAYS,
     'hours' => $hours,
     'open' => $open,
+    'outside' => $outside,
 ]);

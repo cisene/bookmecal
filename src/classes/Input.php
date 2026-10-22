@@ -91,6 +91,18 @@ class Input {
     }
 
     /**
+     * An absolute http(s) URL without user name or password, at most $maxLength characters.
+     */
+    public static function url(string $value, int $maxLength = 500): ?string {
+        if (strlen($value) > $maxLength || preg_match('/[\x00-\x20\x7F]/', $value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+            return null;
+        }
+        $parts = parse_url($value);
+        return in_array(strtolower((string)($parts['scheme'] ?? '')), ['http', 'https'], true) && !isset($parts['user']) && !isset($parts['pass'])
+            ? $value : null;
+    }
+
+    /**
      * An identifier used as a key or in a file name: letters (any script), digits, _ . -,
      * 1 to $maxLength characters. Never a path separator, so it cannot leave a directory.
      */

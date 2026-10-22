@@ -16,23 +16,39 @@
       "type": "string",
       "description": "Last or family name of the employee."
     },
+    "additionalName": {
+      "type": "string",
+      "description": "Middle name. vCard N (additional names)."
+    },
+    "honorificPrefix": {
+      "type": "string",
+      "description": "Title before the name, e.g. Leg. or Dr. vCard N (prefix)."
+    },
+    "honorificSuffix": {
+      "type": "string",
+      "description": "Title after the name, e.g. MSc. vCard N (suffix)."
+    },
+    "nickname": {
+      "type": "string",
+      "description": "vCard NICKNAME."
+    },
     "avatar": {
       "type": "string",
       "format": "uri",
-      "description": "URL or path to the employee profile avatar image."
+      "description": "URL of the employee's photo (http/https). vCard PHOTO when businessAttributes.showPhoto is true."
     },
     "email": {
       "type": "string",
       "format": "email",
-      "description": "Professional email address."
+      "description": "Professional email address. vCard EMAIL."
     },
     "phoneNumber": {
       "type": "string",
-      "description": "Primary or office phone number."
+      "description": "Primary or office phone number. vCard TEL (WORK)."
     },
     "mobileNumber": {
       "type": "string",
-      "description": "Direct mobile phone number."
+      "description": "Direct mobile phone number. vCard TEL (CELL)."
     },
     "swishPaymentNumber": {
       "type": "string",
@@ -50,18 +66,83 @@
     },
     "jobTitle": {
       "type": "string",
-      "description": "Professional title or role (e.g., Licensed Medical Foot Care Specialist)."
+      "description": "Professional title or role (e.g., Licensed Medical Foot Care Specialist). vCard TITLE."
+    },
+    "role": {
+      "type": "string",
+      "description": "Role or function, e.g. Manager. vCard ROLE."
+    },
+    "website": {
+      "type": "string",
+      "format": "uri",
+      "description": "Personal or professional web page (http/https). vCard URL."
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Languages the employee speaks. In the vCard NOTE (vCard 3.0 has no LANG)."
+    },
+    "socialProfiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "description": "Social media profile URLs. vCard X-SOCIALPROFILE with the network as TYPE when known."
+    },
+    "bio": {
+      "type": "string",
+      "description": "Short presentation for customers. vCard NOTE."
+    },
+    "shareContact": {
+      "type": "boolean",
+      "default": false,
+      "description": "The employee agreed that customers get their contact card (settings.json vcard 'staff')."
     },
     "organisationNumber": {
       "type": "string",
       "description": "Corporate or organizational registration number (e.g., Swedish Org.nr)."
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Treatments (keys in data/services.json) this employee offers. Empty or missing = all treatments."
+    },
+    "schedule": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Weekly working hours: weekday => whole hours worked (\"08:00\" = 08:00-09:00). Cut to the opening hours when bookings are calculated. Missing or null = the employee follows the opening hours.",
+      "propertyNames": {
+        "enum": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday",
+          "sunday"
+        ]
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^([01][0-9]|2[0-3]):00$"
+        }
+      }
     },
     "qualifications": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "List of professional qualifications or licenses held."
+      "description": "List of professional qualifications or licenses held. vCard CATEGORIES."
     },
     "certificates": {
       "type": "array",
@@ -94,11 +175,19 @@
       "items": {
         "type": "object",
         "properties": {
-          "title": { "type": "string" },
-          "institution": { "type": "string" },
-          "year": { "type": "integer" }
+          "title": {
+            "type": "string"
+          },
+          "institution": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer"
+          }
         },
-        "required": ["title"]
+        "required": [
+          "title"
+        ]
       },
       "description": "Academic degrees and professional diplomas."
     },
@@ -106,19 +195,16 @@
       "type": "object",
       "description": "Assortment of operational attributes.",
       "properties": {
-
         "bookCancel": {
           "type": "integer",
           "default": 1440,
           "description": "Minimum time before cancellation of booking in minutes."
         },
-        
         "bookInAdvance": {
           "type": "integer",
           "default": 15,
           "description": "Booking days ahead"
         },
-
         "acceptsValueCard": {
           "type": "boolean",
           "default": false,
@@ -134,57 +220,49 @@
           "default": false,
           "description": "Block cancellation of booking"
         },
-
         "sellsGiftCard": {
           "type": "boolean",
           "default": false,
           "description": "Selling Giftcard"
         },
-
         "sellsValueCard": {
           "type": "boolean",
           "default": false,
           "description": "Selling ValueCard"
         },
-
         "showPhoto": {
           "type": "boolean",
           "default": false,
           "description": "Show photo of employee in presentation"
         },
-
         "useCashPayment": {
           "type": "boolean",
           "default": false,
           "description": "Cash payments are allowed"
         },
-
         "useCashPartialPayment": {
           "type": "boolean",
           "default": false,
           "description": "Cash partial payments are allowed"
         },
-
         "useInvoicePayment": {
           "type": "boolean",
           "default": false,
           "description": "Invoicing are allowed"
         },
-
         "useSwishPayment": {
           "type": "boolean",
           "default": false,
           "description": "Swish payments are allowed"
         },
-
         "visibleTimes": {
           "type": "boolean",
           "default": false,
           "description": "Allow available times to be visible"
         },
-
         "department": {
-          "type": "string"
+          "type": "string",
+          "description": "Department within the business. vCard ORG (second part)."
         },
         "location": {
           "type": "string"
@@ -197,7 +275,7 @@
         },
         "workingDays": {
           "type": "array",
-          "items": { 
+          "items": {
             "type": "string",
             "enum": [
               "monday",

@@ -37,7 +37,7 @@
                     <?php foreach ($bookings as $booking): ?>
                         <tr>
                             <td class="mono"><?= e(($booking['time'] ?? '') . (isset($booking['end_time']) ? ' - ' . $booking['end_time'] : '')) ?></td>
-                            <td><?= e($booking['service_name']) ?></td>
+                            <td><?= e($booking['service_name']) ?><?php if ($booking['employee_name'] !== ''): ?><br><small class="muted"><?= e($booking['employee_name']) ?><?= !empty($booking['employee_requested']) ? ' · ' . e(__t('admin.pending.requested')) : '' ?></small><?php endif; ?></td>
                             <td><?= e($booking['customer_name'] ?? '') ?></td>
                             <td><span class="badge badge-<?= e($booking['status'] ?? 'pending') ?>"><?= e(__t('admin.status.' . ($booking['status'] ?? 'pending'))) ?></span></td>
                         </tr>

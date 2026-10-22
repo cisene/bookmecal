@@ -1,7 +1,8 @@
 <?php
 /**
  * src/api.php
- * JSON API: service discovery, slot availability (per day or per week) and booking requests.
+ * JSON API: service and staff discovery, slot availability (per day or per week, for anyone or one
+ * employee) and booking requests.
  * Public endpoint: rate limited per client, bookings need the page's form token, JSON bodies only.
  * Errors carry an English 'error' (for logs/debugging) and a stable 'code' that clients translate.
  */
@@ -49,9 +50,22 @@ function enforce_limit(RateLimiter $limiter, string $bucket, array $limit): void
 }
 
 /**
- * Validated [date, service_id, country] from the query string of the availability actions.
+ * Validated employee choice: null for "anyone", otherwise an employee who offers the service.
  */
-function plan_query(string $defaultCountry): array {
+function employee_choice(BookingService $serviceLayer, string $employeeId, string $serviceId): ?string {
+    if ($employeeId === '') {
+        return null;
+    }
+    if (!EmployeeRepository::isValidId($employeeId) || !isset($serviceLayer->staffFor($serviceId)[$employeeId])) {
+        fail(400, 'unknown_employee', 'Unknown employee or the employee does not offer this service.');
+    }
+    return $employeeId;
+}
+
+/**
+ * Validated [date, service_id, country, employee_id] from the query string of the availability actions.
+ */
+function plan_query(BookingService $serviceLayer, string $defaultCountry): array {
     $date = request_string($_GET, 'date');
     $serviceId = request_string($_GET, 'service_id');
     $country = ResourceProvider::sanitizeCountryCode(request_string($_GET, 'country', $defaultCountry));
@@ -68,7 +82,7 @@ function plan_query(string $defaultCountry): array {
     if ($country === null) {
         fail(400, 'invalid_country', 'Invalid country code.');
     }
-    return [$date, $serviceId, $country];
+    return [$date, $serviceId, $country, employee_choice($serviceLayer, request_string($_GET, 'employee_id'), $serviceId)];
 }
 
 $settings = ResourceProvider::getSettings();
@@ -103,15 +117,30 @@ $repository->housekeeping();
 
 switch ($action) {
     case 'get_services':
-        $services = array_filter($repository->getServices() ?? [], function ($service) {
-            return is_array($service) && ResourceProvider::isServiceActive($service);
-        });
-        respond(['success' => true, 'data' => $services]);
+        $all = $repository->getServices() ?? [];
+        // A set's duration is the sum of its treatments; a set with a missing treatment is left out
+        $services = [];
+        foreach ($all as $key => $service) {
+            $duration = is_array($service) ? ResourceProvider::serviceDuration($service, $all) : null;
+            if ($duration !== null && ResourceProvider::isServiceActive($service)) {
+                $services[$key] = ['duration' => $duration] + $service;
+            }
+        }
+        // Staff customers can choose from; each service lists who offers it. Empty without staff.
+        $staff = [];
+        foreach ($services as $key => $service) {
+            $services[$key]['employee_ids'] = [];
+            foreach ($serviceLayer->staffFor((string)$key) as $id => $employee) {
+                $services[$key]['employee_ids'][] = $id;
+                $staff[$id] = ['name' => Staff::name($employee), 'title' => (string)($employee['jobTitle'] ?? '')];
+            }
+        }
+        respond(['success' => true, 'data' => $services, 'staff' => $staff]);
         break;
 
     case 'check_availability':
-        [$date, $serviceId, $country] = plan_query($defaultCountry);
-        $slots = $serviceLayer->getAvailableSlots($date, $serviceId, $country);
+        [$date, $serviceId, $country, $employeeId] = plan_query($serviceLayer, $defaultCountry);
+        $slots = $serviceLayer->getAvailableSlots($date, $serviceId, $country, $employeeId);
         if ($slots === null) {
             fail(400, 'invalid_request', 'Invalid date format or unknown service ID.');
         }
@@ -119,8 +148,8 @@ switch ($action) {
         break;
 
     case 'check_week':
-        [$date, $serviceId, $country] = plan_query($defaultCountry);
-        $week = $serviceLayer->getWeekPlan($date, $serviceId, $country);
+        [$date, $serviceId, $country, $employeeId] = plan_query($serviceLayer, $defaultCountry);
+        $week = $serviceLayer->getWeekPlan($date, $serviceId, $country, $employeeId);
         if ($week === null) {
             fail(400, 'invalid_request', 'Invalid date format or unknown service ID.');
         }
@@ -188,27 +217,29 @@ switch ($action) {
         if (Input::text($serviceId, MAX_ID_LENGTH) === null || $repository->getServiceById($serviceId) === null) {
             fail(400, 'unknown_service', 'Unknown service ID.');
         }
+        $employeeId = employee_choice($serviceLayer, request_string($input, 'employee_id'), $serviceId);
 
-        // Check availability and save under one lock so two concurrent requests cannot take the same slot
-        $bookingId = $repository->withBookingLock(function () use ($repository, $serviceLayer, $serviceId, $date, $time, $customerName, $customerEmail, $defaultCountry) {
+        // Check availability, pick the employee and save under one lock so two concurrent requests cannot take the same slot
+        $bookingId = $repository->withBookingLock(function () use ($repository, $serviceLayer, $serviceId, $date, $time, $employeeId, $customerName, $customerEmail, $defaultCountry) {
             if ($repository->countUpcomingPendingFor($customerEmail) >= MAX_PENDING_PER_EMAIL) {
                 return 'too_many_pending';
             }
-            foreach ($serviceLayer->getAvailableSlots($date, $serviceId, $defaultCountry) ?? [] as $slot) {
-                if ($slot['start_time'] === $time) {
-                    return $repository->createPendingRequest([
-                        'service_id' => $serviceId,
-                        'date' => $date,
-                        'time' => $time,
-                        'end_time' => $slot['end_time'],
-                        'customer_name' => $customerName,
-                        'customer_email' => $customerEmail,
-                        'language' => Localization::getInstance()->getCurrentLang(),
-                        'status' => 'pending',
-                    ]) ?? false;
-                }
+            $assigned = $serviceLayer->assign($date, $serviceId, $time, $employeeId, $defaultCountry);
+            if ($assigned === null) {
+                return null;
             }
-            return null;
+            return $repository->createPendingRequest([
+                'service_id' => $serviceId,
+                'employee_id' => $assigned['employee_id'],
+                'employee_requested' => $employeeId !== null,
+                'date' => $date,
+                'time' => $time,
+                'end_time' => $assigned['end_time'],
+                'customer_name' => $customerName,
+                'customer_email' => $customerEmail,
+                'language' => Localization::getInstance()->getCurrentLang(),
+                'status' => 'pending',
+            ]) ?? false;
         });
 
         if ($bookingId === 'too_many_pending') {

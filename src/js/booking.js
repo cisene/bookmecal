@@ -1,7 +1,8 @@
 /**
  * src/js/booking.js
  * Public booking form with a week view: one column per day, time running downwards. Free
- * start times come from api.php?action=check_week; the selection block snaps to them.
+ * start times come from api.php?action=check_week, for anyone or the chosen employee; the
+ * selection block snaps to them.
  * All visible texts come from the page's #booking-config JSON
  * (translation keys under "booking."), so this file contains no language.
  */
@@ -32,6 +33,8 @@
     }
 
     const serviceSelect = document.getElementById('serviceSelect');
+    const staffGroup = document.getElementById('staffGroup');
+    const staffSelect = document.getElementById('staffSelect');
     const dateInput = document.getElementById('dateInput');
     const slotsContainer = document.getElementById('slotsContainer');
     const bookingForm = document.getElementById('bookingForm');
@@ -46,6 +49,8 @@
     /** Pixels per minute on the vertical time axis. */
     const PX_PER_MIN = 1;
 
+    let services = {};     // get_services data: id => service (with employee_ids)
+    let staff = {};        // employee id => { name, title }
     let week = null;       // last check_week response
     let range = null;      // { start, end } in minutes, shared by all day columns
     let allSlots = [];     // every free start of the week, in order: { day, slot, minute }
@@ -104,13 +109,29 @@
 
     function loadServices() {
         api({ action: 'get_services' }).then((data) => {
-            const services = Object.entries((data && data.data) || {});
-            const placeholder = new Option(t(services.length ? 'booking.service.choose' : 'booking.service.noneFound'), '');
+            services = (data && data.data) || {};
+            staff = (data && data.staff) || {};
+            const entries = Object.entries(services);
+            const placeholder = new Option(t(entries.length ? 'booking.service.choose' : 'booking.service.noneFound'), '');
             serviceSelect.replaceChildren(placeholder);
-            services.forEach(([id, service]) => {
+            entries.forEach(([id, service]) => {
                 serviceSelect.add(new Option(t('booking.service.option', { name: service.name, duration: service.duration }), id));
             });
         }).catch(() => showAlert('error', t('booking.error.network')));
+    }
+
+    /** Fills the staff choice with the employees offering the chosen service; shown only when there is a choice. */
+    function updateStaff() {
+        const previous = staffSelect.value;
+        const service = services[serviceSelect.value];
+        const ids = ((service && service.employee_ids) || []).filter((id) => staff[id]);
+        staffSelect.replaceChildren(new Option(t('booking.staff.any'), ''));
+        ids.forEach((id) => {
+            const person = staff[id];
+            staffSelect.add(new Option(person.title ? t('booking.staff.option', { name: person.name, title: person.title }) : person.name, id));
+        });
+        staffSelect.value = ids.includes(previous) ? previous : '';
+        staffGroup.hidden = ids.length < 2;
     }
 
     /** Loads the week containing the date input's date. Keeps the current choice if it is still free. */
@@ -129,6 +150,7 @@
         api({
             action: 'check_week',
             service_id: serviceSelect.value,
+            employee_id: staffSelect.value,
             date: dateInput.value,
             country: config.country,
         }).then((data) => {
@@ -430,6 +452,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 service_id: serviceSelect.value,
+                employee_id: staffSelect.value,
                 date: chosen.day.date,
                 time: chosen.slot.start_time,
                 customer_name: document.getElementById('customerName').value,
@@ -441,6 +464,7 @@
             if (data.success) {
                 showAlert('success', t('booking.result.requestReceived'));
                 bookingForm.reset();
+                updateStaff();
                 loadWeek();
             } else {
                 showAlert('error', errorText(data));
@@ -451,7 +475,11 @@
         }).catch(() => showAlert('error', t('booking.error.network')));
     }
 
-    serviceSelect.addEventListener('change', loadWeek);
+    serviceSelect.addEventListener('change', () => {
+        updateStaff();
+        loadWeek();
+    });
+    staffSelect.addEventListener('change', loadWeek);
     dateInput.addEventListener('change', loadWeek);
     prevWeek.addEventListener('click', () => shiftWeek(-7));
     nextWeek.addEventListener('click', () => shiftWeek(7));

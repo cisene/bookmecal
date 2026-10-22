@@ -24,16 +24,19 @@ class LanguageFilesTest extends TestCase {
         'admin.login.' => ['expired', 'signedOut'],
         'admin.setup.' => ['noServices', 'noOpenHours', 'businessName', 'emailOff', 'emailSender', 'emailAlerts', 'publicUrl', 'https'],
         'admin.config.done.' => ['saved', 'feedRenewed', 'feedDisabled'],
+        'admin.config.vcardMode.' => ['off', 'venue', 'staff'],
+        'admin.config.venue.' => ['website', 'phone', 'email', 'street', 'postalCode', 'city', 'country', 'latitude', 'longitude', 'plusCode'],
         'admin.services.done.' => ['saved', 'deleted'],
         'admin.employees.done.' => ['saved', 'deleted'],
         'admin.holidays.done.' => ['added', 'deleted'],
         'admin.users.done.' => ['saved', 'deleted'],
         'admin.google.step' => ['1', '2', '3'],
-        'admin.employees.' => ['givenName', 'familyName', 'email', 'jobTitle', 'phoneNumber', 'mobileNumber', 'swishPaymentNumber', 'organisationNumber'],
+        'admin.employees.' => ['givenName', 'familyName', 'additionalName', 'nickname', 'honorificPrefix', 'honorificSuffix', 'jobTitle', 'role',
+            'department', 'email', 'phoneNumber', 'mobileNumber', 'website', 'avatar', 'swishPaymentNumber', 'organisationNumber'],
         'admin.nav.' => ['dashboard', 'pending', 'services', 'employees', 'hours', 'holidays', 'slots', 'config', 'users'],
         'common.weekday.' => ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
         'common.country.' => ['se', 'no', 'fi', 'ee', 'lv', 'lt'],
-        'booking.error.' => ['missingFields', 'invalidDate', 'invalidTime', 'invalidEmail', 'invalidName', 'unknownService', 'invalidRequest', 'slotUnavailable', 'saveFailed', 'rateLimited', 'tooManyPending', 'formExpired', 'tooFast'],
+        'booking.error.' => ['missingFields', 'invalidDate', 'invalidTime', 'invalidEmail', 'invalidName', 'unknownService', 'invalidRequest', 'slotUnavailable', 'saveFailed', 'rateLimited', 'tooManyPending', 'formExpired', 'tooFast', 'unknownEmployee'],
     ];
 
     private static function load(string $lang): array {

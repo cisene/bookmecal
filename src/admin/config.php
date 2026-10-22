@@ -5,12 +5,14 @@
  * how long unanswered booking requests keep their time, and the privacy settings
  * (business name and contact for the privacy notice, how long bookings are kept),
  * email (config.json smtp: on/off, sender, alert address; settings.json public_url for links),
+ * the venue's contact details sent as a contact card (settings.json venue, vcard; ContactCard),
  * and the calendar subscription link (CalendarFeed).
  */
 
 require_once __DIR__ . '/auth.php';
 require_once dirname(__DIR__) . '/classes/CalendarFeed.php';
 require_once dirname(__DIR__) . '/classes/BookingEmails.php';
+require_once dirname(__DIR__) . '/classes/ContactCard.php';
 
 const SUPPORTED_TIMEZONES = ['Europe/Stockholm', 'Europe/Oslo', 'Europe/Helsinki', 'Europe/Tallinn', 'Europe/Riga', 'Europe/Vilnius'];
 const SUPPORTED_COUNTRIES = ['se', 'no', 'fi', 'ee', 'lv', 'lt'];
@@ -25,7 +27,47 @@ $configFile = ResourceProvider::dataPath('config.json');
 $feed = new CalendarFeed();
 $flash = [];
 
-if (is_post() && request_string($_POST, 'feed_action') !== '') {
+/**
+ * Validated venue contact details from the posted form; returns [venue, error message or null].
+ */
+function venue_from_post(array $post): array {
+    $optional = fn (string $key, callable $check) => request_string($post, $key) === '' ? '' : $check(request_string($post, $key));
+    $venue = [
+        'website' => $optional('website', fn ($v) => BookingEmails::isValidSiteUrl($v) ? $v : null),
+        'phone' => $optional('phone', fn ($v) => Input::phone($v)),
+        'email' => $optional('email', fn ($v) => Input::email($v)),
+        'street' => Input::text(request_string($post, 'street'), 100),
+        'postal_code' => Input::text(request_string($post, 'postal_code'), 20),
+        'city' => Input::text(request_string($post, 'city'), 100),
+        'country' => Input::text(request_string($post, 'country'), 60),
+        'latitude' => $optional('latitude', fn ($v) => ContactCard::coordinate($v, 90)),
+        'longitude' => $optional('longitude', fn ($v) => ContactCard::coordinate($v, 180)),
+        'plus_code' => $optional('plus_code', fn ($v) => ContactCard::plusCode($v)),
+    ];
+    $invalid = array_keys(array_filter($venue, fn ($v) => $v === null));
+    if ($invalid) {
+        return [$venue, 'Invalid value in: ' . implode(', ', $invalid) . '. The website must start with http:// or https:// (no query), latitude is -90 to 90 and longitude -180 to 180 in decimal degrees (WGS-84), a plus code looks like 9FFW83PH+X9 or 83PH+X9 Stockholm.'];
+    }
+    if (($venue['latitude'] === '') !== ($venue['longitude'] === '')) {
+        return [$venue, 'Enter both latitude and longitude, or neither.'];
+    }
+    return [$venue, null];
+}
+
+if (is_post() && request_string($_POST, 'venue_action') === 'save') {
+    require_csrf();
+    [$venue, $error] = venue_from_post($_POST);
+    $vcardMode = Input::oneOf(request_string($_POST, 'vcard'), ContactCard::MODES);
+    if ($error !== null || $vcardMode === null) {
+        $flash[] = flash_error($error ?? 'Unknown contact card setting.');
+    } elseif (JsonStore::update($settingsFile, fn (array $settings) => array_merge($settings, ['venue' => $venue, 'vcard' => $vcardMode]))) {
+        log_audit_action($currentAdmin, 'CONFIG_UPDATE', 'Updated venue contact details');
+        header('Location: config.php?done=saved#venue');
+        exit;
+    } else {
+        $flash[] = flash_error('Could not write settings.json. Check file permissions.');
+    }
+} elseif (is_post() && request_string($_POST, 'feed_action') !== '') {
     require_csrf();
     $feedAction = Input::oneOf(request_string($_POST, 'feed_action'), ['renew', 'disable']);
     if ($feedAction === 'renew' && $feed->renewToken() !== null) {
@@ -150,6 +192,9 @@ render_admin('config', [
     'fromName' => (string)($smtp['from_name'] ?? ''),
     'notificationEmail' => (string)($smtp['notification_email'] ?? ''),
     'publicUrl' => (string)($settings['public_url'] ?? ''),
+    'venue' => array_map('strval', is_array($settings['venue'] ?? null) ? $settings['venue'] : []),
+    'vcardMode' => in_array($settings['vcard'] ?? '', ContactCard::MODES, true) ? $settings['vcard'] : 'off',
+    'vcardModes' => ContactCard::MODES,
     'feedUrl' => $feedUrl,
     'feedWebcalUrl' => $feedUrl === null ? null : preg_replace('#^https?://#', 'webcal://', $feedUrl),
     'feedPastDays' => CalendarFeed::PAST_DAYS,
