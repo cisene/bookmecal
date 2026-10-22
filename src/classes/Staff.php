@@ -2,7 +2,8 @@
 /**
  * src/classes/Staff.php
  * Who can be booked: employees that are active and bookable, the treatments each one offers and
- * their weekly hours. Opening hours are the outer limit, an employee's hours the inner one.
+ * their weekly hours, with per-date exceptions (vacation, sick day, an extra day) taking precedence.
+ * Opening hours are the outer limit, an employee's hours the inner one.
  * Pure functions over employee records (see specs/employee.schema.json), so they test without files.
  */
 
@@ -46,17 +47,105 @@ class Staff {
         return array_filter($employees, fn ($e) => is_array($e) && self::isBookable($e) && self::offers($e, $serviceIds));
     }
 
+    /** Longest date range one exception can cover, in days. */
+    public const EXCEPTION_MAX_DAYS = 366;
+
     /**
      * Whole hours (0-23) the employee works on $weekday, or null when no schedule is saved:
-     * the employee then follows the opening hours.
+     * the employee then follows the opening hours. With $date (Y-m-d), an exception saved for
+     * that date replaces the weekly pattern; an exception without hours is a day off.
      */
-    public static function hours(array $employee, string $weekday): ?array {
+    public static function hours(array $employee, string $weekday, ?string $date = null): ?array {
+        $exception = $date === null ? null : self::exception($employee, $date);
+        if ($exception !== null) {
+            return self::parseHours($exception['hours']);
+        }
         $schedule = $employee['schedule'] ?? null;
         if (!is_array($schedule)) {
             return null;
         }
+        return self::parseHours((array)($schedule[$weekday] ?? []));
+    }
+
+    /** The exception saved for $date as ['hours' => ['HH:00', ...], 'note' => string], or null. */
+    public static function exception(array $employee, string $date): ?array {
+        $exception = is_array($employee['exceptions'] ?? null) ? ($employee['exceptions'][$date] ?? null) : null;
+        if (!is_array($exception)) {
+            return null;
+        }
+        return ['hours' => array_values(array_filter((array)($exception['hours'] ?? []), 'is_string')), 'note' => (string)($exception['note'] ?? '')];
+    }
+
+    /**
+     * Exceptions from $from (Y-m-d) on, joined into ranges of consecutive dates with the same
+     * hours and note: [['from', 'to', 'hours' => [int, ...], 'note'], ...], oldest first.
+     */
+    public static function exceptionRanges(array $employee, string $from): array {
+        $exceptions = is_array($employee['exceptions'] ?? null) ? $employee['exceptions'] : [];
+        ksort($exceptions);
+        $ranges = [];
+        foreach (array_keys($exceptions) as $date) {
+            $exception = self::exception($employee, (string)$date);
+            if ($exception === null || !self::isDate((string)$date) || $date < $from) {
+                continue;
+            }
+            $hours = self::parseHours($exception['hours']);
+            $last = count($ranges) - 1;
+            $next = $last >= 0 ? (new DateTimeImmutable($ranges[$last]['to']))->modify('+1 day')->format('Y-m-d') : null;
+            if ($next === $date && $ranges[$last]['hours'] === $hours && $ranges[$last]['note'] === $exception['note']) {
+                $ranges[$last]['to'] = $date;
+            } else {
+                $ranges[] = ['from' => $date, 'to' => $date, 'hours' => $hours, 'note' => $exception['note']];
+            }
+        }
+        return $ranges;
+    }
+
+    /**
+     * $exceptions with every date from $from to $to (Y-m-d, inclusive) set to $hours ('HH:00'
+     * strings; [] = day off) and $note, or removed when $hours is null. Dates before $today are
+     * dropped. Returns null for an invalid or too long range.
+     */
+    public static function setExceptions(array $exceptions, string $from, string $to, ?array $hours, string $note, string $today): ?array {
+        if (!self::isDate($from) || !self::isDate($to) || $to < $from) {
+            return null;
+        }
+        $day = new DateTimeImmutable($from);
+        $last = new DateTimeImmutable($to);
+        if ($day->diff($last)->days >= self::EXCEPTION_MAX_DAYS) {
+            return null;
+        }
+        for (; $day <= $last; $day = $day->modify('+1 day')) {
+            $date = $day->format('Y-m-d');
+            if ($hours === null) {
+                unset($exceptions[$date]);
+            } else {
+                $exceptions[$date] = ['hours' => array_values($hours), 'note' => $note];
+            }
+        }
+        $exceptions = array_filter($exceptions, fn ($date) => is_string($date) && $date >= $today, ARRAY_FILTER_USE_KEY);
+        ksort($exceptions);
+        return $exceptions;
+    }
+
+    /** Hours 'HH:00' from $from up to (not including) $to, both 0-24; [] when $to <= $from. */
+    public static function hourRange(int $from, int $to): array {
         $hours = [];
-        foreach ((array)($schedule[$weekday] ?? []) as $hour) {
+        for ($h = max(0, $from); $h < min(24, $to); $h++) {
+            $hours[] = sprintf('%02d:00', $h);
+        }
+        return $hours;
+    }
+
+    private static function isDate(string $date): bool {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+
+    /** Sorted unique whole hours from 'HH:00' strings, ignoring anything else. */
+    private static function parseHours(array $list): array {
+        $hours = [];
+        foreach ($list as $hour) {
             if (is_string($hour) && preg_match('/^([01]\d|2[0-3]):00$/', $hour)) {
                 $hours[] = (int)substr($hour, 0, 2);
             }

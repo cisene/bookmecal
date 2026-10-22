@@ -123,6 +123,24 @@ class BookingService {
         return null;
     }
 
+    /**
+     * Whether a pending or approved booking can move to employee $employeeId: the employee offers
+     * the treatment and is free for it (the booking's own time does not count against them).
+     * Call inside BookingRepository::withBookingLock() together with saving the change.
+     */
+    public function canMoveTo(array $booking, string $employeeId, string $countryCode = 'se'): bool {
+        $serviceId = (string)($booking['service_id'] ?? '');
+        $date = $this->parseDate((string)($booking['date'] ?? ''));
+        $service = $this->bookableService($serviceId);
+        $resources = $service === null || $employeeId === '' ? null : $this->resources($serviceId, $service, $employeeId);
+        if ($date === null || $resources === null || ($booking['employee_id'] ?? null) === $employeeId
+            || !in_array($booking['status'] ?? '', BookingRepository::BLOCKING_STATUSES, true)) {
+            return false;
+        }
+        $plan = $this->planDay($date, $service, $resources, $countryCode, (string)($booking['id'] ?? ''));
+        return in_array((string)($booking['time'] ?? ''), array_column($plan['slots'], 'start_time'), true);
+    }
+
     private function parseDate(string $dateStr): ?DateTimeImmutable {
         $date = DateTimeImmutable::createFromFormat('!Y-m-d', $dateStr, $this->timezone);
         return ($date && $date->format('Y-m-d') === $dateStr) ? $date : null;
@@ -190,7 +208,8 @@ class BookingService {
         return (int)$time->format('G') * 60 + (int)$time->format('i');
     }
 
-    private function planDay(DateTimeImmutable $date, array $service, array $resources, string $countryCode): array {
+    /** $ignoreId: a booking left out of the busy times, when checking whether it can move. */
+    private function planDay(DateTimeImmutable $date, array $service, array $resources, string $countryCode, string $ignoreId = ''): array {
         $dateStr = $date->format('Y-m-d');
         $plan = ['date' => $dateStr, 'open' => null, 'close' => null, 'busy' => [], 'slots' => []];
 
@@ -219,7 +238,7 @@ class BookingService {
 
         $bookings = [];
         foreach ($this->repository->getBlockingIntervals($dateStr) as $interval) {
-            if ($interval['start']->format('Y-m-d') !== $dateStr) {
+            if ($interval['start']->format('Y-m-d') !== $dateStr || ($ignoreId !== '' && ($interval['id'] ?? '') === $ignoreId)) {
                 continue;
             }
             $end = $interval['end']->format('Y-m-d') > $dateStr ? 24 * 60 : self::minuteOfDay($interval['end']);
@@ -238,7 +257,7 @@ class BookingService {
         foreach ($resources as $id => $employee) {
             $id = (string)$id;
             $staff[$id] = [
-                'windows' => Staff::windows($employee === null ? null : Staff::hours($employee, $weekday), $open, $close),
+                'windows' => Staff::windows($employee === null ? null : Staff::hours($employee, $weekday, $dateStr), $open, $close),
                 // Bookings without an employee (older records, or no staff) and exclusive ones block everyone
                 'booked' => array_values(array_filter($bookings, fn ($b) => $exclusive || $b['exclusive']
                     || $id === '' || $b['employee_id'] === null || $b['employee_id'] === $id)),

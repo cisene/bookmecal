@@ -104,8 +104,9 @@ class BookingServiceTest extends TestCase {
                 $tz = ResourceProvider::getTimezone();
                 $at = fn ($time) => DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} {$time}", $tz);
                 $intervals = [];
-                foreach (array_merge([['08:00', '09:00', 'emp_a'], ['09:00', '10:00', 'emp_b']], $this->extra) as [$start, $end, $employee]) {
-                    $intervals[] = ['start' => $at($start), 'end' => $at($end), 'employee_id' => $employee];
+                foreach (array_merge([['08:00', '09:00', 'emp_a', 'bk_a'], ['09:00', '10:00', 'emp_b', 'bk_b']], $this->extra) as $booking) {
+                    [$start, $end, $employee, $id] = array_pad($booking, 4, '');
+                    $intervals[] = ['id' => $id, 'start' => $at($start), 'end' => $at($end), 'employee_id' => $employee];
                 }
                 return $intervals;
             }
@@ -164,6 +165,35 @@ class BookingServiceTest extends TestCase {
     public function testBookingWithoutEmployeeBlocksEveryone() {
         $starts = array_column($this->staffedService([['10:00', '12:00', null]])->getAvailableSlots('2099-01-05', 'srv'), 'start_time');
         $this->assertSame(['08:00', '09:00'], $starts);
+    }
+
+    public function testDateExceptionReplacesWeeklyHours() {
+        $staff = [
+            'emp_a' => ['givenName' => 'Anna', 'schedule' => ['monday' => ['08:00', '09:00']], 'exceptions' => ['2099-01-05' => ['hours' => ['10:00'], 'note' => 'Late start']]],
+            'emp_b' => ['givenName' => 'Bea', 'exceptions' => ['2099-01-05' => ['hours' => [], 'note' => 'Sick']]],
+        ];
+        $service = $this->staffedService([], $staff);
+        $this->assertSame(['10:00'], array_column($service->getAvailableSlots('2099-01-05', 'srv'), 'start_time'));
+        // The exception is for one date only: the next Monday follows the weekly hours again
+        $this->assertSame(['09:00'], array_column($service->getAvailableSlots('2099-01-12', 'srv', 'se', 'emp_a'), 'start_time'));
+    }
+
+    public function testBookingMovesOnlyToAFreeEmployeeOfferingIt() {
+        $service = $this->staffedService([['11:00', '12:00', null, 'bk_n']]);
+        $booking = fn (string $id, string $time, ?string $employee, string $status = 'approved') => [
+            'id' => $id, 'service_id' => 'srv', 'date' => '2099-01-05', 'time' => $time, 'status' => $status, 'employee_id' => $employee,
+        ];
+        // Anna works 08-10 and is free 09-10; Bea is free 08-09
+        $this->assertTrue($service->canMoveTo($booking('bk_b', '09:00', 'emp_b'), 'emp_a'));
+        $this->assertTrue($service->canMoveTo($booking('bk_a', '08:00', 'emp_a', 'pending'), 'emp_b'));
+        // A booking without employee blocks everyone, but not itself
+        $this->assertTrue($service->canMoveTo($booking('bk_n', '11:00', null), 'emp_b'));
+        $this->assertFalse($service->canMoveTo($booking('bk_n', '11:00', null), 'emp_a'), 'Anna does not work at 11');
+        $this->assertFalse($service->canMoveTo($booking('bk_a', '08:00', 'emp_a'), 'emp_a'), 'already hers');
+        $this->assertFalse($service->canMoveTo($booking('bk_a', '08:00', 'emp_a'), 'emp_c'), 'does not offer it');
+        $this->assertFalse($service->canMoveTo($booking('bk_a', '08:00', 'emp_a'), 'emp_d'), 'inactive');
+        $this->assertFalse($service->canMoveTo($booking('bk_x', '09:00', 'emp_b', 'rejected'), 'emp_a'), 'no longer holds the time');
+        $this->assertFalse($service->canMoveTo($booking('bk_x', '09:00', null), 'emp_b'), 'Bea is booked at 09');
     }
 
     public function testWithoutStaffTheVenueIsBooked() {

@@ -8,7 +8,6 @@
 - [ ] **Data files out of git:** `config.json`, `settings.json`, `services.json`, `openhours.json` and `credentials.json` are tracked with development values, so the server is updated with `rsync` instead of `git pull` (see [08-deployment.md](08-deployment.md) §8.9). Ship `*.example.json` files and create the real ones on install.
 - [ ] **Email delivery on the server:** Set up SPF/DKIM for the sender domain and test that mails are not taken for spam before the trial.
 - [ ] **SMS Reminders:** Implement SMS reminder notifications 1–2 days ahead of appointments.
-- [ ] **Staff schedule exceptions:** Employee hours are a weekly pattern. Add per-date exceptions (vacation, sick day, an extra day) and let the admin move a booking to another employee.
 - [ ] **Week view drag on touch devices:** Verify dragging the selection block on real phones and tablets.
 - [ ] **Gap-aware starts:** Optionally prefer soft-slot starts next to existing bookings to reduce unusable gaps.
 - [ ] **Translations:** Native review of all language files; complete the 12 partial languages (they fall back to English per key).
@@ -20,6 +19,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-22** | • Date exceptions to an employee's weekly hours (vacation, sick day, a shorter or extra day) on the Working hours page.<br>• Move a booking to another employee who offers the treatment and is free at that time (Booking requests page). |
 | **2026-10-22** | • Contact cards: the approval email can carry `contact.vcf` with the venue's details (website, phone, email, address, WGS-84 position, plus code; Config page) and, with their consent, the employee's card. Employee profiles hold every field a vCard can carry (name parts, nickname, role, department, website, photo, languages, social profiles, presentation). The calendar file gets the venue's address and position. |
 | **2026-10-22** | • Exclusive treatments: nothing else is booked at the same time, with any employee.<br>• Sets: several treatments booked together, done back to back by one employee who offers all of them, with their own price and the summed duration (Services page). |
 | **2026-10-22** | • Availability per employee: opening hours are the outer limit, each employee's weekly working hours (Working hours page, `schedule` in the employee file) the inner one, and several employees can be booked at the same time. Employees get a treatment list (none ticked = all). Customers choose an employee or "first available" (the free one with the fewest bookings that day); bookings store `employee_id`. The employee is shown on the bookings page, dashboard, calendar feed and in the emails. Replaces the unused shared slot matrix `data/booking/availability.json`, which was removed. |

@@ -228,7 +228,7 @@ class BookingRepository {
     }
 
     /**
-     * Occupied intervals for a date as [['start' => DateTime, 'end' => DateTime, 'employee_id' => ?string, 'exclusive' => bool], ...],
+     * Occupied intervals for a date as [['id' => booking ID, 'start' => DateTime, 'end' => DateTime, 'employee_id' => ?string, 'exclusive' => bool], ...],
      * where 'end' includes the booked service's cleanup buffer. employee_id is null for bookings
      * made before employees were assigned; those block every employee, as do bookings of an
      * exclusive treatment.
@@ -260,6 +260,7 @@ class BookingRepository {
 
             $employeeId = $booking['employee_id'] ?? null;
             $intervals[] = [
+                'id' => (string)($booking['id'] ?? ''),
                 'start' => $start,
                 'end' => $end,
                 'employee_id' => is_string($employeeId) && $employeeId !== '' ? $employeeId : null,

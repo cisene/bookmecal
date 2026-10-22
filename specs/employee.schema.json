@@ -137,6 +137,33 @@
         }
       }
     },
+    "exceptions": {
+      "type": "object",
+      "description": "Per-date exceptions to the weekly hours: date (YYYY-MM-DD) => hours worked that day, replacing the schedule. No hours = day off. Past dates are dropped on save.",
+      "propertyNames": {
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "hours": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):00$"
+            }
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Shown to the admin only, e.g. Vacation."
+          }
+        },
+        "required": [
+          "hours"
+        ]
+      }
+    },
     "qualifications": {
       "type": "array",
       "items": {

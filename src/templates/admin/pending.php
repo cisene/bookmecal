@@ -58,6 +58,20 @@
                                     </form>
                                 <?php endforeach; ?>
                             <?php endif; ?>
+                            <?php if ($booking['move_to'] !== []): ?>
+                                <form method="post" class="inline">
+                                    <?php include __DIR__ . '/../partials/csrf.php'; ?>
+                                    <input type="hidden" name="id" value="<?= e($id) ?>">
+                                    <input type="hidden" name="action" value="move">
+                                    <label class="visually-hidden" for="move-<?= e($id) ?>"><?= e(__t('admin.pending.moveTo')) ?></label>
+                                    <select id="move-<?= e($id) ?>" name="employee_id" class="select-small">
+                                        <?php foreach ($booking['move_to'] as $employeeId => $name): ?>
+                                            <option value="<?= e($employeeId) ?>"><?= e($name) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button type="submit" class="btn btn-small btn-secondary"><?= e(__t('admin.pending.move')) ?></button>
+                                </form>
+                            <?php endif; ?>
                             <form method="post" class="inline" data-confirm="<?= e(__t('admin.pending.confirmDelete')) ?>">
                                 <?php include __DIR__ . '/../partials/csrf.php'; ?>
                                 <input type="hidden" name="id" value="<?= e($id) ?>">

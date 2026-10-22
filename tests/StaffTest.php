@@ -27,6 +27,43 @@ class StaffTest extends TestCase {
         $this->assertSame([8, 9, 13], Staff::hours(['schedule' => ['monday' => ['13:00', '08:00', '09:00', '9:00', 'x']]], 'monday'));
     }
 
+    public function testDateExceptionWinsOverWeeklyHours() {
+        $employee = ['schedule' => ['monday' => ['08:00']], 'exceptions' => ['2099-01-05' => ['hours' => [], 'note' => 'Sick'], '2099-01-06' => ['hours' => ['12:00']]]];
+        $this->assertSame([], Staff::hours($employee, 'monday', '2099-01-05'));
+        $this->assertSame([8], Staff::hours($employee, 'monday', '2099-01-12'));
+        $this->assertSame([8], Staff::hours($employee, 'monday'));
+        // Also for an employee who otherwise follows the opening hours
+        $this->assertSame([12], Staff::hours(['exceptions' => $employee['exceptions']], 'tuesday', '2099-01-06'));
+        $this->assertNull(Staff::hours(['exceptions' => $employee['exceptions']], 'tuesday', '2099-01-13'));
+    }
+
+    public function testSetExceptionsCoversARangeAndDropsPastDates() {
+        $exceptions = Staff::setExceptions(['2000-01-01' => ['hours' => [], 'note' => '']], '2099-07-01', '2099-07-03', [], 'Vacation', '2026-10-22');
+        $this->assertSame(['2099-07-01', '2099-07-02', '2099-07-03'], array_keys($exceptions));
+        $this->assertSame(['hours' => [], 'note' => 'Vacation'], $exceptions['2099-07-02']);
+        $this->assertSame(['2099-07-01', '2099-07-03'], array_keys(Staff::setExceptions($exceptions, '2099-07-02', '2099-07-02', null, '', '2026-10-22')));
+        $this->assertNull(Staff::setExceptions([], '2099-07-03', '2099-07-01', [], '', '2026-10-22'));
+        $this->assertNull(Staff::setExceptions([], '2099-02-30', '2099-03-01', [], '', '2026-10-22'));
+        $this->assertNull(Staff::setExceptions([], '2099-01-01', '2100-06-01', [], '', '2026-10-22'));
+    }
+
+    public function testExceptionRangesJoinConsecutiveEqualDays() {
+        $employee = ['exceptions' => [
+            '2099-07-02' => ['hours' => [], 'note' => 'Vacation'],
+            '2099-07-01' => ['hours' => [], 'note' => 'Vacation'],
+            '2099-07-03' => ['hours' => ['10:00', '11:00'], 'note' => ''],
+            '2099-07-05' => ['hours' => ['10:00', '11:00'], 'note' => ''],
+            '2000-01-01' => ['hours' => [], 'note' => 'old'],
+        ]];
+        $this->assertSame([
+            ['from' => '2099-07-01', 'to' => '2099-07-02', 'hours' => [], 'note' => 'Vacation'],
+            ['from' => '2099-07-03', 'to' => '2099-07-03', 'hours' => [10, 11], 'note' => ''],
+            ['from' => '2099-07-05', 'to' => '2099-07-05', 'hours' => [10, 11], 'note' => ''],
+        ], Staff::exceptionRanges($employee, '2026-10-22'));
+        $this->assertSame(['09:00', '10:00'], Staff::hourRange(9, 11));
+        $this->assertSame([], Staff::hourRange(11, 9));
+    }
+
     public function testWindowsJoinHoursAndStayInsideOpeningHours() {
         // Open 08:30-16:00; works 08, 09, 10 and 15, 16
         $this->assertSame([[510, 660], [900, 960]], Staff::windows([8, 9, 10, 15, 16], 510, 960));

@@ -32,7 +32,7 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - `Secrets.php`: Signing keys in `data/secrets.json` (`form_secret`, `cancel_secret`), created on first use.
 - `CalendarFeed.php`: Feed token in `data/secrets.json` and the iCalendar output of `calendar.php`.
 - `ContactCard.php`: Contact cards (vCard 3.0) for the venue and the employee, sent as `contact.vcf` with the approval email; venue location for the calendar file (see [04-api-and-integrations.md](04-api-and-integrations.md)).
-- `Staff.php`: Who can be booked: bookable employees, the treatments each offers and their weekly hours cut to the opening hours (see [03-business-logic-and-engine.md](03-business-logic-and-engine.md) §3.2).
+- `Staff.php`: Who can be booked: bookable employees, the treatments each offers and their weekly hours and date exceptions, cut to the opening hours (see [03-business-logic-and-engine.md](03-business-logic-and-engine.md) §3.2).
 - `src/bootstrap.php` also defines the escaping and request helpers used everywhere.
 
 ## 1.3 Localization
