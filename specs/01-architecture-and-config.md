@@ -19,7 +19,8 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - `JsonStore.php`: Locked JSON read/write/update (`flock()`), see [02-storage-and-repository.md](02-storage-and-repository.md).
 - `View.php`: Renders plain-PHP templates from `src/templates/` with an optional layout.
 - `Localization.php`: Language selection and translation with the global `__t()` helper.
-- `EmailNotifier.php`: Confirmation, admin alert and reminder emails (header-injection safe).
+- `EmailNotifier.php`: Sends the emails (plain text, optional attachment, header-injection safe); nothing is sent unless `config.json` `smtp.enabled` is true. The transport is PHP `mail()` and can be replaced in tests.
+- `BookingEmails.php`: The emails around one booking (receipt, admin alert, approval with `.ics`, rejection); builds the texts from the booking, services and settings.
 - `SecurityHeaders.php`: HTTP security headers, sent by `bootstrap.php` for every web request (§1.5).
 - `RateLimiter.php`, `FormToken.php`: Abuse protection for the public booking API (see [04-api-and-integrations.md](04-api-and-integrations.md)); `RateLimiter` also counts failed admin sign-ins.
 - `Input.php`: The input validation layer (§1.6).
@@ -105,4 +106,5 @@ The booking stores the customer's name, email address, chosen treatment and time
 - **Retention:** Bookings are deleted automatically `booking_retention_days` days after the appointment date (default 365, 0 = keep, admin Config page). `BookingRepository::housekeeping()` runs the purge together with the pending expiry on every API request and on the admin dashboard and bookings pages.
 - **Access and erasure:** On the admin bookings page, a search by email lists one customer's bookings (case-insensitive). From there the admin can download them as JSON (right of access) or delete them all (right to erasure); single bookings can be deleted from any list. Bulk deletion only works with an email filter. Exports and deletions are recorded in the audit log without the email address.
 - **Calendar subscription:** When the admin turns on the calendar feed, the calendar app (and its provider, e.g. Apple or Google) keeps a copy of the bookings. The privacy notice then adds `privacy.sharing.calendar` to the sharing section. Renewing the link or turning the feed off stops further updates, but the provider's copy is outside this system.
+- **Emails:** Customer emails contain only their own booking. With `public_url` set they end with a link to the privacy notice. The admin alert contains the customer's name and email and goes only to `smtp.notification_email`.
 - **Other personal data:** The admin audit log keeps admin usernames and IP addresses (newest 200 entries). The security log keeps IP addresses of rejected requests and sign-ins and rotates at 1 MB. Rate-limit files contain only hashes.

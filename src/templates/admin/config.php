@@ -57,6 +57,39 @@
             <small class="muted"><?= e(__t('admin.config.retentionDaysHint')) ?></small>
         </div>
 
+        <h3><?= e(__t('admin.config.emailTitle')) ?></h3>
+        <p class="muted"><?= e(__t('admin.config.emailIntro')) ?></p>
+
+        <div class="form-group">
+            <label class="checkbox">
+                <input type="checkbox" name="email_enabled" value="1"<?= $emailEnabled ? ' checked' : '' ?>>
+                <?= e(__t('admin.config.emailEnabled')) ?>
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-from-name"><?= e(__t('admin.config.fromName')) ?></label>
+            <input type="text" id="cfg-from-name" name="from_name" maxlength="100" value="<?= e($fromName) ?>" required>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-from-email"><?= e(__t('admin.config.fromEmail')) ?></label>
+            <input type="email" id="cfg-from-email" name="from_email" maxlength="254" value="<?= e($fromEmail) ?>" required>
+            <small class="muted"><?= e(__t('admin.config.fromEmailHint')) ?></small>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-notify"><?= e(__t('admin.config.notificationEmail')) ?></label>
+            <input type="email" id="cfg-notify" name="notification_email" maxlength="254" value="<?= e($notificationEmail) ?>">
+            <small class="muted"><?= e(__t('admin.config.notificationEmailHint')) ?></small>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-public-url"><?= e(__t('admin.config.publicUrl')) ?></label>
+            <input type="url" id="cfg-public-url" name="public_url" maxlength="200" placeholder="https://" value="<?= e($publicUrl) ?>">
+            <small class="muted"><?= e(__t('admin.config.publicUrlHint')) ?></small>
+        </div>
+
         <button type="submit" class="btn"><?= e(__t('admin.common.save')) ?></button>
     </form>
 </div>

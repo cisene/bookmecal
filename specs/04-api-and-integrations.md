@@ -71,4 +71,15 @@ Read-only iCalendar (RFC 5545) subscription for the business's own calendar app:
 
 ## Integrations
 - Google Calendar: OAuth enrollment wizard in `admin/setup_google.php` (with `state` parameter). Calendar sync is not active yet.
-- Email: `EmailNotifier` (PHP `mail()`), texts from the `email.*` language keys in the booking's language.
+- Email: `EmailNotifier` (PHP `mail()`, configured through `sendmail_path` / `SMTP` in php.ini), texts from the `email.*` language keys. Off unless `config.json` `smtp.enabled` is true (admin Config page, which also sets sender name and address, the alert address and `public_url`).
+
+## Booking emails (`BookingEmails`)
+| When | To | Language | Content |
+| :--- | :--- | :--- | :--- |
+| Request saved (`api.php` `book`) | Customer | Booking's language | Receipt (`email.received.*`): service, date and time, not confirmed yet |
+| Request saved | `smtp.notification_email` (if set) | `config.json` `app.language` | Alert (`email.admin.newRequest.*`) with name, email, time and, with `public_url`, a link to `admin/pending.php` |
+| Admin approves | Customer | Booking's language | Confirmation (`email.approved.*`) with `booking.ics` attached (one event, `METHOD:PUBLISH`, summary `<service> – <business>`, no contact details) |
+| Admin rejects | Customer | Booking's language | Decline (`email.rejected.*`) |
+| Day before (cron) | Customer | Booking's language | Reminder (`send_reminders.php`) |
+
+Customer emails sign off with `business_name` and, when `public_url` is set, end with a link to the privacy notice (`email.privacyLink`). A mail failure never undoes a booking or a decision. After approve/reject the bookings page says whether the customer got an email, or that emails are off and the customer must be told some other way; the result is stored as `decision_emailed`. Placeholders are filled in one pass, so a customer name containing `{service}` stays as typed.

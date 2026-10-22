@@ -55,6 +55,7 @@ bookmecal/
 │   ├── classes
 │   │   ├── AdminAccounts.php
 │   │   ├── AvailabilityEngine.php
+│   │   ├── BookingEmails.php
 │   │   ├── BookingEngine.php
 │   │   ├── BookingRepository.php
 │   │   ├── BookingService.php
@@ -147,6 +148,7 @@ bookmecal/
 └── tests
     ├── AdminAccountsTest.php
     ├── AvailabilityEngineTest.php
+    ├── BookingEmailsTest.php
     ├── BookingEngineTest.php
     ├── BookingRepositoryTest.php
     ├── BookingServiceTest.php

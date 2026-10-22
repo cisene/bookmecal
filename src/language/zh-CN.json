@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "简体中文",
   "booking.customer.email": "电子邮箱",
   "booking.customer.fullName": "姓名",
   "booking.customer.heading": "您的信息",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "{name} 的预约（#{id}）已变更/取消（时间：{time}）。备注：{notes}",
   "email.admin.cancellation.subject": "预约变更/取消通知：#{id} - {name}",
-  "email.admin.newBooking.body": "收到新的预约申请。客户：{name}（{email}，{phone}）。时间：{time}。",
-  "email.admin.newBooking.subject": "新预约申请：{name} 的 {service}",
   "email.reminder.cancellationLink": "需要取消预约？您可以在预约前 24 小时内通过此安全链接在线取消：{url}",
   "email.reminder.heading": "您的预约提醒",
   "email.reminder.intro": "您好 {name}，这是您即将到来的预约提醒：{time}。",
   "email.reminder.policyNotice": "免费取消的截止时间为预约开始前 24 小时。24 小时以内的取消、迟到或未到场将按全额（{price} {currency}）收取费用。",
-  "email.reminder.subject": "预约提醒：您明日的预约 - {service}"
+  "email.reminder.subject": "预约提醒：您明日的预约 - {service}",
+  "meta.nativeName": "简体中文"
 }

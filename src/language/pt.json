@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "Português",
   "booking.customer.email": "Endereço de E-mail",
   "booking.customer.fullName": "Nome Completo",
   "booking.customer.heading": "Os seus dados",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "A marcação #{id} de {name} foi atualizada/cancelada (Hora: {time}). Notas: {notes}",
   "email.admin.cancellation.subject": "Atualização/Cancelamento de Marcação: #{id} - {name}",
-  "email.admin.newBooking.body": "Foi submetido um novo pedido de marcação. Cliente: {name} ({email}, {phone}). Data/Hora: {time}.",
-  "email.admin.newBooking.subject": "Novo Pedido de Marcação: {service} por {name}",
   "email.reminder.cancellationLink": "Precisa de cancelar? Pode cancelar online até 24 horas antes através deste link seguro: {url}",
   "email.reminder.heading": "Lembrete de Consulta",
   "email.reminder.intro": "Olá {name}, este é um lembrete para a sua consulta agendada: {time}.",
   "email.reminder.policyNotice": "O limite para cancelamento gratuito é de 24 horas antes da hora marcada. Cancelamentos nas últimas 24 horas, atrasos ou faltas serão cobrados na totalidade ({price} {currency}).",
-  "email.reminder.subject": "Lembrete: A sua consulta amanhã - {service}"
+  "email.reminder.subject": "Lembrete: A sua consulta amanhã - {service}",
+  "meta.nativeName": "Português"
 }

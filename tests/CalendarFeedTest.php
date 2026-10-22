@@ -116,4 +116,13 @@ class CalendarFeedTest extends TestCase {
         $this->assertSame($line, str_replace("\r\n ", '', $folded));
         $this->assertSame('SHORT:x', CalendarFeed::fold('SHORT:x'));
     }
+
+    public function testSingleEventForTheCustomerHasNoContactDetails() {
+        $ics = CalendarFeed::single(self::booking('book_a1', '2026-10-23', '10:00', '10:45', 'approved'), 'Medical Foot Care – Salong', $this->tz, new DateTimeImmutable('2026-10-22 12:00', $this->tz));
+        $this->assertSame(1, substr_count($ics, 'BEGIN:VEVENT'));
+        $this->assertStringContainsString("DTSTART:20261023T080000Z\r\nDTEND:20261023T084500Z\r\nSUMMARY:Medical Foot Care – Salong\r\nSTATUS:CONFIRMED", $ics);
+        $this->assertStringNotContainsString('anna@example.com', $ics);
+        $this->assertStringNotContainsString('REFRESH-INTERVAL', $ics);
+        $this->assertNull(CalendarFeed::single(self::booking('book_a1', 'x', '10:00', '10:45', 'approved'), 'x', $this->tz));
+    }
 }

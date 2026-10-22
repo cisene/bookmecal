@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "Italiano",
   "booking.customer.email": "Indirizzo Email",
   "booking.customer.fullName": "Nome e Cognome",
   "booking.customer.heading": "I tuoi dati",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "La prenotazione #{id} per {name} è stata aggiornata/cancellata (Ora: {time}). Note: {notes}",
   "email.admin.cancellation.subject": "Aggiornamento/Cancellazione Prenotazione: #{id} - {name}",
-  "email.admin.newBooking.body": "È stata inviata una nuova richiesta di prenotazione. Cliente: {name} ({email}, {phone}). Data/Ora: {time}.",
-  "email.admin.newBooking.subject": "Nuova Richiesta di Prenotazione: {service} da {name}",
   "email.reminder.cancellationLink": "Devi annullare? Puoi cancellare online fino a 24 ore prima tramite questo link sicuro: {url}",
   "email.reminder.heading": "Promemoria Appuntamento",
   "email.reminder.intro": "Ciao {name}, questo è un promemoria per il tuo appuntamento programmato: {time}.",
   "email.reminder.policyNotice": "Il termine ultimo per la cancellazione gratuita è 24 ore prima dell'orario previsto. Cancellazioni entro 24 ore, ritardi o mancate presenze verranno addebitati per intero ({price} {currency}).",
-  "email.reminder.subject": "Promemoria: Il tuo appuntamento domani - {service}"
+  "email.reminder.subject": "Promemoria: Il tuo appuntamento domani - {service}",
+  "meta.nativeName": "Italiano"
 }

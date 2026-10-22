@@ -15,5 +15,6 @@
     "admin_require_https": false,
     "booking_retention_days": 365,
     "business_name": "",
-    "privacy_contact": ""
+    "privacy_contact": "",
+    "public_url": ""
 }

@@ -88,10 +88,12 @@ class Localization {
             ?? $this->loadDictionary(self::FALLBACK_LANG)[$key]
             ?? $key;
 
+        // One pass, so a value that itself contains {name} (e.g. a customer name) is not replaced again
+        $pairs = [];
         foreach ($placeholders as $name => $value) {
-            $translation = str_replace('{' . $name . '}', (string)$value, $translation);
+            $pairs['{' . $name . '}'] = (string)$value;
         }
-        return $translation;
+        return strtr($translation, $pairs);
     }
 
     /**

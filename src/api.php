@@ -12,6 +12,7 @@ require_once __DIR__ . '/classes/BookingService.php';
 require_once __DIR__ . '/classes/RateLimiter.php';
 require_once __DIR__ . '/classes/FormToken.php';
 require_once __DIR__ . '/classes/SecurityLog.php';
+require_once __DIR__ . '/classes/BookingEmails.php';
 
 /** Requests per client: [limit, window in seconds]. */
 const LIMIT_READ = [120, 300];
@@ -219,6 +220,11 @@ switch ($action) {
         }
         if ($bookingId === false) {
             fail(500, 'save_failed', 'Failed to save booking request.');
+        }
+        // Receipt to the customer and alert to the business; a mail failure does not undo the booking
+        $saved = $repository->getBookings()[$bookingId] ?? null;
+        if ($saved !== null) {
+            (new BookingEmails())->requestReceived($saved);
         }
         respond(['success' => true, 'booking_id' => $bookingId]);
         break;

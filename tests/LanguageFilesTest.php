@@ -20,6 +20,7 @@ class LanguageFilesTest extends TestCase {
         'admin.status.' => ['pending', 'approved', 'confirmed', 'rejected', 'cancelled', 'expired'],
         'admin.pending.done.' => ['approve', 'reject', 'delete'],
         'admin.pending.' => ['approve', 'reject'],
+        'admin.pending.mail.' => ['sent', 'failed', 'off'],
         'admin.login.' => ['expired', 'signedOut'],
         'admin.config.done.' => ['saved', 'feedRenewed', 'feedDisabled'],
         'admin.services.done.' => ['saved', 'deleted'],
@@ -65,7 +66,8 @@ class LanguageFilesTest extends TestCase {
             if (!in_array($file->getExtension(), ['php', 'js'], true)) {
                 continue;
             }
-            preg_match_all("/'((?:admin|booking|common|email|meta|privacy)\.[a-zA-Z0-9.]*[a-zA-Z0-9])'/", file_get_contents($file->getPathname()), $m);
+            // File names such as 'privacy.php' or 'booking.ics' are not keys
+            preg_match_all("/'((?:admin|booking|common|email|meta|privacy)\.(?!(?:php|ics|js|json|css)')[a-zA-Z0-9.]*[a-zA-Z0-9])'/", file_get_contents($file->getPathname()), $m);
             foreach ($m[1] as $key) {
                 $keys[$key] = $file->getFilename();
             }

@@ -4,19 +4,23 @@
  * System settings (data/settings.json): timezone, default country, past-slot visibility,
  * how long unanswered booking requests keep their time, and the privacy settings
  * (business name and contact for the privacy notice, how long bookings are kept),
+ * email (config.json smtp: on/off, sender, alert address; settings.json public_url for links),
  * and the calendar subscription link (CalendarFeed).
  */
 
 require_once __DIR__ . '/auth.php';
 require_once dirname(__DIR__) . '/classes/CalendarFeed.php';
+require_once dirname(__DIR__) . '/classes/BookingEmails.php';
 
 const SUPPORTED_TIMEZONES = ['Europe/Stockholm', 'Europe/Oslo', 'Europe/Helsinki', 'Europe/Tallinn', 'Europe/Riga', 'Europe/Vilnius'];
 const SUPPORTED_COUNTRIES = ['se', 'no', 'fi', 'ee', 'lv', 'lt'];
 const MAX_PENDING_EXPIRY_HOURS = 720;
 const MAX_RETENTION_DAYS = 3650;
 const MAX_BUSINESS_NAME = 100;
+const MAX_SENDER_NAME = 100;
 
 $settingsFile = ResourceProvider::dataPath('settings.json');
+$configFile = ResourceProvider::dataPath('config.json');
 $feed = new CalendarFeed();
 $flash = [];
 
@@ -43,6 +47,13 @@ if (is_post() && request_string($_POST, 'feed_action') !== '') {
     $businessName = Input::text(request_string($_POST, 'business_name'), MAX_BUSINESS_NAME);
     $privacyContact = request_string($_POST, 'privacy_contact');
     $privacyContact = $privacyContact === '' ? '' : Input::email($privacyContact);
+    $emailEnabled = request_string($_POST, 'email_enabled') === '1';
+    $fromEmail = Input::email(request_string($_POST, 'from_email'));
+    $fromName = Input::text(request_string($_POST, 'from_name'), MAX_SENDER_NAME);
+    $notificationEmail = request_string($_POST, 'notification_email');
+    $notificationEmail = $notificationEmail === '' ? '' : Input::email($notificationEmail);
+    $publicUrl = request_string($_POST, 'public_url');
+    $publicUrl = $publicUrl === '' || BookingEmails::isValidSiteUrl($publicUrl) ? $publicUrl : null;
 
     if ($timezone === null) {
         $flash[] = flash_error('Selected timezone is not supported.');
@@ -56,8 +67,16 @@ if (is_post() && request_string($_POST, 'feed_action') !== '') {
         $flash[] = flash_error('The business name may have at most ' . MAX_BUSINESS_NAME . ' characters and no control characters.');
     } elseif ($privacyContact === null) {
         $flash[] = flash_error('The privacy contact must be a valid email address or empty.');
+    } elseif ($fromEmail === null) {
+        $flash[] = flash_error('The sender address must be a valid email address.');
+    } elseif ($fromName === null || $fromName === '') {
+        $flash[] = flash_error('The sender name is required and may have at most ' . MAX_SENDER_NAME . ' characters.');
+    } elseif ($notificationEmail === null) {
+        $flash[] = flash_error('The address for new booking alerts must be a valid email address or empty.');
+    } elseif ($publicUrl === null) {
+        $flash[] = flash_error('The booking site address must start with http:// or https:// and have no query or fragment.');
     } else {
-        $saved = JsonStore::update($settingsFile, function (array $settings) use ($timezone, $country, $expiryHours, $retentionDays, $businessName, $privacyContact) {
+        $saved = JsonStore::update($settingsFile, function (array $settings) use ($timezone, $country, $expiryHours, $retentionDays, $businessName, $privacyContact, $publicUrl) {
             return array_merge($settings, [
                 'timezone' => $timezone,
                 'default_country' => $country,
@@ -67,14 +86,24 @@ if (is_post() && request_string($_POST, 'feed_action') !== '') {
                 'booking_retention_days' => $retentionDays,
                 'business_name' => $businessName,
                 'privacy_contact' => $privacyContact,
+                'public_url' => $publicUrl,
             ]);
+        });
+        $saved = $saved && JsonStore::update($configFile, function (array $config) use ($emailEnabled, $fromEmail, $fromName, $notificationEmail) {
+            $config['smtp'] = array_merge($config['smtp'] ?? [], [
+                'enabled' => $emailEnabled,
+                'from_email' => $fromEmail,
+                'from_name' => $fromName,
+                'notification_email' => $notificationEmail,
+            ]);
+            return $config;
         });
         if ($saved) {
             log_audit_action($currentAdmin, 'CONFIG_UPDATE', "Updated system configuration (Timezone: {$timezone})");
             header('Location: config.php?done=saved');
             exit;
         }
-        $flash[] = flash_error('Could not write settings.json. Check file permissions.');
+        $flash[] = flash_error('Could not write settings.json or config.json. Check file permissions.');
     }
 }
 
@@ -93,6 +122,7 @@ if ($feedToken !== null) {
 }
 
 $settings = ResourceProvider::getSettings() ?? [];
+$smtp = (ResourceProvider::getConfig() ?? [])['smtp'] ?? [];
 
 render_admin('config', [
     'title' => 'admin.config.title',
@@ -108,6 +138,11 @@ render_admin('config', [
     'maxRetentionDays' => MAX_RETENTION_DAYS,
     'businessName' => (string)($settings['business_name'] ?? ''),
     'privacyContact' => (string)($settings['privacy_contact'] ?? ''),
+    'emailEnabled' => ($smtp['enabled'] ?? false) === true,
+    'fromEmail' => (string)($smtp['from_email'] ?? ''),
+    'fromName' => (string)($smtp['from_name'] ?? ''),
+    'notificationEmail' => (string)($smtp['notification_email'] ?? ''),
+    'publicUrl' => (string)($settings['public_url'] ?? ''),
     'feedUrl' => $feedUrl,
     'feedWebcalUrl' => $feedUrl === null ? null : preg_replace('#^https?://#', 'webcal://', $feedUrl),
     'feedPastDays' => CalendarFeed::PAST_DAYS,

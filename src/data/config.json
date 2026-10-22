@@ -18,7 +18,8 @@
     "smtp": {
         "enabled": false,
         "from_email": "noreply@example.com",
-        "from_name": "Book Me Calendar"
+        "from_name": "Book Me Calendar",
+        "notification_email": ""
     },
     "calendar": {
         "cache_refresh_interval": 3600,

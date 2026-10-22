@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "Tiếng Việt",
   "booking.customer.email": "Địa chỉ email",
   "booking.customer.fullName": "Họ và tên",
   "booking.customer.heading": "Thông tin của bạn",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "Đơn đặt lịch #{id} của {name} đã được cập nhật/hủy (Thời gian: {time}). Ghi chú: {notes}",
   "email.admin.cancellation.subject": "Cập nhật/Hủy đặt lịch: #{id} - {name}",
-  "email.admin.newBooking.body": "Một yêu cầu đặt lịch mới đã được gửi. Khách hàng: {name} ({email}, {phone}). Ngày/Giờ: {time}.",
-  "email.admin.newBooking.subject": "Yêu cầu đặt lịch mới: {service} bởi {name}",
   "email.reminder.cancellationLink": "Bạn cần hủy lịch? Bạn có thể hủy trực tuyến tối đa 24 giờ trước giờ hẹn qua liên kết an toàn này: {url}",
   "email.reminder.heading": "Nhắc Nhở Lịch Hẹn",
   "email.reminder.intro": "Xin chào {name}, đây là thông báo nhắc nhở về lịch hẹn sắp tới của bạn: {time}.",
   "email.reminder.policyNotice": "Thời hạn cuối để hủy lịch miễn phí là 24 giờ trước giờ hẹn. Hủy lịch trong vòng 24 giờ, đến muộn hoặc không đến sẽ bị tính phí toàn bộ ({price} {currency}).",
-  "email.reminder.subject": "Nhắc Lịch: Lịch hẹn vào ngày mai - {service}"
+  "email.reminder.subject": "Nhắc Lịch: Lịch hẹn vào ngày mai - {service}",
+  "meta.nativeName": "Tiếng Việt"
 }

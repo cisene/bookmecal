@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "Español",
   "booking.customer.email": "Correo electrónico",
   "booking.customer.fullName": "Nombre y apellidos",
   "booking.customer.heading": "Sus datos",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "La reserva #{id} para {name} ha sido actualizada/cancelada (Hora: {time}). Notas: {notes}",
   "email.admin.cancellation.subject": "Actualización/Cancelación de reserva: #{id} - {name}",
-  "email.admin.newBooking.body": "Se ha enviado una nueva solicitud de reserva. Cliente: {name} ({email}, {phone}). Fecha/Hora: {time}.",
-  "email.admin.newBooking.subject": "Nueva solicitud de reserva: {service} de {name}",
   "email.reminder.cancellationLink": "¿Necesita cancelar? Puede hacerlo en línea hasta 24 horas antes a través de este enlace seguro: {url}",
   "email.reminder.heading": "Recordatorio de su cita",
   "email.reminder.intro": "Hola {name}, este es un recordatorio de su cita programada: {time}.",
   "email.reminder.policyNotice": "El plazo límite para cancelar sin coste es de 24 horas antes de la cita. Las cancelaciones dentro de las 24 horas, retrasos o inasistencias se cobrarán íntegramente ({price} {currency}).",
-  "email.reminder.subject": "Recordatorio: Su cita de mañana - {service}"
+  "email.reminder.subject": "Recordatorio: Su cita de mañana - {service}",
+  "meta.nativeName": "Español"
 }

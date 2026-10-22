@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/auth.php';
 require_once dirname(__DIR__) . '/classes/BookingRepository.php';
+require_once dirname(__DIR__) . '/classes/BookingEmails.php';
 
 $repository = new BookingRepository();
 $repository->housekeeping();
@@ -52,7 +53,12 @@ if (is_post()) {
         'processed_at' => date(DATE_ATOM),
     ])) {
         log_audit_action($currentAdmin, 'BOOKING_' . strtoupper($action), "Booking ID {$bookingId} status set to {$decisions[$action]}");
-        header('Location: pending.php?done=' . $action . $filterQuery);
+        // Tell the customer; the result is shown with the confirmation and kept on the booking
+        $emails = new BookingEmails();
+        $mailed = $emails->isEnabled() && $emails->decided($current, $action === 'approve');
+        $repository->updateBooking($bookingId, ['decision_emailed' => $mailed]);
+        $mail = !$emails->isEnabled() ? 'off' : ($mailed ? 'sent' : 'failed');
+        header('Location: pending.php?done=' . $action . '&mail=' . $mail . $filterQuery);
         exit;
     } else {
         $flash[] = flash_error('Booking not found or invalid action.');
@@ -73,6 +79,12 @@ if ($emailFilter !== '' && request_string($_GET, 'export') === '1') {
 $done = request_string($_GET, 'done');
 if (isset($decisions[$done]) || $done === 'delete') {
     $flash[] = flash_success('admin.pending.done.' . $done);
+    $mail = Input::oneOf(request_string($_GET, 'mail'), ['sent', 'failed', 'off']);
+    if ($mail === 'sent') {
+        $flash[] = flash_success('admin.pending.mail.sent');
+    } elseif ($mail !== null) {
+        $flash[] = ['type' => 'error', 'text' => __t('admin.pending.mail.' . $mail)];
+    }
 } elseif ($done === 'deleteAll') {
     $flash[] = flash_success('admin.pending.done.deleteAll', ['count' => (int)request_string($_GET, 'count')]);
 }

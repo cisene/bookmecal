@@ -56,7 +56,7 @@ h3 { margin-top: 25px; }
 .form-group label, .label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9rem; }
 .form-inline { display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; }
 .form-inline .form-group { flex: 1; min-width: 180px; margin-bottom: 0; }
-input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="password"],
+input[type="text"], input[type="email"], input[type="url"], input[type="tel"], input[type="number"], input[type="password"],
 input[type="date"], input[type="time"], select, textarea {
     width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font: inherit;
 }

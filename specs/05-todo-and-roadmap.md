@@ -2,9 +2,10 @@
 
 ## Active Todo List & Roadmap
 
-- [ ] **Calendar Feeds:** Read-only subscription feed done (`calendar.php`). Next: an `.ics` file for the customer ("add to my calendar") with the confirmation email.
+- [ ] **Calendar Feeds:** Read-only subscription feed and `.ics` file in the approval email done. Next: a cancellation link for customers (the reminder text already mentions one).
 - [ ] **Advanced Google Calendar API:** Add two-way synchronization for adding and removing calendar events via the Google Calendar API.
-- [ ] **Bulk & Direct SMTP Messaging:** Complete SMTP integration for sending targeted emails to a single customer, group, or all customers.
+- [ ] **Bulk & Direct SMTP Messaging:** Booking emails done (receipt, admin alert, approval, rejection). Next: real SMTP (authenticated, e.g. with PHPMailer) instead of PHP `mail()`, and messages to a single customer, group, or all customers.
+- [ ] **Email delivery on the server:** Set up SPF/DKIM for the sender domain and test that mails are not taken for spam before the trial.
 - [ ] **SMS Reminders:** Implement SMS reminder notifications 1–2 days ahead of appointments.
 - [ ] **One availability source:** The admin slot matrix (`data/booking/availability.json`) is not used by the public booking, which uses opening hours (`data/openhours.json`). Merge or remove one of them.
 - [ ] **Week view drag on touch devices:** Verify dragging the selection block on real phones and tablets.
@@ -18,6 +19,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-22** | • Booking emails: receipt to the customer and alert to the business on a new request, confirmation with an `.ics` calendar file on approval, decline on rejection. Email on/off, sender, alert address and site address (`public_url`, for links) on the admin Config page; the bookings page says whether the customer was emailed.<br>• Translation placeholders are filled in one pass. |
 | **2026-10-22** | • Calendar subscription feed (`calendar.php`, iCalendar): approved bookings and, as tentative, unanswered requests, for Apple, Google or Outlook calendars. Secret link turned on, renewed and turned off on the admin Config page; wrong tokens logged; privacy notice mentions the calendar provider while the feed is on.<br>• Removed the unused `admin_user`/`admin_pass` from `data/config.json`. |
 | **2026-10-22** | • `JsonStore::read()` takes a shared lock: readers no longer see half-written files during an update. |
 | **2026-10-22** | • GDPR basics: privacy notice page (`privacy.php`) linked from the booking form and every public page, business name and privacy contact on the Config page, bookings deleted automatically after `booking_retention_days` (default 365), admin search by customer email with JSON export (access) and delete all (erasure), single bookings deletable. |

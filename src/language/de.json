@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "Deutsch",
   "booking.customer.email": "E-Mail-Adresse",
   "booking.customer.fullName": "Vor- und Nachname",
   "booking.customer.heading": "Ihre Angaben",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "Buchung #{id} für {name} wurde geändert/storniert (Zeit: {time}). Notizen: {notes}",
   "email.admin.cancellation.subject": "Buchungsänderung/Stornierung: #{id} - {name}",
-  "email.admin.newBooking.body": "Eine neue Buchungsanfrage wurde eingereicht. Kunde: {name} ({email}, {phone}). Datum/Uhrzeit: {time}.",
-  "email.admin.newBooking.subject": "Neue Buchungsanfrage: {service} von {name}",
   "email.reminder.cancellationLink": "Müssen Sie stornieren? Sie können Ihren Termin bis zu 24 Stunden im Voraus über diesen sicheren Link online stornieren: {url}",
   "email.reminder.heading": "Erinnerung an Ihren Termin",
   "email.reminder.intro": "Hallo {name}, dies ist eine Erinnerung an Ihren gebuchten Termin: {time}.",
   "email.reminder.policyNotice": "Kostenfreie Stornierungen sind bis zu 24 Stunden vor dem Termin möglich. Spätere Stornierungen, Verspätungen oder Nichterscheinen werden voll berechnet ({price} {currency}).",
-  "email.reminder.subject": "Erinnerung: Anstehender Termin morgen - {service}"
+  "email.reminder.subject": "Erinnerung: Anstehender Termin morgen - {service}",
+  "meta.nativeName": "Deutsch"
 }

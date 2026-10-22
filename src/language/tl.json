@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "Tagalog",
   "booking.customer.email": "Email Address",
   "booking.customer.fullName": "Buong Pangalan",
   "booking.customer.heading": "Inyong mga Detalye",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "Ang booking #{id} para kay {name} ay na-update/na-cancel (Oras: {time}). Mga Tala: {notes}",
   "email.admin.cancellation.subject": "Update/Pembakante sa Booking: #{id} - {name}",
-  "email.admin.newBooking.body": "May bagong kahilingan sa pag-book. Kliyente: {name} ({email}, {phone}). Petsa/Oras: {time}.",
-  "email.admin.newBooking.subject": "Bagong Kahilingan sa Pag-book: {service} ni {name}",
   "email.reminder.cancellationLink": "Kailangan bang magbakante? Maaari kayong magbakante online hanggang 24 oras bago ang appointment gamit ang ligtas na link na ito: {url}",
   "email.reminder.heading": "Paalala para sa Inyong Appointment",
   "email.reminder.intro": "Kumusta {name}, ito ay mabilis na paalala para sa inyong nakatakdang appointment: {time}.",
   "email.reminder.policyNotice": "Ang huling oras para sa libreng pembakante ay 24 oras bago ang inyong nakatakdang oras. Ang pembakante sa loob ng 24 oras, huling pagdating, o hindi paglitaw ay sisingilin nang buo ({price} {currency}).",
-  "email.reminder.subject": "Paalala: Mabilis na Appointment Bukas - {service}"
+  "email.reminder.subject": "Paalala: Mabilis na Appointment Bukas - {service}",
+  "meta.nativeName": "Tagalog"
 }

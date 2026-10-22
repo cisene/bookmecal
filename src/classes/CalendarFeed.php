@@ -62,20 +62,12 @@ class CalendarFeed {
     /**
      * The feed as an iCalendar document (CRLF line endings).
      * $bookings: records as stored by BookingRepository; $serviceNames: service ID => display name.
-     * Times are written in UTC, so no VTIMEZONE block is needed.
      */
     public static function render(array $bookings, array $serviceNames, string $calendarName, DateTimeZone $timezone, ?DateTimeInterface $now = null): string {
         $now = DateTimeImmutable::createFromInterface($now ?? new DateTimeImmutable('now', $timezone));
-        $utc = new DateTimeZone('UTC');
-        $stamp = $now->setTimezone($utc)->format('Ymd\THis\Z');
         $cutoff = $now->modify('-' . self::PAST_DAYS . ' days');
 
         $lines = [
-            'BEGIN:VCALENDAR',
-            'VERSION:2.0',
-            'PRODID:-//Book Me Calendar//Bookings//EN',
-            'CALSCALE:GREGORIAN',
-            'METHOD:PUBLISH',
             'X-WR-CALNAME:' . self::escape($calendarName),
             'X-WR-TIMEZONE:' . $timezone->getName(),
             'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
@@ -83,42 +75,73 @@ class CalendarFeed {
         ];
 
         foreach ($bookings as $booking) {
+            $times = self::times($booking, $timezone);
             $status = self::STATUS_MAP[$booking['status'] ?? ''] ?? null;
-            $date = (string)($booking['date'] ?? '');
-            $start = self::parse($date, (string)($booking['time'] ?? ''), $timezone);
-            $end = self::parse($date, (string)($booking['end_time'] ?? ''), $timezone);
-            $id = (string)($booking['id'] ?? '');
-            if ($status === null || !$start || !preg_match('/^book_[0-9a-f]+$/D', $id)) {
+            if ($status === null || $times === null || $times[1] < $cutoff) {
                 continue;
             }
-            if (!$end || $end <= $start) {
-                $end = $start->modify('+1 hour');
-            }
-            if ($end < $cutoff) {
-                continue;
-            }
-
             $service = $serviceNames[(string)($booking['service_id'] ?? '')] ?? (string)($booking['service_id'] ?? '');
             $name = (string)($booking['customer_name'] ?? '');
             $summary = ($status === 'TENTATIVE' ? '? ' : '') . $service . ($name !== '' ? ' – ' . $name : '');
             $details = array_filter([$name, (string)($booking['customer_email'] ?? ''), (string)($booking['customer_phone'] ?? '')]);
-
-            array_push($lines,
-                'BEGIN:VEVENT',
-                'UID:' . $id . '@bookmecal',
-                'DTSTAMP:' . $stamp,
-                'DTSTART:' . $start->setTimezone($utc)->format('Ymd\THis\Z'),
-                'DTEND:' . $end->setTimezone($utc)->format('Ymd\THis\Z'),
-                'SUMMARY:' . self::escape($summary),
-                'DESCRIPTION:' . self::escape(implode("\n", $details)),
-                'STATUS:' . $status,
-                'TRANSP:OPAQUE',
-                'END:VEVENT'
-            );
+            array_push($lines, ...self::event((string)$booking['id'], $times, $now, $summary, implode("\n", $details), $status));
         }
-        $lines[] = 'END:VCALENDAR';
+        return self::calendar($lines);
+    }
 
+    /**
+     * One booking as a calendar file for the customer ("add to my calendar"), or null if the
+     * booking has no valid time. $summary is e.g. "Medical Foot Care – Salong Anna".
+     */
+    public static function single(array $booking, string $summary, DateTimeZone $timezone, ?DateTimeInterface $now = null): ?string {
+        $times = self::times($booking, $timezone);
+        if ($times === null) {
+            return null;
+        }
+        $now = DateTimeImmutable::createFromInterface($now ?? new DateTimeImmutable('now', $timezone));
+        return self::calendar(self::event((string)$booking['id'], $times, $now, $summary, '', 'CONFIRMED'));
+    }
+
+    /** Wraps content lines in a VCALENDAR and folds them. */
+    private static function calendar(array $lines): string {
+        $lines = array_merge(
+            ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Book Me Calendar//Bookings//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'],
+            $lines,
+            ['END:VCALENDAR']
+        );
         return implode("\r\n", array_map([self::class, 'fold'], $lines)) . "\r\n";
+    }
+
+    /** Content lines of one VEVENT; times are written in UTC, so no VTIMEZONE block is needed. */
+    private static function event(string $id, array $times, DateTimeImmutable $now, string $summary, string $description, string $status): array {
+        $utc = new DateTimeZone('UTC');
+        $lines = [
+            'BEGIN:VEVENT',
+            'UID:' . $id . '@bookmecal',
+            'DTSTAMP:' . $now->setTimezone($utc)->format('Ymd\THis\Z'),
+            'DTSTART:' . $times[0]->setTimezone($utc)->format('Ymd\THis\Z'),
+            'DTEND:' . $times[1]->setTimezone($utc)->format('Ymd\THis\Z'),
+            'SUMMARY:' . self::escape($summary),
+        ];
+        if ($description !== '') {
+            $lines[] = 'DESCRIPTION:' . self::escape($description);
+        }
+        array_push($lines, 'STATUS:' . $status, 'TRANSP:OPAQUE', 'END:VEVENT');
+        return $lines;
+    }
+
+    /**
+     * [start, end] of a booking, or null for a malformed record. A missing or impossible end
+     * becomes one hour after the start.
+     */
+    private static function times(array $booking, DateTimeZone $timezone): ?array {
+        $date = (string)($booking['date'] ?? '');
+        $start = self::parse($date, (string)($booking['time'] ?? ''), $timezone);
+        if ($start === null || !preg_match('/^book_[0-9a-f]+$/D', (string)($booking['id'] ?? ''))) {
+            return null;
+        }
+        $end = self::parse($date, (string)($booking['end_time'] ?? ''), $timezone);
+        return [$start, $end !== null && $end > $start ? $end : $start->modify('+1 hour')];
     }
 
     /** Date plus time in $timezone, or null unless both are exact and real (no 2026-13-01 rolling over). */

@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "日本語",
   "booking.customer.email": "メールアドレス",
   "booking.customer.fullName": "お名前",
   "booking.customer.heading": "お客様情報",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "{name} 様のご予約（#{id}）が変更またはキャンセルされました (日時: {time})。備考: {notes}",
   "email.admin.cancellation.subject": "予約変更・キャンセル通知: #{id} - {name} 様",
-  "email.admin.newBooking.body": "新しい予約リクエストが届きました。お客様名: {name} ({email}, {phone})。日時: {time}。",
-  "email.admin.newBooking.subject": "新規予約リクエスト: {service} （{name} 様）",
   "email.reminder.cancellationLink": "キャンセルをご希望ですか？ご予約の24時間前までであれば、以下の専用リンクよりオンラインで手続が可能です: {url}",
   "email.reminder.heading": "ご予約内容のご確認",
   "email.reminder.intro": "{name} 様、明日ご予約いただいている施術内容のご確認です: {time}。",
   "email.reminder.policyNotice": "無料キャンセルの期限はご予約時間の24時間前までとなります。それ以降のキャンセル、遅刻、無断キャンセルは全額請求（{price} {currency}）となりますのでご注意ください。",
-  "email.reminder.subject": "【リマインド】明日のお持ちのご予約について - {service}"
+  "email.reminder.subject": "【リマインド】明日のお持ちのご予約について - {service}",
+  "meta.nativeName": "日本語"
 }

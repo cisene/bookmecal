@@ -1,5 +1,4 @@
 {
-  "meta.nativeName": "ไทย",
   "booking.customer.email": "อีเมล",
   "booking.customer.fullName": "ชื่อ-นามสกุล",
   "booking.customer.heading": "ข้อมูลของคุณ",
@@ -33,11 +32,10 @@
   "common.appTitle": "Book Me Calendar",
   "email.admin.cancellation.body": "การจอง #{id} ของ {name} ถูกอัปเดต/ยกเลิกแล้ว (เวลา: {time}) บันทึกเพิ่มเติม: {notes}",
   "email.admin.cancellation.subject": "อัปเดต/ยกเลิกการจอง: #{id} - {name}",
-  "email.admin.newBooking.body": "มีการส่งคำขอจองใหม่ ลูกค้า: {name} ({email}, {phone}) วัน/เวลา: {time}",
-  "email.admin.newBooking.subject": "คำขอจองใหม่: {service} โดย {name}",
   "email.reminder.cancellationLink": "หากต้องการยกเลิก ท่านสามารถยกเลิกออนไลน์ได้ล่วงหน้าอย่างน้อย 24 ชั่วโมงผ่านลิงก์ปลอดภัยนี้: {url}",
   "email.reminder.heading": "แจ้งเตือนนัดหมายของคุณ",
   "email.reminder.intro": "สวัสดีคุณ {name} นี่คือการแจ้งเตือนเกี่ยวกับนัดหมายของคุณ: {time}",
   "email.reminder.policyNotice": "ท่านสามารถยกเลิกโดยไม่มีค่าใช้จ่ายได้ล่วงหน้าอย่างน้อย 24 ชั่วโมงก่อนเวลานัดหมาย หากยกเลิกช้ากว่านั้น มาสาย หรือไม่มาตามนโยบาย จะมีการเรียกเก็บเงินเต็มจำนวน ({price} {currency})",
-  "email.reminder.subject": "แจ้งเตือน: คุณมีนัดหมายในวันพรุ่งนี้ - {service}"
+  "email.reminder.subject": "แจ้งเตือน: คุณมีนัดหมายในวันพรุ่งนี้ - {service}",
+  "meta.nativeName": "ไทย"
 }
