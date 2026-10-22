@@ -1,11 +1,3 @@
-# .htaccess - Protect data directory by redirecting access attempts to the parent directory
-
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteRule ^(.*)$ ../ [R=302,L]
-</IfModule>
-
-<IfModule !mod_rewrite.c>
-    # Fallback for servers without mod_rewrite: deny access completely
-    Require all denied
-</IfModule>
+# .htaccess - Never serve anything from the data directory (bookings, settings, keys).
+# No rewrite rules here: a RewriteEngine in this folder would replace the 403 rule in src/.htaccess.
+Require all denied

@@ -20,6 +20,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-22** | • `src/data/.htaccess` denies all requests (403). It used to redirect to a broken address that showed the server's file path. |
 | **2026-10-22** | • Setup checklist on the admin dashboard ("Before customers book").<br>• Deployment guide ([08-deployment.md](08-deployment.md)) with a cron file and a `fail2ban` filter and jail in `deploy/`. |
 | **2026-10-22** | • Customer cancellation: secret link in the receipt, approval and reminder emails opens `cancel.php`, which cancels after a button press until `cancel_cutoff_hours` (default 24, Config page) before the appointment; the business gets an alert. Signing keys moved to a shared `Secrets` class.<br>• Removed unused email keys (`email.confirmation.*`, `email.admin.newBooking.*`, `email.admin.cancellation.*`, `email.reminder.cancellationLink`). |
 | **2026-10-22** | • Booking emails: receipt to the customer and alert to the business on a new request, confirmation with an `.ics` calendar file on approval, decline on rejection. Email on/off, sender, alert address and site address (`public_url`, for links) on the admin Config page; the bookings page says whether the customer was emailed.<br>• Translation placeholders are filled in one pass. |
