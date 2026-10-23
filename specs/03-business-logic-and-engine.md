@@ -15,6 +15,8 @@ The cleanup buffer may run past closing time and past the employee's hours; only
 
 Example: opening 08:00–17:00, Medical Foot Care 45 + 15 min, one employee, one booking at 10:05 (blocks 10:05–11:05). Free starts are 08:00, 08:05 … 09:05 and 11:05, 11:10 … 16:15. With a second employee working the same hours, every start from 08:00 to 16:15 is free, and a third booking at 10:05 would be refused.
 
+**Avoiding short gaps** (settings.json `avoid_small_gaps`, default off; Config page): customers are then offered only starts that leave, within the employee's free period, a gap of either 0 minutes or at least the shortest active treatment plus its cleanup, before and after. Before the end of the working period only the treatment counts, since cleanup may run past it; time already passed is no gap. When a free period leaves a shorter remainder whatever the start, only its first and last start are offered, so no free period loses all its starts. Applied per employee, so `assign()` only picks an employee for whom the start leaves no short gap; `canMoveTo()` ignores the rule. Example: 08:00–12:00, a 45 + 15 min treatment, a 20 + 10 min one (30 min is the shortest), a booking 10:00–11:00: offered 08:00, 08:30, 09:00, 11:00 and 11:15 instead of every 5 minutes.
+
 Methods:
 - `getAvailableSlots(date, serviceId, country, employeeId = null)`: Free starts for one day as `{start_time, end_time, start_iso, end_iso}`, for anyone (`null`) or one employee. `null` for an invalid date, a service that is unknown, inactive or has no duration, or an employee who cannot be booked for it; `[]` when closed or full.
 - `getWeekPlan(date, serviceId, country, employeeId = null)`: Monday-to-Sunday plan for the week containing `date`, used by the booking page's week view (see §4).

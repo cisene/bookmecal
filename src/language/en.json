@@ -20,6 +20,8 @@
   "admin.common.service": "Service",
   "admin.common.status": "Status",
   "admin.common.time": "Time",
+  "admin.config.avoidSmallGaps": "Avoid short unusable gaps",
+  "admin.config.avoidSmallGapsHint": "Customers are only offered times that leave either no gap or a gap long enough for your shortest treatment (with cleanup) before and after. Fewer times are shown, but the day fills up without wasted minutes. Moving a booking on the bookings page is not affected.",
   "admin.config.businessName": "Business name",
   "admin.config.cancelCutoff": "Customers can cancel online until (hours before)",
   "admin.config.cancelCutoffHint": "Customer emails contain a cancellation link when the booking site address is set. After this point the customer has to contact you. 0 = until the appointment starts.",

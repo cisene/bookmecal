@@ -8,6 +8,8 @@
  * the same time, except around an exclusive treatment, which needs the venue to itself. A set
  * (a service with 'items') is done back to back by one employee offering all its treatments.
  * Without any bookable employee the venue itself is the one bookable resource.
+ * With settings.json avoid_small_gaps, starts that would leave a gap too short for any treatment
+ * are not offered to customers.
  * Also builds day and week plans (opening hours, busy intervals, free starts) for the booking
  * page's timeline.
  */
@@ -24,12 +26,17 @@ class BookingService {
     private BookingRepository $repository;
     private DateTimeZone $timezone;
     private ?array $employees;
+    private bool $avoidSmallGaps;
 
-    /** $employees: employee records keyed by ID; loaded from data/employees/ when null. */
-    public function __construct(?BookingRepository $repository = null, ?array $employees = null) {
+    /**
+     * $employees: employee records keyed by ID; loaded from data/employees/ when null.
+     * $avoidSmallGaps: settings.json avoid_small_gaps when null.
+     */
+    public function __construct(?BookingRepository $repository = null, ?array $employees = null, ?bool $avoidSmallGaps = null) {
         $this->repository = $repository ?? new BookingRepository();
         $this->timezone = ResourceProvider::getTimezone();
         $this->employees = $employees;
+        $this->avoidSmallGaps = $avoidSmallGaps ?? (ResourceProvider::getSettings()['avoid_small_gaps'] ?? false) === true;
     }
 
     /** All employee records keyed by ID. */
@@ -137,7 +144,8 @@ class BookingService {
             || !in_array($booking['status'] ?? '', BookingRepository::BLOCKING_STATUSES, true)) {
             return false;
         }
-        $plan = $this->planDay($date, $service, $resources, $countryCode, (string)($booking['id'] ?? ''));
+        // The admin may move a booking to any free time, gaps or not
+        $plan = $this->planDay($date, $service, $resources, $countryCode, (string)($booking['id'] ?? ''), false);
         return in_array((string)($booking['time'] ?? ''), array_column($plan['slots'], 'start_time'), true);
     }
 
@@ -208,8 +216,11 @@ class BookingService {
         return (int)$time->format('G') * 60 + (int)$time->format('i');
     }
 
-    /** $ignoreId: a booking left out of the busy times, when checking whether it can move. */
-    private function planDay(DateTimeImmutable $date, array $service, array $resources, string $countryCode, string $ignoreId = ''): array {
+    /**
+     * $ignoreId: a booking left out of the busy times, when checking whether it can move.
+     * $avoidGaps: leave out starts that strand a short gap (null = the setting).
+     */
+    private function planDay(DateTimeImmutable $date, array $service, array $resources, string $countryCode, string $ignoreId = '', ?bool $avoidGaps = null): array {
         $dateStr = $date->format('Y-m-d');
         $plan = ['date' => $dateStr, 'open' => null, 'close' => null, 'busy' => [], 'slots' => []];
 
@@ -268,6 +279,11 @@ class BookingService {
 
         $duration = ResourceProvider::serviceDuration($service, $this->services());
         $blockMinutes = $duration + ResourceProvider::serviceCleanup($service, $this->services());
+        $smallestGap = ($avoidGaps ?? $this->avoidSmallGaps) ? $this->shortestTreatment() : null;
+        $firstStart = $open + (int)ceil(max(0, $nowMinute - $open) / self::SLOT_STEP) * self::SLOT_STEP;
+        foreach ($staff as $id => $resource) {
+            $staff[$id]['free'] = $smallestGap === null ? [] : self::freePeriods($resource['windows'], $resource['booked']);
+        }
         for ($start = $open; $start + $duration <= $close; $start += self::SLOT_STEP) {
             if ($start < $nowMinute) {
                 continue;
@@ -275,7 +291,8 @@ class BookingService {
             $free = [];
             foreach ($staff as $id => $resource) {
                 if (self::within($start, $start + $duration, $resource['windows'])
-                    && !self::overlaps($start, $start + $blockMinutes, $resource['booked'])) {
+                    && !self::overlaps($start, $start + $blockMinutes, $resource['booked'])
+                    && ($smallestGap === null || self::leavesUsableGaps($start, $duration, $blockMinutes, $resource['free'], $firstStart, $smallestGap))) {
                     $free[] = $id === '' ? null : $id;
                 }
             }
@@ -333,6 +350,66 @@ class BookingService {
         }
         $format = fn (int $m) => sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
         return array_map(fn ($b) => ['start' => $format($b['start']), 'end' => $format($b['end']), 'kind' => $b['kind']], $busy);
+    }
+
+    /** Minutes the shortest bookable treatment needs including cleanup, or null when there is none. */
+    private function shortestTreatment(): ?int {
+        $shortest = null;
+        foreach ($this->services() as $service) {
+            $duration = is_array($service) && ResourceProvider::isServiceActive($service) ? ResourceProvider::serviceDuration($service, $this->services()) : null;
+            if ($duration !== null && $duration > 0) {
+                $minutes = $duration + ResourceProvider::serviceCleanup($service, $this->services());
+                $shortest = $shortest === null ? $minutes : min($shortest, $minutes);
+            }
+        }
+        return $shortest;
+    }
+
+    /**
+     * Working periods minus the bookings: [[from, to, endsAtBooking], ...] in minutes;
+     * endsAtBooking is false where the period runs to the end of the working period.
+     */
+    private static function freePeriods(array $windows, array $booked): array {
+        usort($booked, fn ($a, $b) => $a['from'] <=> $b['from']);
+        $free = [];
+        foreach ($windows as [$from, $to]) {
+            foreach ($booked as $booking) {
+                if ($booking['to'] <= $from || $booking['from'] >= $to) {
+                    continue;
+                }
+                if ($booking['from'] > $from) {
+                    $free[] = [$from, $booking['from'], true];
+                }
+                $from = max($from, $booking['to']);
+            }
+            if ($from < $to) {
+                $free[] = [$from, $to, false];
+            }
+        }
+        return $free;
+    }
+
+    /**
+     * Whether a treatment of $duration minutes plus cleanup ($block in all) starting at $start
+     * leaves no gap shorter than $smallest minutes in its free period. A gap of 0 is fine; before
+     * the end of the working period only the treatment counts, as cleanup may run past it. Time
+     * before $firstStart (the first start not yet passed) is no gap. When the period leaves less
+     * than $smallest whatever the start, only starts at either edge are kept, so a period never
+     * loses all its starts.
+     */
+    private static function leavesUsableGaps(int $start, int $duration, int $block, array $free, int $firstStart, int $smallest): bool {
+        foreach ($free as [$from, $to, $endsAtBooking]) {
+            if ($start < $from || $start >= $to) {
+                continue;
+            }
+            $before = $start - max($from, $firstStart);
+            $after = max(0, $to - $start - ($endsAtBooking ? $block : $duration));
+            if ($before + $after < $smallest) {
+                return $before === 0 || $after === 0;
+            }
+            return ($before === 0 || $before >= $smallest) && ($after === 0 || $after >= $smallest);
+        }
+        return true;
     }
 
     /** Whether [$from, $to) lies inside one of the periods. */

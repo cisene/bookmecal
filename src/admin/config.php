@@ -2,6 +2,7 @@
 /**
  * src/admin/config.php
  * System settings (data/settings.json): timezone, default country, past-slot visibility,
+ * whether customers are offered only times that leave no short unusable gaps,
  * how long unanswered booking requests keep their time, and the privacy settings
  * (business name and contact for the privacy notice, how long bookings are kept),
  * email (config.json smtp: on/off, sender, alert address, SMTP server; the SMTP password in
@@ -158,6 +159,7 @@ if (is_post() && request_string($_POST, 'test_action') === 'send') {
                 'default_country' => $country,
                 'supported_timezones' => SUPPORTED_TIMEZONES,
                 'show_past_slots' => request_string($_POST, 'show_past_slots') === '1',
+                'avoid_small_gaps' => request_string($_POST, 'avoid_small_gaps') === '1',
                 'pending_expiry_hours' => $expiryHours,
                 'cancel_cutoff_hours' => $cancelCutoff,
                 'booking_retention_days' => $retentionDays,
@@ -219,6 +221,7 @@ render_admin('config', [
     'timezone' => $settings['timezone'] ?? 'Europe/Stockholm',
     'country' => $settings['default_country'] ?? 'se',
     'showPastSlots' => !empty($settings['show_past_slots']),
+    'avoidSmallGaps' => ($settings['avoid_small_gaps'] ?? false) === true,
     'pendingExpiryHours' => ResourceProvider::pendingExpiryHours(),
     'maxPendingExpiryHours' => MAX_PENDING_EXPIRY_HOURS,
     'cancelCutoffHours' => ResourceProvider::cancelCutoffHours(),

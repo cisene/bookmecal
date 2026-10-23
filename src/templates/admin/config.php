@@ -32,6 +32,14 @@
         </div>
 
         <div class="form-group">
+            <label class="checkbox">
+                <input type="checkbox" name="avoid_small_gaps" value="1"<?= $avoidSmallGaps ? ' checked' : '' ?>>
+                <?= e(__t('admin.config.avoidSmallGaps')) ?>
+            </label>
+            <small class="muted"><?= e(__t('admin.config.avoidSmallGapsHint')) ?></small>
+        </div>
+
+        <div class="form-group">
             <label for="cfg-expiry"><?= e(__t('admin.config.pendingExpiry')) ?></label>
             <input type="number" id="cfg-expiry" name="pending_expiry_hours" min="0" max="<?= e($maxPendingExpiryHours) ?>" step="1" value="<?= e($pendingExpiryHours) ?>" required>
             <small class="muted"><?= e(__t('admin.config.pendingExpiryHint')) ?></small>

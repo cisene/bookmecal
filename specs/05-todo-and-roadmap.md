@@ -9,7 +9,6 @@
 - [ ] **Email delivery on the server:** Set up SPF/DKIM for the sender domain and test that mails are not taken for spam before the trial.
 - [ ] **SMS Reminders:** Implement SMS reminder notifications 1–2 days ahead of appointments.
 - [ ] **Week view drag on touch devices:** Verify dragging the selection block on real phones and tablets.
-- [ ] **Gap-aware starts:** Optionally prefer soft-slot starts next to existing bookings to reduce unusable gaps.
 - [ ] **Translations:** Native review of all language files; complete the 12 partial languages (they fall back to English per key).
 - [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. GDPR basics (privacy notice, retention, access and erasure). Next: turn on `admin_require_https` on the production server ([08-deployment.md](08-deployment.md)); install the `fail2ban` filter from `deploy/fail2ban/`; have the privacy notice reviewed for the actual business (it is a starting point, not legal advice); customer emails link to the privacy notice when `public_url` is set.
 
@@ -19,7 +18,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
-| **2026-10-23** | • Emails can go through the mail provider's SMTP server (STARTTLS or SSL/TLS, sign-in, certificate checked) set on the Config page, with a test email button; the password is kept out of git in `secrets.json`. No external library.<br>• Long email subjects are split into standard-length encoded words.<br>• Moving an approved booking to another employee can email the customer, with an updated calendar file and contact card. |
+| **2026-10-23** | • Emails can go through the mail provider's SMTP server (STARTTLS or SSL/TLS, sign-in, certificate checked) set on the Config page, with a test email button; the password is kept out of git in `secrets.json`. No external library.<br>• Long email subjects are split into standard-length encoded words.<br>• Moving an approved booking to another employee can email the customer, with an updated calendar file and contact card.<br>• Optional "Avoid short unusable gaps" (Config page): customers are only offered times that leave no gap too short for any treatment. |
 | **2026-10-22** | • Date exceptions to an employee's weekly hours (vacation, sick day, a shorter or extra day) on the Working hours page.<br>• Move a booking to another employee who offers the treatment and is free at that time (Booking requests page). |
 | **2026-10-22** | • Contact cards: the approval email can carry `contact.vcf` with the venue's details (website, phone, email, address, WGS-84 position, plus code; Config page) and, with their consent, the employee's card. Employee profiles hold every field a vCard can carry (name parts, nickname, role, department, website, photo, languages, social profiles, presentation). The calendar file gets the venue's address and position. |
 | **2026-10-22** | • Exclusive treatments: nothing else is booked at the same time, with any employee.<br>• Sets: several treatments booked together, done back to back by one employee who offers all of them, with their own price and the summed duration (Services page). |

@@ -12,7 +12,7 @@ class BookingServiceTest extends TestCase {
     private BookingService $service;
 
     protected function setUp(): void {
-        $this->service = new BookingService();
+        $this->service = new BookingService(null, null, false);
     }
 
     public function testGetAvailableSlotsInvalidDateReturnsNull() {
@@ -50,7 +50,7 @@ class BookingServiceTest extends TestCase {
                 ]];
             }
         };
-        return new BookingService($repository);
+        return new BookingService($repository, null, false);
     }
 
     public function testSoftSlotsStartEveryStepAroundBookings() {
@@ -116,7 +116,7 @@ class BookingServiceTest extends TestCase {
             'emp_b' => ['givenName' => 'Bea', 'isBookable' => true, 'services' => ['srv']],
             'emp_c' => ['givenName' => 'Cleo', 'isBookable' => true, 'services' => ['other']],
             'emp_d' => ['givenName' => 'Dina', 'isBookable' => true, 'inactive' => true],
-        ]);
+        ], false);
     }
 
     public function testAnyEmployeeCombinesSchedules() {
@@ -196,6 +196,43 @@ class BookingServiceTest extends TestCase {
         $this->assertFalse($service->canMoveTo($booking('bk_x', '09:00', null), 'emp_b'), 'Bea is booked at 09');
     }
 
+    /** Monday 08:00-12:00, 45+15 min treatment, a 20+10 min one, a booking 10:00-11:00. */
+    private function gapService(bool $avoidSmallGaps): BookingService {
+        $repository = new class extends BookingRepository {
+            public function getServices(): ?array {
+                return ['srv' => ['name' => 'Test', 'duration' => 45, 'cleanup' => 15, 'is_active' => true],
+                    'short' => ['name' => 'Short', 'duration' => 20, 'cleanup' => 10, 'is_active' => true],
+                    'off' => ['name' => 'Inactive', 'duration' => 5, 'is_active' => false]];
+            }
+            public function getServiceById(string $serviceId): ?array {
+                return $this->getServices()[$serviceId] ?? null;
+            }
+            public function isHoliday(string $dateStr, string $countryCode = 'se'): bool {
+                return false;
+            }
+            public function getOperatingHours(string $dayOfWeek): ?array {
+                return $dayOfWeek === 'monday' ? ['is_open' => true, 'open_time' => '08:00', 'close_time' => '12:00'] : ['is_open' => false];
+            }
+            public function getBlockingIntervals(string $dateStr): array {
+                $tz = ResourceProvider::getTimezone();
+                return [['id' => 'book_1', 'start' => DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} 10:00", $tz),
+                    'end' => DateTime::createFromFormat('Y-m-d H:i', "{$dateStr} 11:00", $tz), 'employee_id' => null]];
+            }
+        };
+        return new BookingService($repository, [], $avoidSmallGaps);
+    }
+
+    public function testSmallGapsCanBeAvoided() {
+        $all = array_column($this->gapService(false)->getAvailableSlots('2099-01-05', 'srv'), 'start_time');
+        $this->assertCount(13 + 4, $all);
+        // Gaps of 0 or at least 30 minutes (the shortest treatment with cleanup); 11:00-12:00 cannot avoid
+        // a short gap, so only its edges are kept (the last cleanup may run past closing)
+        $compact = array_column($this->gapService(true)->getAvailableSlots('2099-01-05', 'srv'), 'start_time');
+        $this->assertSame(['08:00', '08:30', '09:00', '11:00', '11:15'], $compact);
+        $this->assertSame(['employee_id' => null, 'end_time' => '08:45'], $this->gapService(true)->assign('2099-01-05', 'srv', '08:00'));
+        $this->assertNull($this->gapService(true)->assign('2099-01-05', 'srv', '08:05'));
+    }
+
     public function testWithoutStaffTheVenueIsBooked() {
         $repository = new class extends BookingRepository {
             public function getServiceById(string $serviceId): ?array {
@@ -211,7 +248,7 @@ class BookingServiceTest extends TestCase {
                 return [];
             }
         };
-        $service = new BookingService($repository, ['emp_x' => ['isBookable' => false]]);
+        $service = new BookingService($repository, ['emp_x' => ['isBookable' => false]], false);
         $this->assertFalse($service->hasStaff());
         $this->assertSame(['employee_id' => null, 'end_time' => '09:00'], $service->assign('2099-01-05', 'srv', '08:00'));
         $this->assertNull($service->getAvailableSlots('2099-01-05', 'srv', 'se', 'emp_x'));
@@ -254,7 +291,7 @@ class BookingServiceTest extends TestCase {
         return new BookingService($repository, [
             'emp_e' => ['givenName' => 'Eva'],
             'emp_f' => ['givenName' => 'Frida', 'services' => ['a']],
-        ]);
+        ], false);
     }
 
     public function testExclusiveBookingBlocksEveryone() {

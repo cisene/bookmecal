@@ -20,6 +20,8 @@
   "admin.common.service": "Tjänst",
   "admin.common.status": "Status",
   "admin.common.time": "Tid",
+  "admin.config.avoidSmallGaps": "Undvik korta luckor som inte går att boka",
+  "admin.config.avoidSmallGapsHint": "Kunderna erbjuds bara tider som före och efter lämnar antingen ingen lucka eller en lucka som räcker till den kortaste behandlingen (med städtid). Färre tider visas, men dagen fylls utan bortslösade minuter. Att flytta en bokning på bokningssidan påverkas inte.",
   "admin.config.businessName": "Verksamhetens namn",
   "admin.config.cancelCutoff": "Kunder kan avboka på nätet fram till (timmar före)",
   "admin.config.cancelCutoffHint": "Mejl till kunder innehåller en avbokningslänk när bokningssidans adress är ifylld. Efter den här gränsen måste kunden kontakta dig. 0 = fram till att besöket börjar.",
