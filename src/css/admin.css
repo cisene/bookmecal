@@ -133,3 +133,5 @@ input.feed-url { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mon
 /* Move a booking: a compact employee picker next to the action buttons */
 .select-small { width: auto; padding: 4px 6px; font-size: 0.85em; margin: 0 4px 0 0; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.checkbox-inline { display: inline-flex; align-items: center; gap: 4px; font-weight: normal; font-size: 0.85em; margin: 0 6px 0 0; cursor: pointer; }
+.checkbox-inline input { width: auto; margin: 0; }

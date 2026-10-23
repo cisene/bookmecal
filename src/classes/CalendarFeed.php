@@ -95,14 +95,16 @@ class CalendarFeed {
      * One booking as a calendar file for the customer ("add to my calendar"), or null if the
      * booking has no valid time. $summary is e.g. "Medical Foot Care – Salong Anna".
      * $location: ['text' => address, 'geo' => [lat, lon] or null] (ContactCard::location()).
+     * $sequence: how many times the booking was changed since it was first sent.
      */
-    public static function single(array $booking, string $summary, DateTimeZone $timezone, ?DateTimeInterface $now = null, ?array $location = null): ?string {
+    public static function single(array $booking, string $summary, DateTimeZone $timezone, ?DateTimeInterface $now = null, ?array $location = null, int $sequence = 0): ?string {
         $times = self::times($booking, $timezone);
         if ($times === null) {
             return null;
         }
         $now = DateTimeImmutable::createFromInterface($now ?? new DateTimeImmutable('now', $timezone));
-        $extra = [];
+        // A changed booking is sent again with the same UID and a higher SEQUENCE, so calendars update it
+        $extra = $sequence > 0 ? ['SEQUENCE:' . $sequence] : [];
         if ($location !== null && ($location['text'] ?? '') !== '') {
             $extra[] = 'LOCATION:' . self::escape((string)$location['text']);
         }

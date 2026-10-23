@@ -86,6 +86,7 @@ bookmecal/
 │   │   ├── Secrets.php
 │   │   ├── SecurityHeaders.php
 │   │   ├── SecurityLog.php
+│   │   ├── SmtpTransport.php
 │   │   ├── Staff.php
 │   │   ├── TimeSlot.php
 │   │   └── View.php
@@ -179,6 +180,7 @@ bookmecal/
     ├── ResourceProviderTest.php
     ├── SecretsTest.php
     ├── SecurityLogTest.php
+    ├── SmtpTransportTest.php
     ├── StaffTest.php
     └── TimeSlotTest.php
 ```

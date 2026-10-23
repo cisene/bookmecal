@@ -20,8 +20,9 @@ The code is split into controllers (PHP that handles input and loads data), temp
 - `JsonStore.php`: Locked JSON read/write/update (`flock()`), see [02-storage-and-repository.md](02-storage-and-repository.md).
 - `View.php`: Renders plain-PHP templates from `src/templates/` with an optional layout.
 - `Localization.php`: Language selection and translation with the global `__t()` helper.
-- `EmailNotifier.php`: Sends the emails (plain text, optional attachment, header-injection safe); nothing is sent unless `config.json` `smtp.enabled` is true. The transport is PHP `mail()` and can be replaced in tests.
-- `BookingEmails.php`: The emails around one booking (receipt, admin alert, approval with `.ics`, rejection); builds the texts from the booking, services and settings.
+- `EmailNotifier.php`: Sends the emails (plain text, optional attachment, header-injection safe); nothing is sent unless `config.json` `smtp.enabled` is true. The transport is `SmtpTransport` when an SMTP server is set, otherwise PHP `mail()`; tests pass their own.
+- `SmtpTransport.php`: Built-in SMTP client (STARTTLS or TLS, AUTH PLAIN/LOGIN), see [04-api-and-integrations.md](04-api-and-integrations.md).
+- `BookingEmails.php`: The emails around one booking (receipt, admin alert, approval with `.ics`, rejection, moved to another employee); builds the texts from the booking, services and settings.
 - `SecurityHeaders.php`: HTTP security headers, sent by `bootstrap.php` for every web request (§1.5).
 - `RateLimiter.php`, `FormToken.php`: Abuse protection for the public booking API (see [04-api-and-integrations.md](04-api-and-integrations.md)); `RateLimiter` also counts failed admin sign-ins.
 - `Input.php`: The input validation layer (§1.6).

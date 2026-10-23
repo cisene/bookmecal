@@ -4,7 +4,7 @@
 
 - [ ] **Calendar Feeds:** Read-only subscription feed and `.ics` file in the approval email done. Customer cancellation link done.
 - [ ] **Advanced Google Calendar API:** Add two-way synchronization for adding and removing calendar events via the Google Calendar API.
-- [ ] **Bulk & Direct SMTP Messaging:** Booking emails done (receipt, admin alert, approval, rejection). Next: real SMTP (authenticated, e.g. with PHPMailer) instead of PHP `mail()`, and messages to a single customer, group, or all customers.
+- [ ] **Bulk & Direct SMTP Messaging:** Booking emails done (receipt, admin alert, approval, rejection). Authenticated SMTP done (built-in `SmtpTransport`, Config page with test email). Next: messages to a single customer, group, or all customers.
 - [ ] **Data files out of git:** `config.json`, `settings.json`, `services.json`, `openhours.json` and `credentials.json` are tracked with development values, so the server is updated with `rsync` instead of `git pull` (see [08-deployment.md](08-deployment.md) §8.9). Ship `*.example.json` files and create the real ones on install.
 - [ ] **Email delivery on the server:** Set up SPF/DKIM for the sender domain and test that mails are not taken for spam before the trial.
 - [ ] **SMS Reminders:** Implement SMS reminder notifications 1–2 days ahead of appointments.
@@ -19,6 +19,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-23** | • Emails can go through the mail provider's SMTP server (STARTTLS or SSL/TLS, sign-in, certificate checked) set on the Config page, with a test email button; the password is kept out of git in `secrets.json`. No external library.<br>• Long email subjects are split into standard-length encoded words.<br>• Moving an approved booking to another employee can email the customer, with an updated calendar file and contact card. |
 | **2026-10-22** | • Date exceptions to an employee's weekly hours (vacation, sick day, a shorter or extra day) on the Working hours page.<br>• Move a booking to another employee who offers the treatment and is free at that time (Booking requests page). |
 | **2026-10-22** | • Contact cards: the approval email can carry `contact.vcf` with the venue's details (website, phone, email, address, WGS-84 position, plus code; Config page) and, with their consent, the employee's card. Employee profiles hold every field a vCard can carry (name parts, nickname, role, department, website, photo, languages, social profiles, presentation). The calendar file gets the venue's address and position. |
 | **2026-10-22** | • Exclusive treatments: nothing else is booked at the same time, with any employee.<br>• Sets: several treatments booked together, done back to back by one employee who offers all of them, with their own price and the summed duration (Services page). |

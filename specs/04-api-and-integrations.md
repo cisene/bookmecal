@@ -82,7 +82,9 @@ Read-only iCalendar (RFC 5545) subscription for the business's own calendar app:
 
 ## Integrations
 - Google Calendar: OAuth enrollment wizard in `admin/setup_google.php` (with `state` parameter). Calendar sync is not active yet.
-- Email: `EmailNotifier` (PHP `mail()`, configured through `sendmail_path` / `SMTP` in php.ini), texts from the `email.*` language keys. Off unless `config.json` `smtp.enabled` is true (admin Config page, which also sets sender name and address, the alert address and `public_url`).
+- Email: `EmailNotifier`, texts from the `email.*` language keys. Off unless `config.json` `smtp.enabled` is true (admin Config page, which also sets sender name and address, the alert address and `public_url`). With `smtp.host` set, mail goes through that SMTP server (`SmtpTransport`, below); otherwise through PHP `mail()` (php.ini `sendmail_path`). The Config page has a "Send test email" button that shows the server's answer when sending fails.
+- `SmtpTransport` (no external library): RFC 5321 client with `STARTTLS` (port 587, TLS 1.2 or 1.3), implicit TLS (`ssl`, port 465) or no encryption (`none`, only sensible for a relay on the same machine). The server certificate and name are verified. Signs in with `AUTH PLAIN`, or `AUTH LOGIN` when only that is offered; a password is never sent unencrypted to another machine (refused both on the Config page and in the transport). Uses `BODY=8BITMIME` when offered, doubles leading dots, adds `To`, `Subject`, `Date` and `Message-ID`. Settings: `config.json` `smtp.host`, `port`, `encryption` (`starttls`, `ssl`, `none`), `username`; the password is kept in `data/secrets.json` as `smtp_password` (not tracked in git, mode 0640) and never shown again on the Config page.
+- Header values are UTF-8 encoded words of at most 75 characters, folded onto continuation lines (`EmailNotifier::encodeHeader()`, RFC 2047).
 
 ## Booking emails (`BookingEmails`)
 | When | To | Language | Content |
@@ -91,6 +93,7 @@ Read-only iCalendar (RFC 5545) subscription for the business's own calendar app:
 | Request saved | `smtp.notification_email` (if set) | `config.json` `app.language` | Alert (`email.admin.newRequest.*`) with name, email, time and, with `public_url`, a link to `admin/pending.php` |
 | Admin approves | Customer | Booking's language | Confirmation (`email.approved.*`) with `booking.ics` attached (one event, `METHOD:PUBLISH`, summary `<service> – <business>`, no contact details) |
 | Admin rejects | Customer | Booking's language | Decline (`email.rejected.*`) |
+| Admin moves an approved booking to another employee and ticks "Tell the customer" | Customer | Booking's language | Change (`email.moved.*`): new employee, previous one, same time; `booking.ics` with the same `UID` and a higher `SEQUENCE` (the booking's `sequence`, raised on every move) so calendars update the event, and `contact.vcf` as on approval |
 | Day before (cron) | Customer | Booking's language | Reminder (`send_reminders.php`) |
 | Customer cancels online | `smtp.notification_email` (if set) | `config.json` `app.language` | Alert (`email.admin.cancelled.*`) |
 

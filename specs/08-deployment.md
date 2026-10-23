@@ -5,7 +5,7 @@ How to put Book Me Calendar on a real server for the trial. Files referred to he
 ## 8.1 Requirements
 - PHP 8.3 or newer (developed on 8.5) with `mbstring` and `json`; `pcntl` only for running the tests.
 - Apache 2.4 with `mod_rewrite` and `mod_headers`, `AllowOverride All` for the site (the `.htaccess` files hold the access rules).
-- A mail transfer agent for PHP `mail()` (see §8.5).
+- An SMTP account at the mail provider of the sender's domain (see §8.5), or a mail transfer agent for PHP `mail()`.
 - HTTPS certificate, e.g. Let's Encrypt (`certbot --apache`).
 
 ## 8.2 Files and permissions
@@ -29,7 +29,9 @@ How to put Book Me Calendar on a real server for the trial. Files referred to he
 3. Optional: turn on the calendar subscription (Config page) and add the link to the phone's calendar.
 
 ## 8.5 Email
-PHP `mail()` hands mails to the local `sendmail` program. On a small server, `msmtp` relaying through the mail provider is the simplest:
+Simplest: enter the mail provider's SMTP server on the Config page (Email, "Sending server"): server name, STARTTLS and port 587 (or SSL/TLS and 465), user name and password (an app password where the provider offers them). Save, then use "Send test email". The password is stored in `src/data/secrets.json`, which is not in git.
+
+Without an SMTP server on the Config page, PHP `mail()` hands mails to the local `sendmail` program. Then `msmtp` relaying through the mail provider is the simplest:
 
 ```
 # /etc/msmtprc (readable by www-data only)

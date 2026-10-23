@@ -25,6 +25,17 @@ class EmailNotifierTest extends TestCase {
         return iconv_mime_decode($subject, 0, 'UTF-8');
     }
 
+    public function testLongSubjectsAreSplitIntoShortEncodedWords() {
+        $subject = 'Din bokning är bekräftad: Medical Foot Care hos Lynn Isene 2099-07-28 kl. 08:00 – åäö';
+        $encoded = EmailNotifier::encodeHeader($subject);
+        foreach (explode("\r\n ", $encoded) as $word) {
+            $this->assertMatchesRegularExpression('/^=\?UTF-8\?B\?[A-Za-z0-9+\/=]+\?=$/', $word);
+            $this->assertLessThanOrEqual(75, strlen($word));
+        }
+        $this->assertGreaterThan(1, substr_count($encoded, '=?UTF-8'));
+        $this->assertSame($subject, self::decodeSubject($encoded));
+    }
+
     public function testNothingIsSentWhileEmailIsOff() {
         $notifier = $this->notifier(['enabled' => false]);
         $this->assertFalse($notifier->isEnabled());

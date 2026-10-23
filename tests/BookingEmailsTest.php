@@ -78,6 +78,27 @@ class BookingEmailsTest extends TestCase {
         $this->assertStringNotContainsString('contact.vcf', $this->sent[0]['body']);
     }
 
+    public function testMovedBookingTellsTheCustomerWithAnUpdatedAppointment() {
+        $staff = ['emp_1' => ['givenName' => 'Lynn', 'familyName' => 'Isene'], 'emp_2' => ['givenName' => 'Anna', 'familyName' => 'Berg', 'shareContact' => true]];
+        $emails = $this->emails([], ['vcard' => 'staff'], $staff);
+        $booking = ['employee_id' => 'emp_2', 'status' => 'approved', 'sequence' => 2] + self::booking();
+        $this->assertTrue($emails->moved($booking, 'emp_1'));
+
+        $mail = $this->sent[0];
+        $this->assertSame('bo@example.com', $mail['to']);
+        $this->assertStringContainsString('hos Anna Berg i stället för Lynn Isene', $mail['body']);
+        $this->assertStringContainsString('Anna Berg', iconv_mime_decode($mail['subject'], 0, 'UTF-8'));
+        preg_match_all('/base64\r\n\r\n([A-Za-z0-9+\/=\r\n]+)\r\n--/', $mail['body'], $m);
+        [$ics, $vcf] = array_map(fn ($part) => base64_decode(str_replace("\r\n", '', $part)), $m[1]);
+        $this->assertStringContainsString("UID:book_abc1@bookmecal\r\n", $ics);
+        $this->assertStringContainsString("SEQUENCE:2\r\n", $ics);
+        $this->assertStringContainsString('FN:Anna Berg', $vcf);
+
+        // Without a known previous employee the text does not name one
+        $emails->moved($booking, null);
+        $this->assertStringNotContainsString('i stället för', $this->sent[1]['body']);
+    }
+
     public function testNoAlertWithoutAddressAndNoLinksWithoutUrl() {
         $this->emails()->requestReceived(self::booking());
         $this->assertSame(['bo@example.com'], array_column($this->sent, 'to'));

@@ -89,7 +89,7 @@
     },
     "smtp": {
       "type": "object",
-      "description": "Outgoing email. Edited on the admin Config page. Mail goes through PHP mail() (php.ini sendmail_path / SMTP).",
+      "description": "Outgoing email. Edited on the admin Config page. With host set, mail goes through that SMTP server (SmtpTransport); otherwise through PHP mail() (php.ini sendmail_path). The SMTP password is kept in data/secrets.json as smtp_password.",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -108,6 +108,31 @@
         "notification_email": {
           "type": "string",
           "description": "Where new booking request alerts go; empty for none."
+        },
+        "host": {
+          "type": "string",
+          "description": "SMTP server host name; empty = PHP mail()."
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 587
+        },
+        "encryption": {
+          "type": "string",
+          "enum": [
+            "starttls",
+            "ssl",
+            "none"
+          ],
+          "default": "starttls",
+          "description": "starttls (587), ssl = implicit TLS (465), none only for a server on the same machine."
+        },
+        "username": {
+          "type": "string",
+          "maxLength": 254,
+          "description": "SMTP user name; empty = no sign-in."
         }
       }
     }

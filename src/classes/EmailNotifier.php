@@ -2,10 +2,14 @@
 /**
  * src/classes/EmailNotifier.php
  * Plain-text notification emails. All texts come from the language files (email.* keys).
- * Nothing is sent unless config.json smtp.enabled is true.
+ * Nothing is sent unless config.json smtp.enabled is true. With smtp.host set, mail goes through
+ * that SMTP server (SmtpTransport; the password is kept in data/secrets.json as smtp_password),
+ * otherwise through PHP mail().
  */
 
 require_once __DIR__ . '/Localization.php';
+require_once __DIR__ . '/Secrets.php';
+require_once __DIR__ . '/SmtpTransport.php';
 
 class EmailNotifier {
     private array $smtpConfig;
@@ -17,10 +21,37 @@ class EmailNotifier {
      */
     public function __construct(array $config, ?callable $transport = null) {
         $this->smtpConfig = $config['smtp'] ?? [];
-        $this->transport = $transport ?? function (string $to, string $subject, string $body, string $headers): bool {
-            // SMTP transport is configured through php.ini (sendmail_path / SMTP) for now
+        $this->transport = $transport ?? self::smtpTransport($this->smtpConfig) ?? function (string $to, string $subject, string $body, string $headers): bool {
+            // Without an SMTP server: php.ini sendmail_path / SMTP decide
             return @mail($to, $subject, $body, $headers);
         };
+    }
+
+    /** The SMTP transport for config.json smtp, or null when no server is set (PHP mail()). */
+    public static function smtpTransport(array $smtp): ?SmtpTransport {
+        $host = trim((string)($smtp['host'] ?? ''));
+        if ($host === '') {
+            return null;
+        }
+        $encryption = (string)($smtp['encryption'] ?? 'starttls');
+        return new SmtpTransport(
+            $host,
+            (int)($smtp['port'] ?? ($encryption === 'ssl' ? 465 : 587)),
+            $encryption,
+            (string)($smtp['username'] ?? ''),
+            Secrets::value('smtp_password'),
+            (string)($smtp['from_email'] ?? ''),
+        );
+    }
+
+    /** Why the last mail could not be handed to the SMTP server, or '' (also with PHP mail()). */
+    public function lastError(): string {
+        return $this->transport instanceof SmtpTransport ? $this->transport->lastError() : '';
+    }
+
+    /** A short test mail to check the settings. */
+    public function sendTest(string $toEmail, ?string $lang = null): bool {
+        return $this->send($toEmail, __t('email.test.subject', [], $lang), __t('email.test.body', [], $lang));
     }
 
     public function isEnabled(): bool {
@@ -56,6 +87,23 @@ class EmailNotifier {
         return $approved
             ? $this->send($toEmail, __t('email.approved.subject', $vars, $lang), $this->body('email.approved.body', $vars, $lang), $attachments)
             : $this->send($toEmail, __t('email.rejected.subject', $vars, $lang), $this->body('email.rejected.body', $vars, $lang));
+    }
+
+    /**
+     * The customer's approved booking moved to another employee; same time. Carries the updated
+     * appointment (booking.ics) and contact cards (contact.vcf) when given.
+     * $vars as for the approval, plus previous (the former employee's name, may be '').
+     */
+    public function sendBookingMoved(string $toEmail, array $vars, ?string $lang = null, ?string $ics = null, ?string $vcard = null): bool {
+        $attachments = [];
+        if ($ics !== null) {
+            $attachments[] = ['name' => 'booking.ics', 'type' => 'text/calendar; method=PUBLISH', 'content' => $ics];
+        }
+        if ($vcard !== null) {
+            $attachments[] = ['name' => 'contact.vcf', 'type' => 'text/vcard', 'content' => $vcard];
+        }
+        $key = ($vars['previous'] ?? '') !== '' ? 'email.moved.body' : 'email.moved.bodyNoPrevious';
+        return $this->send($toEmail, __t('email.moved.subject', $vars, $lang), $this->body($key, $vars, $lang), $attachments);
     }
 
     /**
@@ -111,7 +159,7 @@ class EmailNotifier {
         $body = str_replace(["\r\n", "\r"], "\n", $body);
 
         $headers = "MIME-Version: 1.0\r\n"
-            . 'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <{$fromEmail}>\r\n"
+            . 'From: ' . self::encodeHeader($fromName) . " <{$fromEmail}>\r\n"
             . "Reply-To: {$fromEmail}\r\n";
 
         if ($attachments === []) {
@@ -134,7 +182,26 @@ class EmailNotifier {
             $body .= "--{$boundary}--\r\n";
         }
 
-        return ($this->transport)($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
+        return ($this->transport)($to, self::encodeHeader($subject), $body, $headers);
+    }
+
+    /**
+     * A header value as UTF-8 encoded words of at most 75 characters each (RFC 2047), folded
+     * onto continuation lines, never splitting a character.
+     */
+    public static function encodeHeader(string $text): string {
+        $words = [];
+        $chunk = '';
+        foreach (mb_str_split($text, 1, 'UTF-8') as $char) {
+            // 45 bytes encode to 60 base64 characters: 72 with the =?UTF-8?B? ?= wrapping
+            if (strlen($chunk . $char) > 45) {
+                $words[] = $chunk;
+                $chunk = '';
+            }
+            $chunk .= $char;
+        }
+        $words[] = $chunk;
+        return implode("\r\n ", array_map(fn ($word) => '=?UTF-8?B?' . base64_encode($word) . '?=', $words));
     }
 
     /** A customer email body with the links (see withLinks()). */

@@ -2,8 +2,9 @@
 /**
  * src/classes/BookingEmails.php
  * The emails around one booking: receipt to the customer and alert to the business when a request
- * arrives, the answer (with an .ics file on approval) when the admin decides, the reminder, and an
- * alert to the business when the customer cancels. Customer emails carry the cancellation link.
+ * arrives, the answer (with an .ics file on approval) when the admin decides, the news that an
+ * approved booking moved to another employee, the reminder, and an alert to the business when the
+ * customer cancels. Customer emails carry the cancellation link.
  * Builds the text variables from the booking, services and settings; EmailNotifier sends.
  */
 
@@ -76,6 +77,21 @@ class BookingEmails {
         // Contact cards for the venue and, if settings and the employee allow, the employee
         $vcard = $approved ? ContactCard::forBooking($this->settings, $this->employee($booking), __t('email.vcardLanguages', [], $this->lang($booking))) : null;
         return $this->notifier->sendBookingDecision((string)($booking['customer_email'] ?? ''), $approved, $vars, $this->lang($booking), $ics, $vcard);
+    }
+
+    /**
+     * The admin moved an approved booking to another employee: tell the customer, with the updated
+     * calendar file and contact cards. $booking is the saved booking (new employee_id);
+     * $previousEmployeeId the employee it had before. Returns whether the email was sent.
+     */
+    public function moved(array $booking, ?string $previousEmployeeId): bool {
+        $lang = $this->lang($booking);
+        $vars = $this->vars($booking, $lang);
+        $vars['previous'] = trim(str_replace(["\r", "\n"], ' ', $this->employeeName(['employee_id' => $previousEmployeeId])));
+        $ics = CalendarFeed::single($booking, $vars['service'] . ' – ' . $vars['business'], ResourceProvider::getTimezone(), null,
+            ContactCard::location($this->settings), max(1, (int)($booking['sequence'] ?? 1)));
+        $vcard = ContactCard::forBooking($this->settings, $this->employee($booking), __t('email.vcardLanguages', [], $lang));
+        return $this->notifier->sendBookingMoved((string)($booking['customer_email'] ?? ''), $vars, $lang, $ics, $vcard);
     }
 
     /**

@@ -59,11 +59,20 @@ if (is_post()) {
                 'employee_requested' => false,
                 'moved_by' => $currentAdmin,
                 'moved_at' => date(DATE_ATOM),
+                // Calendar files sent again carry a higher SEQUENCE, so the customer's calendar updates
+                'sequence' => (int)($current['sequence'] ?? 0) + 1,
             ]));
         if ($moved) {
             $from = (string)($current['employee_id'] ?? '');
             log_audit_action($currentAdmin, 'BOOKING_MOVE', "Booking ID {$bookingId} moved from employee {$from} to {$employeeId}");
-            header('Location: pending.php?done=move' . $filterQuery);
+            // An approved customer already has the old employee in their confirmation; a pending one gets the new name on approval
+            $mail = '';
+            if (($current['status'] ?? '') === 'approved' && request_string($_POST, 'notify') === '1') {
+                $emails = new BookingEmails();
+                $updated = $repository->getBookings()[$bookingId] ?? $current;
+                $mail = '&mail=' . (!$emails->isEnabled() ? 'off' : ($emails->moved($updated, $from !== '' ? $from : null) ? 'sent' : 'failed'));
+            }
+            header('Location: pending.php?done=move' . $mail . $filterQuery);
             exit;
         }
         $flash[] = flash_error('The booking could not be moved: the employee does not offer this treatment, is not working or is booked at that time, or the booking has passed.');
@@ -100,9 +109,7 @@ if ($emailFilter !== '' && request_string($_GET, 'export') === '1') {
 }
 
 $done = request_string($_GET, 'done');
-if ($done === 'move') {
-    $flash[] = flash_success('admin.pending.done.move');
-} elseif (isset($decisions[$done]) || $done === 'delete') {
+if (isset($decisions[$done]) || $done === 'delete' || $done === 'move') {
     $flash[] = flash_success('admin.pending.done.' . $done);
     $mail = Input::oneOf(request_string($_GET, 'mail'), ['sent', 'failed', 'off']);
     if ($mail === 'sent') {

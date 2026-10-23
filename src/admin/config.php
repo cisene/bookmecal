@@ -4,7 +4,8 @@
  * System settings (data/settings.json): timezone, default country, past-slot visibility,
  * how long unanswered booking requests keep their time, and the privacy settings
  * (business name and contact for the privacy notice, how long bookings are kept),
- * email (config.json smtp: on/off, sender, alert address; settings.json public_url for links),
+ * email (config.json smtp: on/off, sender, alert address, SMTP server; the SMTP password in
+ * secrets.json; settings.json public_url for links) with a test email,
  * the venue's contact details sent as a contact card (settings.json venue, vcard; ContactCard),
  * and the calendar subscription link (CalendarFeed).
  */
@@ -21,6 +22,7 @@ const MAX_RETENTION_DAYS = 3650;
 const MAX_CANCEL_CUTOFF_HOURS = 720;
 const MAX_BUSINESS_NAME = 100;
 const MAX_SENDER_NAME = 100;
+const MAX_SMTP_PASSWORD = 200;
 
 $settingsFile = ResourceProvider::dataPath('settings.json');
 $configFile = ResourceProvider::dataPath('config.json');
@@ -54,7 +56,23 @@ function venue_from_post(array $post): array {
     return [$venue, null];
 }
 
-if (is_post() && request_string($_POST, 'venue_action') === 'save') {
+if (is_post() && request_string($_POST, 'test_action') === 'send') {
+    require_csrf();
+    $to = Input::email(request_string($_POST, 'test_to'));
+    $notifier = new EmailNotifier(ResourceProvider::getConfig() ?? []);
+    if ($to === null || $to === '') {
+        $flash[] = flash_error('Enter a valid email address for the test email.');
+    } elseif (!$notifier->isEnabled()) {
+        $flash[] = flash_error('Turn on "Send emails" and save before sending a test email.');
+    } elseif ($notifier->sendTest($to)) {
+        log_audit_action($currentAdmin, 'EMAIL_TEST', 'Sent a test email');
+        header('Location: config.php?done=testSent#email');
+        exit;
+    } else {
+        $error = $notifier->lastError();
+        $flash[] = flash_error('The test email could not be sent' . ($error !== '' ? ': ' . $error : '. Check the server\'s mail setup (PHP mail()).'));
+    }
+} elseif (is_post() && request_string($_POST, 'venue_action') === 'save') {
     require_csrf();
     [$venue, $error] = venue_from_post($_POST);
     $vcardMode = Input::oneOf(request_string($_POST, 'vcard'), ContactCard::MODES);
@@ -98,6 +116,14 @@ if (is_post() && request_string($_POST, 'venue_action') === 'save') {
     $notificationEmail = $notificationEmail === '' ? '' : Input::email($notificationEmail);
     $publicUrl = request_string($_POST, 'public_url');
     $publicUrl = $publicUrl === '' || BookingEmails::isValidSiteUrl($publicUrl) ? $publicUrl : null;
+    // SMTP server; empty host = PHP mail(). An empty password field keeps the saved password
+    $smtpHost = strtolower(request_string($_POST, 'smtp_host'));
+    $smtpHost = $smtpHost === '' || (strlen($smtpHost) <= 253 && preg_match('/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$|^\[?[0-9a-f:.]+\]?$/', $smtpHost)) ? $smtpHost : null;
+    $smtpEncryption = Input::oneOf(request_string($_POST, 'smtp_encryption'), SmtpTransport::ENCRYPTIONS);
+    $smtpPort = request_string($_POST, 'smtp_port') === '' ? ($smtpEncryption === 'ssl' ? 465 : 587) : Input::int(request_string($_POST, 'smtp_port'), 1, 65535);
+    $smtpUsername = Input::text(request_string($_POST, 'smtp_username'), Input::EMAIL_MAX);
+    $smtpPassword = (string)($_POST['smtp_password'] ?? '');
+    $smtpPasswordOk = strlen($smtpPassword) <= MAX_SMTP_PASSWORD && !preg_match('/[\x00-\x1F\x7F]/', $smtpPassword);
 
     if ($timezone === null) {
         $flash[] = flash_error('Selected timezone is not supported.');
@@ -121,6 +147,10 @@ if (is_post() && request_string($_POST, 'venue_action') === 'save') {
         $flash[] = flash_error('The address for new booking alerts must be a valid email address or empty.');
     } elseif ($publicUrl === null) {
         $flash[] = flash_error('The booking site address must start with http:// or https:// and have no query or fragment.');
+    } elseif ($smtpHost === null || $smtpEncryption === null || $smtpPort === null || $smtpUsername === null || !$smtpPasswordOk) {
+        $flash[] = flash_error('Check the SMTP settings: the server is a host name such as smtp.example.com, the port is 1-65535, the user name and password have no line breaks (password at most ' . MAX_SMTP_PASSWORD . ' characters).');
+    } elseif ($smtpHost !== '' && $smtpEncryption === 'none' && $smtpUsername !== '' && !SmtpTransport::isLocalHost($smtpHost)) {
+        $flash[] = flash_error('A password is never sent unencrypted: choose STARTTLS or SSL/TLS for this SMTP server.');
     } else {
         $saved = JsonStore::update($settingsFile, function (array $settings) use ($timezone, $country, $expiryHours, $retentionDays, $businessName, $privacyContact, $publicUrl, $cancelCutoff) {
             return array_merge($settings, [
@@ -136,15 +166,25 @@ if (is_post() && request_string($_POST, 'venue_action') === 'save') {
                 'public_url' => $publicUrl,
             ]);
         });
-        $saved = $saved && JsonStore::update($configFile, function (array $config) use ($emailEnabled, $fromEmail, $fromName, $notificationEmail) {
+        $saved = $saved && JsonStore::update($configFile, function (array $config) use ($emailEnabled, $fromEmail, $fromName, $notificationEmail, $smtpHost, $smtpPort, $smtpEncryption, $smtpUsername) {
             $config['smtp'] = array_merge($config['smtp'] ?? [], [
                 'enabled' => $emailEnabled,
                 'from_email' => $fromEmail,
                 'from_name' => $fromName,
                 'notification_email' => $notificationEmail,
+                'host' => $smtpHost,
+                'port' => $smtpPort,
+                'encryption' => $smtpEncryption,
+                'username' => $smtpUsername,
             ]);
             return $config;
         });
+        // The password stays out of config.json, which is tracked in git
+        if ($saved && request_string($_POST, 'smtp_password_clear') === '1') {
+            $saved = Secrets::store('smtp_password', '');
+        } elseif ($saved && $smtpPassword !== '') {
+            $saved = Secrets::store('smtp_password', $smtpPassword);
+        }
         if ($saved) {
             log_audit_action($currentAdmin, 'CONFIG_UPDATE', "Updated system configuration (Timezone: {$timezone})");
             header('Location: config.php?done=saved');
@@ -154,7 +194,7 @@ if (is_post() && request_string($_POST, 'venue_action') === 'save') {
     }
 }
 
-$done = Input::oneOf(request_string($_GET, 'done'), ['saved', 'feedRenewed', 'feedDisabled']);
+$done = Input::oneOf(request_string($_GET, 'done'), ['saved', 'feedRenewed', 'feedDisabled', 'testSent']);
 if ($done !== null) {
     $flash[] = flash_success('admin.config.done.' . $done);
 }
@@ -191,6 +231,13 @@ render_admin('config', [
     'fromEmail' => (string)($smtp['from_email'] ?? ''),
     'fromName' => (string)($smtp['from_name'] ?? ''),
     'notificationEmail' => (string)($smtp['notification_email'] ?? ''),
+    'smtpHost' => (string)($smtp['host'] ?? ''),
+    'smtpPort' => (int)($smtp['port'] ?? 587),
+    'smtpEncryption' => in_array($smtp['encryption'] ?? '', SmtpTransport::ENCRYPTIONS, true) ? $smtp['encryption'] : 'starttls',
+    'smtpEncryptions' => SmtpTransport::ENCRYPTIONS,
+    'smtpUsername' => (string)($smtp['username'] ?? ''),
+    'smtpPasswordSaved' => Secrets::value('smtp_password') !== '',
+    'adminEmail' => (string)($smtp['notification_email'] ?? ''),
     'publicUrl' => (string)($settings['public_url'] ?? ''),
     'venue' => array_map('strval', is_array($settings['venue'] ?? null) ? $settings['venue'] : []),
     'vcardMode' => in_array($settings['vcard'] ?? '', ContactCard::MODES, true) ? $settings['vcard'] : 'off',

@@ -90,6 +90,47 @@
             <small class="muted"><?= e(__t('admin.config.notificationEmailHint')) ?></small>
         </div>
 
+        <h4><?= e(__t('admin.config.smtpTitle')) ?></h4>
+        <p class="muted"><?= e(__t('admin.config.smtpIntro')) ?></p>
+
+        <div class="form-group">
+            <label for="cfg-smtp-host"><?= e(__t('admin.config.smtpHost')) ?></label>
+            <input type="text" id="cfg-smtp-host" name="smtp_host" maxlength="253" placeholder="smtp.example.com" value="<?= e($smtpHost) ?>" autocapitalize="none" spellcheck="false">
+            <small class="muted"><?= e(__t('admin.config.smtpHostHint')) ?></small>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-smtp-encryption"><?= e(__t('admin.config.smtpSecurity')) ?></label>
+            <select id="cfg-smtp-encryption" name="smtp_encryption">
+                <?php foreach ($smtpEncryptions as $mode): ?>
+                    <option value="<?= e($mode) ?>"<?= $mode === $smtpEncryption ? ' selected' : '' ?>><?= e(__t('admin.config.smtpEncryption.' . $mode)) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-smtp-port"><?= e(__t('admin.config.smtpPort')) ?></label>
+            <input type="number" id="cfg-smtp-port" name="smtp_port" min="1" max="65535" step="1" value="<?= e($smtpPort) ?>">
+            <small class="muted"><?= e(__t('admin.config.smtpPortHint')) ?></small>
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-smtp-username"><?= e(__t('admin.config.smtpUsername')) ?></label>
+            <input type="text" id="cfg-smtp-username" name="smtp_username" maxlength="254" value="<?= e($smtpUsername) ?>" autocomplete="off" autocapitalize="none" spellcheck="false">
+        </div>
+
+        <div class="form-group">
+            <label for="cfg-smtp-password"><?= e(__t('admin.config.smtpPassword')) ?></label>
+            <input type="password" id="cfg-smtp-password" name="smtp_password" maxlength="200" autocomplete="new-password" placeholder="<?= e($smtpPasswordSaved ? __t('admin.config.smtpPasswordSaved') : '') ?>">
+            <small class="muted"><?= e(__t('admin.config.smtpPasswordHint')) ?></small>
+            <?php if ($smtpPasswordSaved): ?>
+                <label class="checkbox">
+                    <input type="checkbox" name="smtp_password_clear" value="1">
+                    <?= e(__t('admin.config.smtpPasswordClear')) ?>
+                </label>
+            <?php endif; ?>
+        </div>
+
         <div class="form-group">
             <label for="cfg-public-url"><?= e(__t('admin.config.publicUrl')) ?></label>
             <input type="url" id="cfg-public-url" name="public_url" maxlength="200" placeholder="https://" value="<?= e($publicUrl) ?>">
@@ -97,6 +138,20 @@
         </div>
 
         <button type="submit" class="btn"><?= e(__t('admin.common.save')) ?></button>
+    </form>
+</div>
+
+<div class="card" id="email">
+    <h2><?= e(__t('admin.config.testTitle')) ?></h2>
+    <p class="muted"><?= e(__t('admin.config.testIntro')) ?></p>
+    <form method="post" class="form-inline">
+        <?php include __DIR__ . '/../partials/csrf.php'; ?>
+        <input type="hidden" name="test_action" value="send">
+        <div class="form-group">
+            <label for="cfg-test-to"><?= e(__t('admin.config.testTo')) ?></label>
+            <input type="email" id="cfg-test-to" name="test_to" maxlength="254" value="<?= e($adminEmail) ?>" required>
+        </div>
+        <button type="submit" class="btn btn-secondary"><?= e(__t('admin.config.testSend')) ?></button>
     </form>
 </div>
 

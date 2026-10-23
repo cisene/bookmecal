@@ -69,6 +69,9 @@
                                             <option value="<?= e($employeeId) ?>"><?= e($name) ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                    <?php if ($status === 'approved'): ?>
+                                        <label class="checkbox-inline"><input type="checkbox" name="notify" value="1" checked> <?= e(__t('admin.pending.notifyCustomer')) ?></label>
+                                    <?php endif; ?>
                                     <button type="submit" class="btn btn-small btn-secondary"><?= e(__t('admin.pending.move')) ?></button>
                                 </form>
                             <?php endif; ?>
