@@ -6,6 +6,7 @@
 $navItems = [
     'index.php' => ['admin.nav.dashboard', ['index.php']],
     'pending.php' => ['admin.nav.pending', ['pending.php']],
+    'messages.php' => ['admin.nav.messages', ['messages.php']],
     'services.php' => ['admin.nav.services', ['services.php']],
     'employees.php' => ['admin.nav.employees', ['employees.php']],
     'openhours.php' => ['admin.nav.hours', ['openhours.php']],

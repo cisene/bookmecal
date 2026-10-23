@@ -17,6 +17,7 @@
     <?php if ($emailFilter !== '' && !empty($bookings)): ?>
         <div class="toolbar">
             <a href="pending.php?email=<?= e(rawurlencode($emailFilter)) ?>&amp;export=1" class="btn btn-small btn-secondary"><?= e(__t('admin.pending.export')) ?></a>
+            <a href="messages.php?email=<?= e(rawurlencode($emailFilter)) ?>" class="btn btn-small btn-secondary"><?= e(__t('admin.pending.writeTo')) ?></a>
             <form method="post" class="inline" data-confirm="<?= e(__t('admin.pending.confirmDeleteAll', ['count' => count($bookings), 'email' => $emailFilter])) ?>">
                 <?php include __DIR__ . '/../partials/csrf.php'; ?>
                 <input type="hidden" name="action" value="delete_all">

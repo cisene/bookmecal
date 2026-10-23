@@ -50,6 +50,7 @@ bookmecal/
 │   │   ├── index.php
 │   │   ├── login.php
 │   │   ├── logout.php
+│   │   ├── messages.php
 │   │   ├── openhours.php
 │   │   ├── pending.php
 │   │   ├── services.php
@@ -71,6 +72,7 @@ bookmecal/
 │   │   ├── CancelLink.php
 │   │   ├── Constants.php
 │   │   ├── ContactCard.php
+│   │   ├── CustomerMessages.php
 │   │   ├── Database.php
 │   │   ├── EmailNotifier.php
 │   │   ├── EmployeeRepository.php
@@ -143,6 +145,7 @@ bookmecal/
 │       │   ├── google_guide.php
 │       │   ├── holidays.php
 │       │   ├── login.php
+│       │   ├── messages.php
 │       │   ├── openhours.php
 │       │   ├── pending.php
 │       │   ├── services.php
@@ -167,6 +170,7 @@ bookmecal/
     ├── CalendarFeedTest.php
     ├── CancelLinkTest.php
     ├── ContactCardTest.php
+    ├── CustomerMessagesTest.php
     ├── DatabaseTest.php
     ├── EmailNotifierTest.php
     ├── FormTokenTest.php
@@ -222,6 +226,7 @@ bookmecal/
 | data/audit.json                                                       | Admin audit log, newest 200 entries |
 | data/config.json                                                      | Application configuration |
 | data/credentials.json                                                 | Google OAuth client credentials |
+| data/messages.json                                                    | Messages sent to customers, newest 50 (no addresses) |
 | data/openhours.json                                                   | Opening hours per weekday: the outer limit of all bookings |
 | data/employees/emp_*.json                                             | One employee: profile, treatments offered, weekly working hours |
 | data/services.json                                                    | Treatments keyed by SKU |

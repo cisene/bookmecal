@@ -6,6 +6,8 @@
  *   data-edit-form="id"    on a button: copy data-values (JSON) into that form's fields; a list
  *                          ticks the checkboxes named "<key>[]" whose values it contains
  *   data-select-all        on a read-only input: select the whole value on focus (easy copying)
+ *   data-toggle-group      on a select: in its form, show only the elements whose data-show-for
+ *                          matches the selected value (without script everything stays visible)
  */
 (function () {
     'use strict';
@@ -20,6 +22,16 @@
 
     document.querySelectorAll('[data-select-all]').forEach((input) => {
         input.addEventListener('focus', () => input.select());
+    });
+
+    document.querySelectorAll('[data-toggle-group]').forEach((select) => {
+        const update = () => {
+            select.form.querySelectorAll('[data-show-for]').forEach((el) => {
+                el.hidden = el.dataset.showFor !== select.value;
+            });
+        };
+        select.addEventListener('change', update);
+        update();
     });
 
     document.querySelectorAll('[data-autosubmit]').forEach((el) => {

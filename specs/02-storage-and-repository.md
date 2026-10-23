@@ -15,6 +15,7 @@ The system employs a Repository pattern to cleanly separate data storage from bu
 - `ratelimit/<sha256>.json`: Request timestamps per client and bucket (the file name is a hash, no IP addresses are stored). Files untouched for a day are swept. Not in git.
 - `credentials.json` / `tokens.json`: Google OAuth client and tokens.
 - `audit.json`: Admin audit log (including sign-in and sign-out), capped at the latest 200 entries. Not in git.
+- `messages.json`: Messages the admin sent to customers (Messages page), newest 50: time, admin, group and filters, subject, text and counts, no addresses. Not in git.
 - `src/admin/.htpasswd`: Admin accounts (`username:bcrypt hash`). Not in git.
 - `src/log/security.log`: Security events as JSON lines, rotated at 1 MB. Not in git.
 - `src/holidays/<cc>.json`: Holidays per country, `<cc>` is a two-letter code, see [holiday.schema.json](holiday.schema.json).

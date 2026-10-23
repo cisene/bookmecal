@@ -54,7 +54,7 @@ and in `php.ini`: `sendmail_path = "/usr/bin/msmtp -t"`.
 `deploy/cron/bookmecal` runs `send_reminders.php` every 30 minutes as `www-data`; each approved booking gets one reminder in the 24 hours before it starts. Copy it to `/etc/cron.d/bookmecal` and adjust the path.
 
 ## 8.7 fail2ban
-The application locks admin sign-in and rate limits the public pages itself. `fail2ban` adds a firewall block for clients that keep going:
+Optional, and only possible where the host gives root access; shared hosting usually does not. The application locks admin sign-in and rate limits the public pages itself. `fail2ban` adds a firewall block for clients that keep going:
 
 1. Copy `deploy/fail2ban/bookmecal.conf` to `/etc/fail2ban/filter.d/` and `deploy/fail2ban/bookmecal.local` to `/etc/fail2ban/jail.d/`, set `logpath`.
 2. Test the filter: `fail2ban-regex /var/www/bookmecal/src/log/security.log /etc/fail2ban/filter.d/bookmecal.conf`.

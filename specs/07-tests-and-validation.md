@@ -20,13 +20,13 @@ PHPUnit 12.5.39 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.5.4
 Configuration: /media/chrise/work/repos/github/cisene/bookmecal/phpunit.xml
 
-...............................................................  63 / 153 ( 41%)
-............................................................... 126 / 153 ( 82%)
-...........................                                     153 / 153 (100%)
+...............................................................  63 / 175 ( 36%)
+............................................................... 126 / 175 ( 72%)
+.................................................               175 / 175 (100%)
 
-Time: 00:02.377, Memory: 32.05 MB
+Time: 00:02.390, Memory: 32.05 MB
 
-OK (153 tests, 3595 assertions)
+OK (175 tests, 4157 assertions)
 ```
 
 ## 7.3 What the tests cover
@@ -40,6 +40,7 @@ OK (153 tests, 3595 assertions)
 * `JsonStoreTest`: Read, write, update and delete; a reader running while another process rewrites the file never sees a broken document (needs `pcntl`).
 * `InputTest`: Real dates and times, http(s) URLs, email limits, text length in characters, control characters and broken UTF-8 rejected, multiline normalization, strict integers and decimals, phone numbers, IDs that cannot leave a directory.
 * `AdminAccountsTest`: `$apr1$` hashes match Apache's `htpasswd`, SHA-crypt and bcrypt verification, upgrade to bcrypt at sign-in, unknown users, username rules, fingerprint changes with the password, password policy.
+* `CustomerMessagesTest`: Recipient groups (upcoming from today, by end date, employee and treatment; all; one known address only), one entry per address in any case with the latest name and language, one email per customer with `{name}` filled in and the footer in the customer's language, failures counted, the message history capped at 50.
 * `SmtpTransportTest`: The SMTP conversation against a scripted server on a socket pair: sign-in, 8BITMIME, dot doubling, added headers, folded subjects kept and other line breaks removed, refusals reported with the server's answer, credentials never in error messages, STARTTLS required when chosen, no password sent unencrypted to another machine, silent server.
 * `EmailNotifierTest`: Long subjects split into encoded words of at most 75 characters. Nothing sent while email is off, bad addresses rejected, header values cannot add headers, receipt in the booking's language with the privacy link, approval as multipart with the `.ics` attachment, rejection without, admin alert and alert address.
 * `BookingEmailsTest`: Receipt plus alert on a request (alert in the admin language, links from `public_url`), no alert without an address, the approval's `.ics` holds the booking, nothing sent while off, `public_url` validation, cancellation link in receipt, approval and reminder (not in rejection or admin alerts), cancellation alert, the employee named with the treatment (left out when deleted), approval with both `booking.ics` (with location) and `contact.vcf`.

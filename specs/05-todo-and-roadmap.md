@@ -2,15 +2,30 @@
 
 ## Active Todo List & Roadmap
 
-- [ ] **Calendar Feeds:** Read-only subscription feed and `.ics` file in the approval email done. Customer cancellation link done.
+The project is a proof of concept, run on a local workstation over plain HTTP and trialled with a few users. English and Swedish are the languages that must be complete.
+
+- [x] **Calendar Feeds:** Read-only subscription feed and `.ics` file in the approval email done. Customer cancellation link done.
 - [ ] **Advanced Google Calendar API:** Add two-way synchronization for adding and removing calendar events via the Google Calendar API.
-- [ ] **Bulk & Direct SMTP Messaging:** Booking emails done (receipt, admin alert, approval, rejection). Authenticated SMTP done (built-in `SmtpTransport`, Config page with test email). Next: messages to a single customer, group, or all customers.
-- [ ] **Data files out of git:** `config.json`, `settings.json`, `services.json`, `openhours.json` and `credentials.json` are tracked with development values, so the server is updated with `rsync` instead of `git pull` (see [08-deployment.md](08-deployment.md) §8.9). Ship `*.example.json` files and create the real ones on install.
-- [ ] **Email delivery on the server:** Set up SPF/DKIM for the sender domain and test that mails are not taken for spam before the trial.
-- [ ] **SMS Reminders:** Implement SMS reminder notifications 1–2 days ahead of appointments.
-- [ ] **Week view drag on touch devices:** Verify dragging the selection block on real phones and tablets.
+- [x] **Bulk & Direct SMTP Messaging:** Booking emails done (receipt, admin alert, approval, rejection). Authenticated SMTP done (built-in `SmtpTransport`, Config page with test email). Messages to one customer, the customers with upcoming bookings, or all customers done (Messages page).
+
+### When deployed to a hosted server
+
+The hosted server has HTTPS/TLS in front of it. These are setup steps there, not code work:
+
+- [ ] **HTTPS for the admin:** Turn on `admin_require_https` ([08-deployment.md](08-deployment.md)).
+- [ ] **Email delivery:** Set up SPF/DKIM for the sender domain and test that mails are not taken for spam.
+- [ ] **Privacy link in emails:** Set `public_url` so customer emails link to the privacy notice.
+- [ ] **fail2ban (optional):** Only where the host gives root access. The application's own sign-in lockout and rate limiting work without it ([08-deployment.md](08-deployment.md) §8.7).
+
+### After the proof of concept
+
+- [ ] **SMS Reminders:** Implement SMS reminder notifications 1–2 days ahead of appointments. A two-way number can be arranged through an SMS service company the owner knows, so customers could also reply (for example to confirm or cancel).
+- [ ] **Data files out of git (before the first official release):** `config.json`, `settings.json`, `services.json`, `openhours.json` and `credentials.json` are tracked on purpose as examples and placeholders with development values, so the server is updated with `rsync` instead of `git pull` (see [08-deployment.md](08-deployment.md) §8.9). Ship `*.example.json` files and create the real ones on install.
 - [ ] **Translations:** Native review of all language files; complete the 12 partial languages (they fall back to English per key).
-- [ ] **Security hardening (OWASP ASVS level 1):** Done: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log. GDPR basics (privacy notice, retention, access and erasure). Next: turn on `admin_require_https` on the production server ([08-deployment.md](08-deployment.md)); install the `fail2ban` filter from `deploy/fail2ban/`; have the privacy notice reviewed for the actual business (it is a starting point, not legal advice); customer emails link to the privacy notice when `public_url` is set.
+- [ ] **Privacy notice review:** Have it reviewed for the actual business (it is a starting point, not legal advice).
+- [ ] **Week view drag on touch devices:** Verify dragging the selection block on real phones and tablets.
+
+Security hardening (OWASP ASVS level 1) done in code: rate limiting, honeypot, form token, pending cap and expiry, CORS allow-list, security headers, input validation layer, admin sign-in with lockout, security event log, GDPR basics (privacy notice, retention, access and erasure).
 
 ---
 
@@ -18,6 +33,7 @@
 
 | Completion Date | Description / Completed Milestones |
 | :--- | :--- |
+| **2026-10-23** | • Messages page: email one customer, the customers with upcoming bookings (by dates, employee or treatment) or all customers who have booked. Preview with the recipient list first, one email per customer, `{name}` filled in, footer with the reason and the privacy link, list of sent messages.<br>• To-do list grouped into proof-of-concept work, steps on the hosted server, and later work. |
 | **2026-10-23** | • Emails can go through the mail provider's SMTP server (STARTTLS or SSL/TLS, sign-in, certificate checked) set on the Config page, with a test email button; the password is kept out of git in `secrets.json`. No external library.<br>• Long email subjects are split into standard-length encoded words.<br>• Moving an approved booking to another employee can email the customer, with an updated calendar file and contact card.<br>• Optional "Avoid short unusable gaps" (Config page): customers are only offered times that leave no gap too short for any treatment. |
 | **2026-10-22** | • Date exceptions to an employee's weekly hours (vacation, sick day, a shorter or extra day) on the Working hours page.<br>• Move a booking to another employee who offers the treatment and is free at that time (Booking requests page). |
 | **2026-10-22** | • Contact cards: the approval email can carry `contact.vcf` with the venue's details (website, phone, email, address, WGS-84 position, plus code; Config page) and, with their consent, the employee's card. Employee profiles hold every field a vCard can carry (name parts, nickname, role, department, website, photo, languages, social profiles, presentation). The calendar file gets the venue's address and position. |

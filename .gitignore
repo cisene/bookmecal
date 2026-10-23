@@ -15,6 +15,7 @@ src/admin/.htpasswd
 src/data/employees/
 
 src/data/audit.json
+src/data/messages.json
 src/data/secrets.json
 src/data/ratelimit/
 
